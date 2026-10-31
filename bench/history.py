@@ -18,6 +18,36 @@ from . import probes as _probes
 RAW_EXCLUDE = {"audio"}  # TTS wavs stay out of the committed raws
 
 
+def _derive_metrics(m: dict, run_dir: Path, eid: str) -> None:
+    """Fill metric gaps from the raw utterances so tables/charts are complete.
+
+    - synth p50/p90 when an older runner didn't aggregate them;
+    - TTFA for single-chunk engines: no ttfa_ns on any utterance means the
+      client receives the whole clip in one response, so time-to-first-audio
+      equals the synthesis completion time (documented in the README).
+    """
+    utt = run_dir / "utterances.jsonl"
+    synth, ttfa = [], 0
+    if utt.exists():
+        for line in utt.read_text().splitlines():
+            if not line.strip():
+                continue
+            u = json.loads(line)
+            if u.get("engine_id") != eid or u.get("status") != "ok":
+                continue
+            if u.get("synth_ns"):
+                synth.append(u["synth_ns"] / 1e9)
+            if u.get("ttfa_ns"):
+                ttfa += 1
+    if "synth_latency_s" not in m and synth:
+        synth.sort()
+        m["synth_latency_s"] = synth[len(synth) // 2]
+        m["synth_latency_s_p90"] = synth[min(len(synth) - 1, int(len(synth) * 0.9))]
+    if m.get("ttfa_s") is None and not ttfa and m.get("synth_latency_s") is not None:
+        m["ttfa_s"] = m["synth_latency_s"]
+        m["ttfa_s_p90"] = m.get("synth_latency_s_p90", m["synth_latency_s"])
+
+
 def _load_run_dir(run_dir: Path) -> dict:
     """Collect per-engine rows from a finished run dir (summary + jobs + env)."""
     run_dir = Path(run_dir)
@@ -37,6 +67,8 @@ def _load_run_dir(run_dir: Path) -> dict:
         job_p = run_dir / f"job_{eid}.json"
         job = json.loads(job_p.read_text()) if job_p.exists() else {}
         opts = job.get("opts", {})
+        m = summary["per_engine"][eid]
+        _derive_metrics(m, run_dir, eid)
         # probe windows: the container name embeds its start epoch
         try:
             start_epoch = float(meta.get("container", "").rsplit("-", 1)[-1])
@@ -46,6 +78,10 @@ def _load_run_dir(run_dir: Path) -> dict:
             ts_rows, start_epoch, (meta.get("wall_ns") or 0) / 1e9
         )
         mem = _probes.parse_docker_stats(run_dir / f"docker_stats_{eid}.csv")
+        # multi-backend engines get a _cpu/_cuda suffix on their engine_id
+        import re as _re
+
+        base_eid = _re.sub(r"_(cpu|cuda)$", "", eid)
         eng_cfg = next(
             (
                 e
@@ -55,7 +91,7 @@ def _load_run_dir(run_dir: Path) -> dict:
                     e.get("id")
                     or f"{e['name']}_{(env.get('config', {}).get('engines') or []).index(e)}"
                 )
-                == eid
+                == base_eid
             ),
             {},
         )
@@ -63,7 +99,7 @@ def _load_run_dir(run_dir: Path) -> dict:
             {
                 "engine_id": eid,
                 "engine": meta.get("engine"),
-                "image": meta.get("image", ""),
+                "image": meta.get("image") or (eng_cfg.get("image") or ""),
                 "model": opts.get("model")
                 or opts.get("voice")
                 or opts.get("model_dir", ""),
@@ -77,11 +113,9 @@ def _load_run_dir(run_dir: Path) -> dict:
                     "manifest", ""
                 ),
                 "run_name": (env.get("config", {}).get("run_name", "")),
+                "task": (env.get("config", {}).get("task", "")),
                 "mem_peak_mib": (mem or {}).get("mem_peak_mib"),
-                # CPU rows: GPU power during their window is idle draw — not a metric
-                "gpu_power_w_mean": (win or {}).get("gpu_power_w_mean")
-                if (meta.get("requested_backend") or "cuda") != "cpu"
-                else None,
+                "gpu_power_w_mean": (win or {}).get("gpu_power_w_mean"),
                 "gpu_util_pct_mean": (win or {}).get("gpu_util_pct_mean"),
                 "n_probe_samples": (win or {}).get("n_samples", 0) if win else 0,
             }

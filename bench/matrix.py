@@ -1,4 +1,4 @@
-"""Results matrix (PRD §10.1–10.2): cohorts, scores, gates, Pareto, outputs.
+"""Results matrix (spec §10.1–10.2): cohorts, scores, gates, Pareto, outputs.
 
 Reads benchmarks/history.jsonl (written by every ``bench run``); never
 re-runs inference. Rows are grouped into cohorts by
@@ -14,7 +14,7 @@ from pathlib import Path
 from . import probes as _probes
 from .history import read_history
 
-# v1 composite weights (PRD 10.2; quality fields absent until 7.3 lands)
+# v1 composite weights (spec 10.2; quality fields absent until 7.3 lands)
 WEIGHTS = {
     "stt": {
         "default": {
@@ -107,7 +107,7 @@ LOG_METRICS = {
     "gpu_power_w_mean",
 }
 
-# hard gates (pass/fail; None = not enforced) — PRD 10.2.1
+# hard gates (pass/fail; None = not enforced) — spec 10.2.1
 GATES = {
     "stt": {"wer": ("<=", 0.10), "rtf": ("<=", 1.0)},
     "tts": {"rtf": ("<=", 1.0), "synth_latency_s": ("<=", 2.0)},

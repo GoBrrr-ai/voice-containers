@@ -1,4 +1,4 @@
-"""Text normalization — one fixed normalizer for every engine (PRD §3.5).
+"""Text normalization — one fixed normalizer for every engine (spec §3.5).
 
 Whisper EnglishTextNormalizer for English, BasicTextNormalizer otherwise.
 Name + version are recorded in every result.
@@ -7,7 +7,7 @@ Name + version are recorded in every result.
 from functools import lru_cache
 
 NORMALIZER_NAME = "whisper_english_basic"
-NORMALIZER_VERSION = "transformers (vendored normalizer logic, PRD 3.5)"
+NORMALIZER_VERSION = "transformers (vendored normalizer logic, spec 3.5)"
 
 
 @lru_cache(maxsize=2)

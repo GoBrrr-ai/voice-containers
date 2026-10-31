@@ -1,4 +1,4 @@
-"""Probe-artifact parsers (PRD 7A): tegrastats + docker stats → aggregates.
+"""Probe-artifact parsers (spec 7A): tegrastats + docker stats → aggregates.
 
 Used by the matrix builder to enrich each engine row with measured resource
 data without re-running anything.

@@ -1,4 +1,4 @@
-"""WER/CER + distribution statistics (PRD §6, §6.3). Pure functions over records."""
+"""WER/CER + distribution statistics (spec §6, §6.3). Pure functions over records."""
 
 from __future__ import annotations
 import math
@@ -38,7 +38,7 @@ def _edit_counts(ref: list[str], hyp: list[str]) -> tuple[int, int, int]:
 
 
 def corpus_wer_cer(refs: Iterable[str], hyps: Iterable[str]) -> dict:
-    """Corpus-level WER/CER = summed errors / summed words (PRD 6.1)."""
+    """Corpus-level WER/CER = summed errors / summed words (spec 6.1)."""
     S = D = I = Nw = Nc = CERe = 0
     ser = empty = hall = 0
     n = 0
@@ -55,7 +55,7 @@ def corpus_wer_cer(refs: Iterable[str], hyps: Iterable[str]) -> dict:
         if len(hw) > 1.5 * max(1, len(rw)) or _repeats(hw):
             hall += 1
         # empty hyp on non-empty ref: _edit_counts already yields del=len(ref),
-        # i.e. a sentence error — no special case (PRD 6.1)
+        # i.e. a sentence error — no special case (spec 6.1)
         ser += 1 if (s + d + i) > 0 else 0
         rc = list(ref.replace(" ", ""))
         hc = list(hyp.replace(" ", ""))
@@ -88,7 +88,7 @@ def _repeats(words: list[str]) -> bool:
 
 
 def dist_stats(values: list[float], key: str) -> dict:
-    """n, mean, std, min, p50..p99, max, IQR, MAD (mean abs successive diff). PRD 6.3."""
+    """n, mean, std, min, p50..p99, max, IQR, MAD (mean abs successive diff). spec 6.3."""
     v = sorted(x for x in values if x is not None and math.isfinite(x))
     if not v:
         return {key: None, f"{key}_low_confidence": True}

@@ -10,7 +10,7 @@ Companion: `docs/REPORT-voice-engines.md` (builds + smokes), `task/benchmark-prd
 
 ## 1. What was validated
 
-The PRD §1–9 harness (`bench/`) end to end on-device:
+The spec §1–9 harness (`bench/`) end to end on-device:
 
 - **Pipeline**: config → per-engine fresh container (`--entrypoint python3 client.py
   job_<eid>.json`) → per-utterance JSONL (crash-safe append) → host-side normalization
@@ -21,7 +21,7 @@ The PRD §1–9 harness (`bench/`) end to end on-device:
   (100 ms samples: RAM/CPU/GPU/power), `env.json`.
 - **Isolation**: every engine job runs in its own fresh container of the engine
   image itself — the client is mounted, nothing is installed at bench time.
-- **Sanity gate (PRD 9.4)**: faster-whisper tiny-int8 → **WER 7.2%** on test-clean,
+- **Sanity gate (spec 9.4)**: faster-whisper tiny-int8 → **WER 7.2%** on test-clean,
   inside the expected 5–8% band. PASS.
 
 ## 2. STT baseline — 500 utterances, LibriSpeech test-clean (seed 42)
@@ -49,7 +49,7 @@ Headlines:
 - **Speed tier**: whisper tiny is latency king when resident (77 ms p50). The parakeet
   CLIs pay ~0.4–0.5 s model load per utterance; RTF *excluding* load (from the
   CPU-packed p95 ≈ inference only) still lands ≪ real time.
-- Zero hallucinations flagged on the parakeet family; whisper 0.2% (PRD 6.1 detector).
+- Zero hallucinations flagged on the parakeet family; whisper 0.2% (spec 6.1 detector).
 
 ## 3. TTS baseline — 444 sentences, LibriSpeech test-clean text (seed 42)
 
@@ -85,7 +85,7 @@ needs text only; the 30 GB audio download is avoidable).
   are stochastic by design; the harness records per-utterance WAVs for
   off-device quality scoring (§7.3 fast-follow).
 
-## 4. Determinism (PRD 9.1 #7)
+## 4. Determinism (spec 9.1 #7)
 
 Two full 500-utt baseline runs, same manifest/seed/config:
 

@@ -8,7 +8,7 @@ pyyaml
 typer
 pandas
 pyarrow
-# normalizer (PRD 3.5) — whisper's EnglishTextNormalizer via transformers
+# normalizer (spec 3.5) — whisper's EnglishTextNormalizer via transformers
 transformers
 # probes / reports
 psutil

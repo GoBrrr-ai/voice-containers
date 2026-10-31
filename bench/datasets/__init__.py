@@ -1,4 +1,4 @@
-"""Dataset adapters (PRD §3). Each yields common Sample records; the harness
+"""Dataset adapters (spec §3). Each yields common Sample records; the harness
 handles resampling, normalization and manifest creation — adapters never do."""
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ class BaseAdapter:
 
 
 class LibriSpeechAdapter(BaseAdapter):
-    """HF openslr/librispeech_asr, config 'clean' (PRD 3.3)."""
+    """HF openslr/librispeech_asr, config 'clean' (spec 3.3)."""
 
     name = "librispeech"
     supports = {"stt"}
@@ -113,7 +113,7 @@ class LibriSpeechAdapter(BaseAdapter):
 
 class LibriTTSRAdapter(BaseAdapter):
     """HF mythicinfinity/libritts_r, config clean, split test.clean — TEXT only
-    for TTS (audio not required by the harness, PRD 7)."""
+    for TTS (audio not required by the harness, spec 7)."""
 
     name = "libritts_r"
     supports = {"tts"}
@@ -151,7 +151,7 @@ class LibriTTSRAdapter(BaseAdapter):
 
 
 class FleursAdapter(BaseAdapter):
-    """HF google/fleurs, per-language config (PRD 3.3)."""
+    """HF google/fleurs, per-language config (spec 3.3)."""
 
     name = "fleurs"
     supports = {"stt", "tts"}
@@ -204,7 +204,7 @@ class FleursAdapter(BaseAdapter):
 
 
 class CustomDirAdapter(BaseAdapter):
-    """Folder of WAVs + transcripts.tsv (`utt_id<TAB>text`) — PRD 3.3."""
+    """Folder of WAVs + transcripts.tsv (`utt_id<TAB>text`) — spec 3.3."""
 
     name = "custom"
     supports = {"stt", "tts"}
@@ -256,7 +256,7 @@ def get_adapter(cache_dir: str, name: str, **opts) -> BaseAdapter:
 
 
 def build_manifest(samples, n: int, seed: int, task: str) -> list[dict]:
-    """Frozen, seeded subset (PRD 3.4): STT stratified by speaker; TTS stratified
+    """Frozen, seeded subset (spec 3.4): STT stratified by speaker; TTS stratified
     by char-length bucket + the 20 longest sentences appended explicitly."""
     import random
 

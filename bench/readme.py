@@ -18,6 +18,7 @@ from typing import Any
 import jinja2
 
 from . import matrix as _matrix
+from . import names as _names
 
 GREEN = "#3fb950"
 RED = "#f85149"
@@ -46,36 +47,55 @@ def _table(header: list[str], rows: list[list[str]]) -> str:
     return "\n".join(out)
 
 
+# table columns per task: (metric key, header). All lower-is-better.
+COLS = {
+    "stt": [
+        ("wer", "WER"),
+        ("cer", "CER"),
+        ("ser", "SER"),
+        ("hallucination_rate", "halluc."),
+        ("rtf", "RTF p50"),
+        ("rtf_p90", "RTF p90"),
+        ("offline_latency_s", "lat p50 (s)"),
+        ("offline_latency_s_p90", "lat p90 (s)"),
+    ],
+    "tts": [
+        ("rtf", "RTF p50"),
+        ("rtf_p90", "RTF p90"),
+        ("synth_latency_s", "synth p50 (s)"),
+        ("synth_latency_s_p90", "synth p90 (s)"),
+        ("ttfa_s", "TTFA p50 (s)"),
+        ("ttfa_s_p90", "TTFA p90 (s)"),
+    ],
+}
+
+
 def _colored_table(rows: list[dict], task: str) -> str:
-    """Markdown matrix with direction-aware coloring: best-in-column green,
-    worst red (PRD 10.1)."""
-    # mem/power have dedicated formatted columns — skip their raw twins
-    skip = {"mem_peak_mib", "gpu_power_w_mean"}
-    metric_keys = [h for h, _ in _matrix.METRICS[task] if h not in skip]
+    """Markdown matrix: original engine + model names, p50/p90 columns,
+    direction-aware coloring (best-in-column green, worst red)."""
     heads = (
         ["engine", "model", "backend", "rank"]
-        + [_pretty(k) for k in metric_keys]
-        + ["mem MiB", "W", "gates"]
+        + [h for _, h in COLS[task]]
+        + ["mem MiB", "GPU W"]
     )
     # per-column best/worst for coloring
     best: dict[str, float] = {}
     worst: dict[str, float] = {}
-    for k, lower in _matrix.METRICS[task]:
-        vals = [_matrix._metric(r, k) for r in rows if _metric_v(r, k) is not None]
+    for k, _ in COLS[task]:
+        vals = [_metric_v(r, k) for r in rows if _metric_v(r, k) is not None]
         if len(vals) < 2:
             continue
-        best[k], worst[k] = (min(vals), max(vals)) if lower else (max(vals), min(vals))
+        best[k], worst[k] = min(vals), max(vals)  # every column is lower-is-better
     body = []
     for r in sorted(rows, key=lambda x: x.get("rank", 999)):
+        is_cpu = (r.get("requested_backend") or "").lower() == "cpu"
         cells = [
-            r.get("engine_id", "?"),
-            _short_model(r.get("model", "")) if r.get("model") else "baked",
+            _names.project(r),
+            _names.model_pretty(r),
             r.get("requested_backend", "?"),
             str(r.get("rank", "")),
         ]
-        for k, _ in _matrix.METRICS[task]:
-            if k in skip:
-                continue
+        for k, _ in COLS[task]:
             v = _metric_v(r, k)
             if v is None:
                 cells.append("—")
@@ -89,12 +109,11 @@ def _colored_table(rows: list[dict], task: str) -> str:
                 cells.append(txt)
         mem = _metric_v(r, "mem_peak_mib")
         cells.append(f"{mem:,.0f}" if mem else "—")
-        pw = _metric_v(r, "gpu_power_w_mean")
-        cells.append(f"{pw:,.0f}" if pw else "—")
-        cells.append(
-            "; ".join(r.get("gates", []))
-            or ("✓" if r.get("gate_pass", True) else bad("fail"))
-        )
+        if is_cpu:
+            cells.append("— (CPU)")  # module-wide idle draw, not the engine's
+        else:
+            pw = _metric_v(r, "gpu_power_w_mean")
+            cells.append(f"{pw:,.0f}" if pw else "—")
         body.append(cells)
     return _table(heads, body)
 
@@ -103,22 +122,40 @@ def _metric_v(r: dict, k: str):
     return _matrix._metric(r, k)
 
 
-def _pretty(k: str) -> str:
-    return {
-        "wer": "WER",
-        "cer": "CER",
-        "ser": "SER",
-        "hallucination_rate": "halluc.",
-        "rtf": "RTF p50",
-        "offline_latency_s": "lat p50 (s)",
-        "synth_latency_s": "synth p50 (s)",
-        "ttfa_s": "TTFA p50 (s)",
-    }.get(k, k)
-
-
-def _short_model(model: str) -> str:
-    m = str(model).rsplit("/", 1)[-1]
-    return m.replace(".gguf", "")[-30:] or "—"
+def _cards(rows: list[dict], task: str) -> list[dict]:
+    """Engine-family cards for the README showcase (one card per family)."""
+    fams: dict[str, list[dict]] = {}
+    for r in rows:
+        fams.setdefault(_names.family(r), []).append(r)
+    out = []
+    for fam, fam_rows in fams.items():
+        lines = []
+        for r in sorted(fam_rows, key=lambda x: x.get("rank", 999)):
+            d = _names.display(r)
+            if task == "stt":
+                lines.append(
+                    f"{d} — <b>{_metric_v(r, 'wer') * 100:.2f}% WER</b>"
+                    f" · RTF {_metric_v(r, 'rtf'):.3f}"
+                )
+            else:
+                ttfa = _metric_v(r, "ttfa_s")
+                t = ""
+                if ttfa is not None:
+                    t = (
+                        f" · TTFA {ttfa * 1000:.0f} ms"
+                        if ttfa < 0.5
+                        else f" · TTFA {ttfa:.2f} s"
+                    )
+                lines.append(f"{d} — RTF <b>{_metric_v(r, 'rtf'):.3f}</b>{t}")
+        out.append(
+            {
+                "emoji": _names.EMOJI.get(fam, "🔧"),
+                "title": fam,
+                "lines": lines,
+                "note": _names.STREAMING.get(fam, ""),
+            }
+        )
+    return out
 
 
 def collect_context(bench_root: Path, include: str = "baseline") -> dict:
@@ -149,7 +186,8 @@ def collect_context(bench_root: Path, include: str = "baseline") -> dict:
             "table": _colored_table(scored, task),
             "n_configs": len(scored),
             "winner_id": winner.get("engine_id"),
-            "winner_model": _short_model(winner.get("model", "")),
+            "winner": _names.display(winner),
+            "cards": _cards(scored, task),
         }
         if task == "stt":
             section["best_wer"] = f"{_metric_v(winner, 'wer') * 100:.2f}%"
