@@ -339,6 +339,8 @@ def main() -> None:
                     hyp_raw=text, proc_ns=t2 - t1, feed_mode="fast", status="ok"
                 )
             else:
+                import numpy as np  # lazy: parakeet images ship no numpy
+
                 sr_out = None
                 if job.get("streaming") and eng.supports_streaming:
                     chunks, first, last, n = [], None, None, 0
@@ -380,8 +382,6 @@ def jsonl_append(path: Path, row: dict) -> None:
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
-
-import numpy as np  # noqa: E402
 
 if __name__ == "__main__":
     main()
