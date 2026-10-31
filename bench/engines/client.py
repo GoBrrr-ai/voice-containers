@@ -115,17 +115,25 @@ class ParakeetCpp:
             "--input",
             wav_path,
         ]
+        env = {**os.environ}
         if self.device and self.device != "cuda":
             # images default to GPU (ggml CUDA0); "cuda" means "leave default".
-            # Explicit values pass through: cpu, CUDA0, CUDA1, ...
+            # Explicit values pass through: cpu, CUDA0, ... — via env, which is
+            # honored even for packed-ternary models that reject --device.
             cmd += ["--device", self.device]
+            env["PARAKEET_DEVICE"] = self.device
         if self.lang:
             cmd += ["--lang", self.lang]
         if self.stream_latency:
             cmd += ["--stream", "--stream-latency", self.stream_latency]
         elif self.vad_model:
             cmd += ["--vad", "--vad-model", self.vad_model]
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=env)
+        if out.returncode != 0:
+            tail = (out.stderr or out.stdout or "").strip().splitlines()[-3:]
+            raise RuntimeError(
+                f"parakeet-cli exit {out.returncode}: {' | '.join(tail)}"
+            )
         lines = [
             l
             for l in out.stdout.splitlines()

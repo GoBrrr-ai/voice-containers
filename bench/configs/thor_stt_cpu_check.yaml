@@ -1,0 +1,29 @@
+# Quick check: packed-ternary redux on CPU (needs PARAKEET_DEVICE=cpu env — see client adapter).
+run_name: thor_stt_cpu_check
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 2
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: parakeet_cpp
+    image: narandill/parakeet-redux-stt-thor:0.1.0
+    backends: [cpu]
+    opts:
+      model: /models/redux-packed.gguf
+      device: cpu
+streaming: {chunk_ms: 160, realtime_pass: false}
+warmup_n: 1
+repeats: 1
+cooldown_s: 0
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+drop_caches: false
+output_dir: results
