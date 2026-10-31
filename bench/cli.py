@@ -24,7 +24,7 @@ def prepare(
     folder: str = "",
 ):
     """Download, resample-cache and freeze a manifest (PRD 3.4)."""
-    from datasets import prepare
+    from bench.datasets import prepare
 
     out = prepare(
         dataset,
