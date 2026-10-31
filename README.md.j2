@@ -21,7 +21,7 @@
 <p align="center">
   <a href="#engine-families">Families</a> •
   <a href="#-benchmarks">Benchmarks</a> •
-  <a href="#projects">Projects</a> •
+  <a href="#packages">Packages</a> •
   <a href="#quick-start">Quick start</a> •
   <a href="#benchmarking">Benchmarking</a> •
   <a href="#ci">CI</a>
@@ -165,11 +165,11 @@ sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
   </tbody>
 </table>
 
-## Projects
+## Packages
 
 ### Speech recognition (`packages/stt/`)
 
-| Project | Image (`narandill/<name>`) | What it is | Streaming |
+| Package | Image (`narandill/<name>`) | What it is | Streaming |
 |---|---|---|---|
 | `packages/stt/wyoming-faster-whisper` | `wyoming-faster-whisper:0.1.0` | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
 | `packages/stt/nemotron-unified-asr` | `nemotron-unified-asr:0.1.0` | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF on parakeet.cpp | **true buffered** (0.16–2.08 s) |
@@ -178,7 +178,7 @@ sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
 
 ### Speech synthesis (`packages/tts/`)
 
-| Project | Image (`narandill/<name>`) | What it is | Streaming |
+| Package | Image (`narandill/<name>`) | What it is | Streaming |
 |---|---|---|---|
 | `packages/tts/wyoming-piper1-tts` | `wyoming-piper1-tts:0.1.0` | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1 | wyoming streaming |
 | `packages/tts/kokoro-tts` | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a) | `create_stream()` |
@@ -223,7 +223,7 @@ scripts/              sweep-build.sh / sweep-smoke.sh
 docs/                 build & benchmark reports
 ```
 
-Each project dir is standalone: `Dockerfile + build.sh + README +
+Each package dir is standalone: `Dockerfile + build.sh + README +
 test/{verify_arch,smoke_*}`.
 
 **Decoupling contract:** an engine references shared artifacts only through a single
