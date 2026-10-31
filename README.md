@@ -99,6 +99,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
 by `bench plot --readme` — regenerate with `make bench-plot`. 
 > Cohort: **jetson-agx-thor-128gb · default power · commit 4dd4272 · 2026-10-31**.
+Charts: ★ marks the best engine for that chart's metric.
 
 
 ### Speech recognition — LibriSpeech test-clean
@@ -121,8 +122,6 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 <img src="assets/benchmarks/stt/stt-wer-vs-rtf.png" alt="Speech recognition — accuracy vs speed with Pareto front" width="100%">
 </p>
 
-<details>
-<summary><strong>More speech-recognition charts</strong> — distribution, power, memory, ranking, heatmap (★ = best on each chart)</summary>
 
 <p align="center">
 <img src="assets/benchmarks/stt/stt-latency-box.png" alt="Speech recognition — per-utterance RTF distributions" width="100%">
@@ -143,7 +142,6 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 <p align="center">
 <img src="assets/benchmarks/stt/stt-heatmap.png" alt="Speech recognition — normalized metric heatmap" width="100%">
 </p>
-</details>
 
 
 ### Speech synthesis — 444 sentences (LibriSpeech text)
@@ -170,8 +168,6 @@ their TTFA equals the synth p50/p90.*
 <img src="assets/benchmarks/tts/tts-ttfa.png" alt="Speech synthesis — time to first audio with p90 ticks" width="100%">
 </p>
 
-<details>
-<summary><strong>More speech-synthesis charts</strong> — distributions, memory, heatmap (★ = best on each chart)</summary>
 
 <p align="center">
 <img src="assets/benchmarks/tts/tts-synth-box.png" alt="Speech synthesis — synthesis latency distributions" width="100%">
@@ -184,7 +180,6 @@ their TTFA equals the synth p50/p90.*
 <p align="center">
 <img src="assets/benchmarks/tts/tts-heatmap.png" alt="Speech synthesis — normalized metric heatmap" width="100%">
 </p>
-</details>
 
 
 Full per-utterance data, probes and gate details: `reports/matrix/`, `docs/REPORT-benchmark.md`.
