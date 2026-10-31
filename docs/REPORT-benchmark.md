@@ -51,9 +51,27 @@ Headlines:
 
 ## 3. TTS baseline — 444 sentences, LibriSpeech test-clean text (seed 42)
 
-See §3 note: v1 uses LibriSpeech transcripts as prompts (LibriTTS-R text fast-follow).
+v1 uses LibriSpeech transcripts as prompts (LibriTTS-R text fast-follow — TTS
+needs text only; the 30 GB audio download is avoidable).
 
-<!-- TTS_BASELINE_TABLE -->
+`bench/configs/thor_tts_baseline.yaml` · run `20261031_162802_*` (4 × 444 = 1776/1776 ok)
+
+| Engine | Backend | RTF p50 | RTF p95 | TTFA p50 | Notes |
+|---|---|---|---|---|---|
+| **piper en_US-libritts_r-medium** | GPU (ORT) | **0.035** | 0.126 | — | fastest overall |
+| **kokoro-82M int8** | GPU (ORT), streaming | 0.050 | 0.098 | **320 ms** | sentence-chunked stream |
+| **phonon-31m int8** | **CPU** (by design) | 0.119 | 0.132 | **75 ms** | TTFA champion; tightest RTF spread |
+| **paradee-8M int8** | GPU (ORT) | 0.151 | 0.153 | — | most predictable (p95≈p50) |
+
+- All four engines are comfortably real-time (RTF ≪ 1); the spread across *GPU*
+  engines is only 0.035–0.151.
+- **ptts on CPU** beats every GPU engine on TTFA (75 ms p50, p95-stable) — the
+  best fit for a full-duplex assistant that starts playing audio immediately.
+- kokoro streams sentence-by-sentence (async generator driven incrementally);
+  its TTFA includes the first-sentence phonemization + vocoder warmup.
+- TTS determinism (seed pinning per engine) is a fast-follow — sampling engines
+  are stochastic by design; the harness records per-utterance WAVs for
+  off-device quality scoring (§7.3 fast-follow).
 
 ## 4. Determinism (PRD 9.1 #7)
 
