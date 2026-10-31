@@ -1,9 +1,9 @@
 # edge-containers
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Jetson%20Orin-76b900" alt="Platform: Jetson AGX Orin (sm_87)">
-  <img src="https://img.shields.io/badge/platform-Jetson%20Thor-76b900" alt="Platform: Jetson AGX Thor (sm_110)">
-  <img src="https://img.shields.io/badge/CUDA-13.2-8A2BE2" alt="CUDA 13.2 SBSA">
+  <img src="https://img.shields.io/badge/platform-Jetson%20Orin-8A2BE2" alt="Platform: Jetson AGX Orin (sm_87)">
+  <img src="https://img.shields.io/badge/platform-Jetson%20Thor-8A2BE2" alt="Platform: Jetson AGX Thor (sm_110)">
+  <img src="https://img.shields.io/badge/CUDA-13.2-76b900" alt="CUDA 13.2 SBSA">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
 </p>
 
@@ -15,57 +15,58 @@
   userspace with the GPU driver injected from the host.
 </p>
 
-> Status: **local only** — nothing is on Docker Hub or GitHub yet. The publish workflow
-> activates when this repo is pushed and tagged.
-
 {% if ctx.stt or ctx.tts %}
 ## Engine families
 
-Measured on **{{ ctx.device }}** ({{ ctx.power }} power) — every number below comes from
+> Measured on **{{ ctx.device }}** ({{ ctx.power }} power) — every number below comes from
 the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks).
+
 {% if ctx.stt %}
 <table width="100%">
   <tr>
-  {% for c in ctx.stt.cards %}
+  {%- for c in ctx.stt.cards %}
     <td width="{{ 100 // (ctx.stt.cards|length) }}%" valign="top" align="center">
       <br>
       <h3>{{ c.emoji }}&nbsp;{{ c.title }}</h3>
-      <p>{% for l in c.lines %}{{ l }}<br>{% endfor %}</p>
+      <p>{{ c.desc }}</p>
+      <p>{%- for l in c.lines %}{{ l }}<br>{%- endfor %}</p>
       <p><em>{{ c.note }}</em></p>
       <br>
     </td>
-  {% endfor %}
+  {%- endfor %}
   </tr>
 </table>
 {% endif %}
 {% if ctx.tts %}
 <table width="100%">
   <tr>
-  {% for c in ctx.tts.cards %}
+  {%- for c in ctx.tts.cards %}
     <td width="{{ 100 // (ctx.tts.cards|length) }}%" valign="top" align="center">
       <br>
       <h3>{{ c.emoji }}&nbsp;{{ c.title }}</h3>
-      <p>{% for l in c.lines %}{{ l }}<br>{% endfor %}</p>
+      <p>{{ c.desc }}</p>
+      <p>{%- for l in c.lines %}{{ l }}<br>{%- endfor %}</p>
       <p><em>{{ c.note }}</em></p>
       <br>
     </td>
-  {% endfor %}
+  {%- endfor %}
   </tr>
 </table>
 {% endif %}
 
 ## 📊 Benchmarks
 
-Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
-by `bench plot --readme` — regenerate with `make bench-plot`. Cohort:
-**{{ ctx.device }} · {{ ctx.power }} power · commit {{ ctx.commit }} · {{ ctx.date }}**.
+> Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
+by `bench plot --readme` — regenerate with `make bench-plot`. 
+> Cohort: **{{ ctx.device }} · {{ ctx.power }} power · commit {{ ctx.commit }} · {{ ctx.date }}**.
+
 {% if ctx.stt %}
 ### Speech recognition — LibriSpeech test-clean
 
 {{ ctx.stt.table }}
 
-*{{ ctx.stt.n_utt }} utterances · {{ ctx.stt.n_configs }} configurations · winner:
-**{{ ctx.stt.winner }}** at **{{ ctx.stt.best_wer }} WER**; fastest RTF p50
+*{{ ctx.stt.n_utt }} utterances · {{ ctx.stt.n_configs }} configurations · 🥇 **{{ ctx.stt.winner }}** at **{{ ctx.stt.best_wer }} WER**
+(🥇🥈🥉 = composite top 3); fastest RTF p50
 **{{ ctx.stt.best_rtf }}**. Green = best in column, red = worst. GPU W is the
 tegrastats module draw over each engine's window; the packed-CPU engine has none
 (hollow point, idle draw) in the power chart.*
@@ -95,7 +96,7 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 
 {{ ctx.tts.table }}
 
-*{{ ctx.tts.n_sent }} sentences · {{ ctx.tts.n_configs }} configurations · fastest RTF p50
+*{{ ctx.tts.n_sent }} sentences · {{ ctx.tts.n_configs }} configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
 **{{ ctx.tts.best_rtf }}**{% if ctx.tts.best_ttfa_ms %}; best TTFA p50 **{{ ctx.tts.best_ttfa_ms }} ms**
 (300 ms gate){% endif %}. TTFA = time to first audio: streaming engines report the first
 chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so

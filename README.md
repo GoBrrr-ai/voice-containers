@@ -1,9 +1,9 @@
 # edge-containers
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Jetson%20Orin-76b900" alt="Platform: Jetson AGX Orin (sm_87)">
-  <img src="https://img.shields.io/badge/platform-Jetson%20Thor-76b900" alt="Platform: Jetson AGX Thor (sm_110)">
-  <img src="https://img.shields.io/badge/CUDA-13.2-8A2BE2" alt="CUDA 13.2 SBSA">
+  <img src="https://img.shields.io/badge/platform-Jetson%20Orin-8A2BE2" alt="Platform: Jetson AGX Orin (sm_87)">
+  <img src="https://img.shields.io/badge/platform-Jetson%20Thor-8A2BE2" alt="Platform: Jetson AGX Thor (sm_110)">
+  <img src="https://img.shields.io/badge/CUDA-13.2-76b900" alt="CUDA 13.2 SBSA">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
 </p>
 
@@ -15,95 +15,92 @@
   userspace with the GPU driver injected from the host.
 </p>
 
-> Status: **local only** — nothing is on Docker Hub or GitHub yet. The publish workflow
-> activates when this repo is pushed and tagged.
-
 
 ## Engine families
 
-Measured on **jetson-agx-thor-128gb** (default power) — every number below comes from
+> Measured on **jetson-agx-thor-128gb** (default power) — every number below comes from
 the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks).
+
 
 <table width="100%">
   <tr>
-  
     <td width="50%" valign="top" align="center">
       <br>
       <h3>🦜&nbsp;parakeet.cpp</h3>
-      <p>nemotron-unified 0.6B q8_0 — <b>1.77% WER</b> · RTF 0.111<br>phonon-2.5 q8_0 — <b>1.99% WER</b> · RTF 0.090<br>parakeet-redux 178M q8_0 — <b>2.49% WER</b> · RTF 0.098<br>redux packed (CPU) — <b>2.52% WER</b> · RTF 0.071<br></p>
+      <p>one parakeet.cpp runtime, several q8_0 GGUF models</p>
+      <p>nemotron-labs-unified-asr-0.6b-q8_0<br>phonon-2.5-english-q8_0<br>redux-q8_0<br>parakeet-redux packed (redux-packed.gguf)<br></p>
       <p><em>true buffered streaming (0.16–2.08 s chunks)</em></p>
       <br>
     </td>
-  
     <td width="50%" valign="top" align="center">
       <br>
       <h3>⚡&nbsp;faster-whisper</h3>
-      <p>faster-whisper tiny int8 — <b>7.22% WER</b> · RTF 0.013<br></p>
+      <p>faster-whisper 1.2.1 on our CTranslate2 4.8.4 build</p>
+      <p>faster-whisper-tiny-int8<br></p>
       <p><em>Wyoming streaming</em></p>
       <br>
     </td>
-  
   </tr>
 </table>
 
 
 <table width="100%">
   <tr>
-  
     <td width="25%" valign="top" align="center">
       <br>
       <h3>🗣️&nbsp;kokoro</h3>
-      <p>kokoro 82M int8 — RTF <b>0.085</b> · TTFA 0.58 s<br></p>
+      <p>Kokoro-82M v1.0, int8 ONNX on onnxruntime-gpu</p>
+      <p>Kokoro-82M v1.0 int8 (model_uint8.onnx)<br></p>
       <p><em>create_stream()</em></p>
       <br>
     </td>
-  
     <td width="25%" valign="top" align="center">
       <br>
       <h3>✨&nbsp;paradee</h3>
-      <p>paradee 8M int8 (CPU) — RTF <b>0.150</b> · TTFA 1.13 s<br>paradee 8M int8 (GPU) — RTF <b>0.019</b> · TTFA 141 ms<br></p>
+      <p>Paradee-8M v1.0 int8 ONNX — a Kokoro distillation</p>
+      <p>Paradee-8M-v1.0 int8 (baked)<br>Paradee-8M-v1.0 int8 (baked)<br></p>
       <p><em>sentence-chunked</em></p>
       <br>
     </td>
-  
     <td width="25%" valign="top" align="center">
       <br>
       <h3>🎺&nbsp;piper1-tts</h3>
-      <p>piper1-tts libritts-r medium — RTF <b>0.033</b> · TTFA 159 ms<br></p>
+      <p>piper-tts 1.8.0 on our onnxruntime-gpu build</p>
+      <p>en_US-libritts_r-medium<br></p>
       <p><em>Wyoming streaming</em></p>
       <br>
     </td>
-  
     <td width="25%" valign="top" align="center">
       <br>
       <h3>🌊&nbsp;phonon-31m</h3>
-      <p>phonon-31m (CPU streaming) — RTF <b>0.124</b> · TTFA 76 ms<br></p>
+      <p>gradium/phonon-31m-en via the ptts runtime — CPU-only by design</p>
+      <p>phonon-31m-en<br></p>
       <p><em>true streaming on CPU (307 MB)</em></p>
       <br>
     </td>
-  
   </tr>
 </table>
 
 
 ## 📊 Benchmarks
 
-Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
-by `bench plot --readme` — regenerate with `make bench-plot`. Cohort:
-**jetson-agx-thor-128gb · default power · commit 4dd4272 · 2026-10-31**.
+> Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
+by `bench plot --readme` — regenerate with `make bench-plot`. 
+> Cohort: **jetson-agx-thor-128gb · default power · commit 4dd4272 · 2026-10-31**.
+
 
 ### Speech recognition — LibriSpeech test-clean
 
-| engine | model | backend | rank | WER | CER | SER | halluc. | RTF p50 | RTF p90 | lat p50 (s) | lat p90 (s) | mem MiB | GPU W |
-|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| nemotron-unified-asr | nemotron-labs-unified-asr-0.6b-q8_0 | cuda | 1 | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.1113}}$ | $\color{#f85149}{\text{0.2486}}$ | $\color{#f85149}{\text{0.6912}}$ | 0.8496 | 2,119 | 11 |
-| phonon2-stt | phonon-2.5-english-q8_0 | cuda | 2 | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.0900 | 0.2010 | 0.5754 | 0.6871 | 2,070 | 8 |
-| parakeet-redux-stt | redux-q8_0 | cuda | 3 | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0984 | 0.2206 | 0.5806 | 0.7790 | 2,102 | 18 |
-| parakeet-redux-stt | parakeet-redux packed (redux-packed.gguf) | cpu | 4 | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0707 | 0.1041 | 0.4580 | $\color{#f85149}{\text{0.9607}}$ | 1,006 | — (CPU) |
-| wyoming-faster-whisper | faster-whisper-tiny-int8 | cuda | 5 | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0130}}$ | $\color{#3fb950}{\text{0.0185}}$ | $\color{#3fb950}{\text{0.0857}}$ | $\color{#3fb950}{\text{0.1507}}$ | 613 | 14 |
+| engine | model | backend | WER | CER | SER | halluc. | RTF p50 | RTF p90 | lat p50 (s) | lat p90 (s) | mem MiB | GPU W |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| 🥇 nemotron-unified-asr | nemotron-labs-unified-asr-0.6b-q8_0 | cuda | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.1113}}$ | $\color{#f85149}{\text{0.2486}}$ | $\color{#f85149}{\text{0.6912}}$ | 0.8496 | 2,119 | 11 |
+| 🥈 phonon2-stt | phonon-2.5-english-q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.0900 | 0.2010 | 0.5754 | 0.6871 | 2,070 | 8 |
+| 🥉 parakeet-redux-stt | redux-q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0984 | 0.2206 | 0.5806 | 0.7790 | 2,102 | 18 |
+| parakeet-redux-stt | parakeet-redux packed (redux-packed.gguf) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0707 | 0.1041 | 0.4580 | $\color{#f85149}{\text{0.9607}}$ | 1,006 | — (CPU) |
+| wyoming-faster-whisper | faster-whisper-tiny-int8 | cuda | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0130}}$ | $\color{#3fb950}{\text{0.0185}}$ | $\color{#3fb950}{\text{0.0857}}$ | $\color{#3fb950}{\text{0.1507}}$ | 613 | 14 |
 
-*500 utterances · 5 configurations · winner:
-**nemotron-unified 0.6B q8_0** at **1.77% WER**; fastest RTF p50
+*500 utterances · 5 configurations · 🥇 **nemotron-unified 0.6B q8_0** at **1.77% WER**
+(🥇🥈🥉 = composite top 3); fastest RTF p50
 **0.013**. Green = best in column, red = worst. GPU W is the
 tegrastats module draw over each engine's window; the packed-CPU engine has none
 (hollow point, idle draw) in the power chart.*
@@ -131,15 +128,15 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 
 ### Speech synthesis — 444 sentences (LibriSpeech text)
 
-| engine | model | backend | rank | RTF p50 | RTF p90 | synth p50 (s) | synth p90 (s) | TTFA p50 (s) | TTFA p90 (s) | mem MiB | GPU W |
-|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| kokoro-tts | Kokoro-82M v1.0 int8 (model_uint8.onnx) | cuda | 1 | 0.0850 | $\color{#f85149}{\text{0.1923}}$ | 0.5781 | 1.2016 | 0.5773 | 1.1899 | 1,526 | 34 |
-| paradee-tts | Paradee-8M-v1.0 int8 (baked) | cpu | 2 | $\color{#f85149}{\text{0.1503}}$ | 0.1522 | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | 604 | — (CPU) |
-| paradee-tts | Paradee-8M-v1.0 int8 (baked) | cuda | 3 | $\color{#3fb950}{\text{0.0188}}$ | $\color{#3fb950}{\text{0.0462}}$ | $\color{#3fb950}{\text{0.1414}}$ | 0.1912 | 0.1414 | 0.1912 | 1,508 | 16 |
-| wyoming-piper1-tts | en_US-libritts_r-medium | cuda | 4 | 0.0334 | 0.0998 | 0.1587 | $\color{#3fb950}{\text{0.1738}}$ | 0.1587 | 0.1738 | 1,149 | 12 |
-| phonon31m-tts | phonon-31m-en | cpu | 5 | 0.1237 | 0.1553 | 0.7679 | 2.3239 | $\color{#3fb950}{\text{0.0757}}$ | $\color{#3fb950}{\text{0.1124}}$ | 516 | — (CPU) |
+| engine | model | backend | RTF p50 | RTF p90 | synth p50 (s) | synth p90 (s) | TTFA p50 (s) | TTFA p90 (s) | mem MiB | GPU W |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| 🥇 kokoro-tts | Kokoro-82M v1.0 int8 (model_uint8.onnx) | cuda | 0.0850 | $\color{#f85149}{\text{0.1923}}$ | 0.5781 | 1.2016 | 0.5773 | 1.1899 | 1,526 | 34 |
+| 🥈 paradee-tts | Paradee-8M-v1.0 int8 (baked) | cpu | $\color{#f85149}{\text{0.1503}}$ | 0.1522 | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | 604 | — (CPU) |
+| 🥉 paradee-tts | Paradee-8M-v1.0 int8 (baked) | cuda | $\color{#3fb950}{\text{0.0188}}$ | $\color{#3fb950}{\text{0.0462}}$ | $\color{#3fb950}{\text{0.1414}}$ | 0.1912 | 0.1414 | 0.1912 | 1,508 | 16 |
+| wyoming-piper1-tts | en_US-libritts_r-medium | cuda | 0.0334 | 0.0998 | 0.1587 | $\color{#3fb950}{\text{0.1738}}$ | 0.1587 | 0.1738 | 1,149 | 12 |
+| phonon31m-tts | phonon-31m-en | cpu | 0.1237 | 0.1553 | 0.7679 | 2.3239 | $\color{#3fb950}{\text{0.0757}}$ | $\color{#3fb950}{\text{0.1124}}$ | 516 | — (CPU) |
 
-*444 sentences · 5 configurations · fastest RTF p50
+*444 sentences · 5 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
 **0.019**; best TTFA p50 **76 ms**
 (300 ms gate). TTFA = time to first audio: streaming engines report the first
 chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so
