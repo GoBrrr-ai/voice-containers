@@ -115,6 +115,8 @@ def _load_run_dir(run_dir: Path) -> dict:
                 "run_name": (env.get("config", {}).get("run_name", "")),
                 "task": (env.get("config", {}).get("task", "")),
                 "mem_peak_mib": (mem or {}).get("mem_peak_mib"),
+                "anon_peak_mib": (mem or {}).get("anon_peak_mib"),
+                "anon_p50_mib": (mem or {}).get("anon_p50_mib"),
                 "gpu_power_w_mean": (win or {}).get("gpu_power_w_mean"),
                 "gpu_util_pct_mean": (win or {}).get("gpu_util_pct_mean"),
                 "n_probe_samples": (win or {}).get("n_samples", 0) if win else 0,

@@ -6,8 +6,6 @@ re-runs inference. Rows are grouped into cohorts by
 """
 
 from __future__ import annotations
-import csv
-import json
 import math
 from pathlib import Path
 
@@ -244,82 +242,3 @@ def score_cohort(rows: list[dict], task: str, preset: str = "default") -> list[d
     return rows
 
 
-def cohorts(rows: list[dict]) -> dict[tuple, list[dict]]:
-    out: dict[tuple, list[dict]] = {}
-    for r in rows:
-        out.setdefault(cohort_of(r), []).append(r)
-    return out
-
-
-def matrix_table(rows: list[dict], task: str) -> tuple[list[str], list[list[str]]]:
-    """(headers, cells) for the markdown/HTML matrix of one cohort."""
-    heads = ["engine", "model", "backend", "rank", "score", "pareto"]
-    heads += [h for h, _ in METRICS[task]]
-    heads += ["n_ok", "gate"]
-    body = []
-    for r in sorted(rows, key=lambda x: x.get("rank", 999)):
-        m = r.get("metrics") or {}
-
-        def fmt(k):
-            v = _metric(r, k)
-            if v is None:
-                return "—"
-            return f"{v:.4f}" if isinstance(v, float) and v < 10 else f"{v:,.1f}"
-
-        cells = [
-            r.get("engine_id", "?"),
-            str(r.get("model", ""))[-38:],
-            r.get("requested_backend", "?"),
-            str(r.get("rank", "")),
-            f"{r.get('score', 0):.3f}",
-            "✓" if r.get("pareto") else "",
-        ]
-        cells += [fmt(h) for h, _ in METRICS[task]]
-        cells += [str(m.get("n_ok", "")), "; ".join(r.get("gates", [])) or "pass"]
-        body.append(cells)
-    return heads, body
-
-
-def write_outputs(
-    coh: dict[tuple, list[dict]], task: str, out_dir: Path, preset: str = "default"
-) -> dict:
-    """matrix.csv + matrix.json (+ returns per-cohort tables for docs)."""
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    all_rows = []
-    tables = {}
-    for cohort, rows in sorted(coh.items()):
-        scored = score_cohort([dict(r) for r in rows], task, preset)
-        heads, body = matrix_table(scored, task)
-        tables[cohort] = {
-            "heads": heads,
-            "body": body,
-            "device": cohort[1],
-            "power": cohort[2],
-            "manifest": cohort[3],
-        }
-        for r in scored:
-            all_rows.append(
-                {k: v for k, v in r.items() if k not in ("opts", "dataset")}
-            )
-    with open(out_dir / f"matrix_{task}.csv", "w", newline="") as f:
-        if all_rows:
-            keys = sorted({k for r in all_rows for k in r})
-            w = csv.DictWriter(f, fieldnames=keys, extrasaction="ignore")
-            w.writeheader()
-            for r in all_rows:
-                w.writerow(
-                    {
-                        k: (
-                            json.dumps(v, ensure_ascii=False)
-                            if isinstance(v, (dict, list))
-                            else v
-                        )
-                        for k, v in r.items()
-                        if k in keys
-                    }
-                )
-    (out_dir / f"matrix_{task}.json").write_text(
-        json.dumps(all_rows, indent=1, default=str)
-    )
-    return tables

@@ -48,5 +48,4 @@ repeats: 1
 cooldown_s: 0
 soak_minutes: 0
 probes: {interval_ms: 100, tegrastats: auto}
-drop_caches: false
 output_dir: results

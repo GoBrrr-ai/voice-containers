@@ -91,20 +91,27 @@ def parse_docker_stats(path: Path) -> dict | None:
     p = Path(path)
     if not p.exists():
         return None
-    mems = []
+    mems, anons = [], []
     for line in p.read_text().splitlines()[1:]:
         parts = line.split(",")
         if len(parts) >= 3 and parts[2]:
             mems.append(_parse_mem_mib(parts[2]))
+        if len(parts) >= 5 and parts[4]:
+            anons.append(_parse_mem_mib(parts[4]))
     if not mems:
         return None
     mems.sort()
     n = len(mems)
-    return {
+    out = {
         "n_samples": n,
         "mem_peak_mib": mems[-1],
         "mem_p50_mib": mems[n // 2],
     }
+    if anons:
+        anons.sort()
+        out["anon_peak_mib"] = anons[-1]
+        out["anon_p50_mib"] = anons[len(anons) // 2]
+    return out
 
 
 def docker_image_size_gb(image: str) -> float | None:
