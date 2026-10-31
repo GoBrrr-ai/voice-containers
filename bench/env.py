@@ -70,7 +70,7 @@ def selfcheck(bench_root: Path) -> dict:
             "bash",
             "-c",
             "docker run --rm --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 "
-            "narandill/llama-cpp-thor:0.8.0 nvidia-smi -L 2>/dev/null | head -1",
+            "narandill/llama-cpp:0.8.0 nvidia-smi -L 2>/dev/null | head -1",
         ]
     )
     out = bench_root / "selfcheck.json"

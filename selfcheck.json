@@ -9,9 +9,9 @@
   "nvpmodel": "NV Power Mode: MAXN\n0",
   "jetson_clocks": "SOC family:tegra264  Machine:NVIDIA Jetson AGX Thor Developer Kit\nError: Run this script(/bin/jetson_clocks) as a root user",
   "tegrastats_available": true,
-  "docker_images_gpu": "narandill/edge-builder\nnarandill/edge-wheels\nnarandill/kokoro-tts\nnarandill/kokoro-tts-orin\nnarandill/kokoro-tts-thor\nnarandill/llama-cpp\nnarandill/llama-cpp-orin\nnarandill/llama-cpp-thor\nnarandill/nemotron-unified-asr\nnarandill/nemotron-unified-asr-orin\nnarandill/nemotron-unified-asr-thor\nnarandill/voice\nnarandill/benchmark\nnarandill/wyoming\nnarandill/paradee-tts\nnarandill/paradee-tts-orin\nnarandill/paradee-tts-thor\nnarandill/parakeet-redux-stt\nnarandill/parakeet-redux-stt-orin\nnarandill/parakeet-redux-stt-thor\nnarandill/phonon2-stt\nnarandill/phonon2-stt-orin\nnarandill/phonon2-stt-thor\nnarandill/phonon31m-tts\nnarandill/phonon31m-tts-orin\nnarandill/phonon31m-tts-thor\nnarandill/wyoming-faster-whisper\nnarandill/wyoming-faster-whisper-orin\nnarandill/wyoming-faster-whisper-thor\nnarandill/wyoming-piper1-tts\nnarandill/wyoming-piper1-tts-orin\nnarandill/wyoming-piper1-tts-thor",
+  "docker_images_gpu": "narandill/edge-builder\nnarandill/edge-wheels\nnarandill/jetson-builder\nnarandill/kokoro-tts\nnarandill/llama-cpp\nnarandill/llama_cpp\nnarandill/mjolnir-vllm\nnarandill/nemotron-unified-asr\nnarandill/paradee-tts\nnarandill/parakeet-redux-stt\nnarandill/phonon2-stt\nnarandill/phonon31m-tts\nnarandill/vllm\nnarandill/wyoming-combined\nnarandill/wyoming-faster-whisper\nnarandill/wyoming-piper1-tts",
   "git_commit": "",
-  "utc_ts": "2026-10-31T14:26:20Z",
+  "utc_ts": "2026-10-31T16:06:12Z",
   "compute_cap_ok": true,
   "onnxruntime_import": "missing: No module named 'onnxruntime'",
   "docker_gpu_runtime": ""

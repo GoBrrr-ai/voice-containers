@@ -8,7 +8,7 @@
 
 | Image | Tags | Size | Engine / runtime | Streaming |
 |---|---|---|---|---|
-| `narandill/nemotron-unified-asr` | `0.1.0`,`latest` + `-thor`/`-orin` | **3.99 GB** | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF (895 MB) on parakeet.cpp | **true buffered streaming** 0.16–2.08 s presets (token-identical to NeMo per upstream parity) |
+| `narandill/nemotron-unified-asr` | `0.1.0`, `latest` | **3.99 GB** | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF (895 MB) on parakeet.cpp | **true buffered streaming** 0.16–2.08 s presets (token-identical to NeMo per upstream parity) |
 | `narandill/parakeet-redux-stt` | same | **4.21 GB** | moondream/parakeet-redux q8_0 (GPU) + packed (CPU dotprod) + silero-vad | VAD-chunked (offline TDT) |
 | `narandill/phonon2-stt` | same | **4.24 GB** | Fermion Phonon-2.5-english q8_0 + packed + silero-vad | VAD-chunked (offline TDT) |
 | `narandill/kokoro-tts` | same | **4.87 GB** | Kokoro-82M v1.0 **int8 ONNX** (169 MB) on our ORT-GPU 1.31.1 | `create_stream()` phoneme-chunked async gen (TTFA 0.7–1.1 s measured) |

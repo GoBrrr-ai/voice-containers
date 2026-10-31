@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# wyoming-faster-whisper (standalone) — the STT half of wyoming.
+# wyoming-faster-whisper (standalone) — the STT half of the former combined wyoming image.
 # wyoming 1.10.2 + wyoming-faster-whisper 3.8.1 + faster-whisper 1.2.1 on OUR
 # CTranslate2 4.8.4 build (sm_87 + sm_110 SASS/PTX, CUDA 13.2 SBSA).
 # Same WHISPER_* env contract as the combined image -> HA config drop-in.

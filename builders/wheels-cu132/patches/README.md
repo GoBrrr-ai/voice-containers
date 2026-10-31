@@ -1,15 +1,15 @@
 Build-time patches vendored here, applied during build. Pinned to upstream tags.
 
-0001-wyoming-faster-whisper-v3.8.1.patch
+0001-wyoming-faster-whisper-v3.8.1-fork-env.patch
     Applied to wyoming-faster-whisper v3.8.1 (git clone at tag, then git apply).
     Re-based version of the fork's wyoming-whisper build.sh seds:
       - inject _detect_host() (LAN IP via dummy UDP socket)
       - WHISPER_PROGRAM_NAME env override for the Info event name
       - WHISPER_ADVERTISE_HOST env override (or auto-detect) for zeroconf host
     Needed so the container advertises a routable LAN address for mDNS
-    discovery and keeps the fork's "whisper-stt" naming.
+    discovery, with the advertised service name overridable via env.
 
-0002-wyoming-piper-v2.5.2.patch
+0002-wyoming-piper-v2.5.2-fork-env.patch
     Same treatment for wyoming-piper v2.5.2 (PIPER_PROGRAM_NAME /
     PIPER_ADVERTISE_HOST).
 

@@ -9,7 +9,7 @@
 # (libcuda.so.1) is injected from the host by nvidia-container-toolkit.
 #
 # Targets:
-#   narandill/llama-cpp-thor:<ver>  and  narandill/llama-cpp-orin:<ver>
+#   narandill/llama-cpp:<ver>  and  narandill/llama-cpp:<ver>
 #   (identical image, two tags) + narandill/llama-cpp:<ver>
 # =============================================================================
 

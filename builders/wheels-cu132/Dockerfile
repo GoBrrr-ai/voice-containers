@@ -7,20 +7,10 @@
 #   docker build --target builder -t narandill/edge-wheels:cu132 .
 # =============================================================================
 # =============================================================================
-# wyoming: Home-Assistant voice stack (STT + TTS) in ONE container for
-# Jetson AGX Thor (sm_110) + AGX Orin (sm_87) on JetPack 7.2.1 (CUDA 13.2).
-#
-# ONE image serves both boards (SASS sm_87 + sm_110, PTX compute_110). CUDA
-# 13.2 userspace + cuDNN 9 are baked in; the GPU driver (libcuda.so.1) is
-# injected from the host by nvidia-container-toolkit at run time.
-#
-# Runs two wyoming services under supervisord:
-#   - wyoming-faster-whisper (STT)  port 10300
-#   - wyoming-piper (TTS)           port 10200
-#
-# Targets:
-#   narandill/wyoming-thor:<ver>  and  narandill/wyoming-orin:<ver>
-#   (identical image, two tags) + narandill/wyoming:<ver>
+# Provenance: wheel recipes extracted from a former combined STT+TTS wyoming
+# image (Home-Assistant voice stack on JetPack 7.2.1 / CUDA 13.2, since split
+# into the standalone wyoming projects in this repo). The instruction stream
+# is kept byte-identical to that build so BuildKit can replay it from cache.
 # =============================================================================
 
 ARG BUILDER_BASE=nvidia/cuda:13.2.1-devel-ubuntu24.04

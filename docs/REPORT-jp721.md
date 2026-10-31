@@ -1,4 +1,4 @@
-# Build Report: llama.cpp + wyoming for Jetson Thor (sm_110) & Orin (sm_87)
+# Build Report: llama.cpp + the combined wyoming image for Jetson Thor (sm_110) & Orin (sm_87)
 
 **Date:** 2026-10-31 · **Branch:** `jp721-sm87-sm110` · **Host:** Jetson AGX Thor, JP 7.1 (r38.4, driver 580.00) — images target **JP 7.2.1** (L4T r39.2.1, driver R595, CUDA 13.2.x), host upgrade pending
 
@@ -6,7 +6,7 @@
 
 ## Decision summary
 
-- **One image per package for both boards** (JP 7.2.1 supports Thor + Orin; SASS for both archs embedded, PTX for forward compat). Each image carries `-thor` and `-orin` tags (identical image).
+- **One image per package for both boards** (JP 7.2.1 supports Thor + Orin; SASS for both archs embedded, PTX for forward compat). One version tag per image (the former `-thor`/`-orin` aliases were retired — same image for both boards).
 - **Scenario C (research-validated)**: CUDA 13.2 userspace **baked** into the image (devel stage → runtime stage); the GPU driver (`libcuda.so.1`) is **injected from the host** by nvidia-container-toolkit (CSV mode mounts only the driver stack — never cudart/cublas). No cuda-compat needed (R595 ≥ 13.0 floor 580.65.06; current 580.00 host works via minor-version compatibility — verified live).
 - Bases: `nvidia/cuda:13.2.1-devel-ubuntu24.04` (builder) → `nvidia/cuda:13.2.1-runtime-ubuntu24.04` (final, arm64).
 - CUDA-version skew note: CUDA 13.2 userspace ran on the 580.00 driver (JP 7.1) during all smoke tests via minor-version compatibility; the `nvidia/cuda:13.2.1` image's runtime requirement check was bypassed with `NVIDIA_DISABLE_REQUIRE=1` **only on this pre-upgrade host**. After the JP 7.2.1 upgrade, run plain.
@@ -50,11 +50,11 @@
 ## cuobjdump verification (required check) — PASS
 
 ```
-narandill/llama-cpp-thor:0.8.0
+narandill/llama-cpp:0.8.0
   libggml-cuda.so.0.28.0   SASS: sm_87, sm_110a     PTX: sm_110
   libggml.so / llama-server: host-only (no device code embedded — expected)
 
-narandill/wyoming-thor:0.1.0
+combined wyoming image (thor tag, since retired)
   libctranslate2.so.4.8.4  SASS: sm_87, sm_110      PTX: sm_87, sm_110
   libonnxruntime_providers_cuda.so  SASS: sm_87, sm_90a, sm_110a   PTX: sm_110a
   libonnxruntime.so.1.31.1: host-only (core; kernels live in the provider .so)
@@ -64,21 +64,21 @@ narandill/wyoming-thor:0.1.0
 
 - **llama.cpp**: `llama-server` + Qwen3-1.7B-Q4_K_M, full `-ngl 999` offload, `-fa on`:
   prompt eval **506.9 tok/s**, generation **118.3 tok/s**, CUDA graphs reused (v0.8.0 chunked graphs) on the 580 driver; reply `"JETSON THOR OK"` (exact, `enable_thinking:false`); `llama-cli --version` OK; `llama-cpp-python 0.3.36` GPU generation OK ("BINDINGS OK").
-- **wyoming**: both services healthy (describe on 10300/10200); **TTS round trip**: wyoming Synthesize → piper (CUDA EP) → 52 KB wav @ 22050 Hz; **STT round trip**: wav → faster-whisper (CT2 CUDA) → transcript " Hello from Jits & Thor." (tiny-int8 model accuracy, pipeline verified). `ctranslate2.get_cuda_device_count()==1`, `onnxruntime.get_available_providers()` includes CUDAExecutionProvider.
+- **combined wyoming image**: both services healthy (describe on 10300/10200); **TTS round trip**: wyoming Synthesize → piper (CUDA EP) → 52 KB wav @ 22050 Hz; **STT round trip**: wav → faster-whisper (CT2 CUDA) → transcript " Hello from Jits & Thor." (tiny-int8 model accuracy, pipeline verified). `ctranslate2.get_cuda_device_count()==1`, `onnxruntime.get_available_providers()` includes CUDAExecutionProvider.
 
 ## Image sizes (docker .Size, uncompressed)
 
 | Image | Old (fork) | New | Δ |
 |---|---|---|---|
 | llama.cpp | 11.7 GB (`narandill/llama_cpp:0.3.34-...-cu129`) | **4.42 GB** | **−62%** |
-| wyoming | 12.0 GB (`narandill/wyoming:latest`) | **5.04 GB** | **−58%** |
+| combined wyoming | 12.0 GB | **5.04 GB** | **−58%** |
 
 Multi-stage layout: final images contain no compilers, headers, source trees, pip caches, or apt lists (verified by the layer recipe; runtime deps sanity-checked via `ldd` in-image, excluding the host-injected `libcuda.so.1`).
 
 ## Tags
 
-`narandill/llama-cpp:{0.8.0,latest}` + `narandill/llama-cpp-thor:0.8.0` + `narandill/llama-cpp-orin:0.8.0`
-`narandill/wyoming:{0.1.0,latest}` + `narandill/wyoming-thor:0.1.0` + `narandill/wyoming-orin:0.1.0`
+`narandill/llama-cpp:{0.8.0,latest}` + `narandill/llama-cpp:0.8.0` + `narandill/llama-cpp:0.8.0`
+Combined wyoming image: tags `{0.1.0,latest}` + `-thor`/`-orin` (all retired — superseded by the standalone wyoming-faster-whisper + wyoming-piper1-tts projects)
 (not pushed to Docker Hub — say the word)
 
 ## Known issues / caveats
@@ -89,7 +89,7 @@ Multi-stage layout: final images contain no compilers, headers, source trees, pi
 4. gemma-4 + `--spec-type draft-mtp` has an open CUDA IMA upstream (#31077) — avoid that combo until fixed.
 5. Never set `CUDA_SCALE_LAUNCH_QUEUES` on single-GPU Jetson (Orin MoE deadlock history #19219/#19227).
 6. piper `#22325` provider_options patch not carried (v1.8.0 natively supports `--use-cuda` with HEURISTIC conv algo search); can be re-based later if tuning is needed.
-7. First `wyoming` start downloads models (whisper tiny-int8 + piper voice) into `/data` — needs internet or pre-seeded cache (`WHISPER_OFFLINE=true PIPER_OFFLINE=true`).
+7. First start of the combined wyoming image downloads models (whisper tiny-int8 + piper voice) into `/data` — needs internet or pre-seeded cache (`WHISPER_OFFLINE=true PIPER_OFFLINE=true`).
 
 ## Left undone / future work
 

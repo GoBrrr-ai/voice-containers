@@ -23,8 +23,6 @@ injected from the host.
 | `phonon31m-tts` | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~28 ms p95) |
 | `paradee-tts` | `paradee-tts:0.1.0` | Paradee-8M-v1.0 int8 ONNX (Kokoro distillation) | sentence-chunked |
 
-`-thor` / `-orin` tags point at the same image as the version tag (both cubin sets are baked).
-
 ## Quick start
 
 ```bash
@@ -39,8 +37,8 @@ make verify-all
 make smoke-all
 
 # 4) run something
-docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper-thor:0.1.0
-docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr-thor:0.1.0 /audio/x.wav
+docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.0
+docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
 ```
 
 On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver

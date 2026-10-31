@@ -13,7 +13,7 @@ declare -A VER=(
   [kokoro-tts]=0.1.0 [phonon31m-tts]=0.1.0 [paradee-tts]=0.1.0
 )
 for p in $PROJECTS; do
-  v="${VER[$p]:-0.1.0}"; img="$REPO/$p-thor:$v"
+  v="${VER[$p]:-0.1.0}"; img="$REPO/$p:$v"
   echo "== verify $p ($img)"
   if [ -x "$p/test/verify_arch.sh" ]; then "$p/test/verify_arch.sh" "$img" || fail=1
   else echo "  (no arch verification — CPU-only or none needed)"; fi

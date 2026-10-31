@@ -28,7 +28,7 @@ projects/
 │        ├── parakeet-redux-stt    (bakes redux-q8_0 + redux-packed)
 │        └── phonon2-stt           (bakes phonon-2.5-english q8_0 + packed)
 │
-├── wyoming builder target → narandill/edge-wheels:cu132
+├── wheels builder (ex combined wyoming) → narandill/edge-wheels:cu132
 │     (onnxruntime-gpu 1.31.1 wheel: sm_87+sm_90a+sm_110a SASS, sm_110a PTX
 │      + ctranslate2 4.8.4 — 75-min source build, do NOT rebuild casually)
 │        ↑ ARG ORT_WHEEL_IMAGE
@@ -38,8 +38,8 @@ projects/
 └── phonon31m-tts   (NO shared deps: plain ubuntu:24.04 + ptts aarch64 wheel)
 ```
 
-All six engine images tag `{name,-thor,-orin}:0.1.0` + `:latest`; `-thor`/`-orin`
-are the same image (both cubin sets are baked).
+Every engine image carries one version tag + `latest` (both boards are served
+by the same image — sm_87 and sm_110 cubins are baked side by side).
 
 ## Decoupling recipes (standalone-repo migration)
 

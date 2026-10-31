@@ -1,7 +1,7 @@
 Post-v0.8.0 patches vendored here and applied to both the C++ tree and the
 llama-cpp-python vendored submodule during build (pinned by commit SHA).
 
-0001-cuda-optimize-orin-single-column-mmvq-pr31268.patch
+0001-cuda-optimize-single-column-mmvq-pr31268.patch
     ggml-org/llama.cpp PR #31268 "CUDA: optimize Orin single-column MMVQ"
     (1 commit, head ad9855654e2ee9079c9d6ff6840b1df3467f54e0, open PR).
     Successor of #30858 (closed unmerged) whose Orin Nano Super benchmarks

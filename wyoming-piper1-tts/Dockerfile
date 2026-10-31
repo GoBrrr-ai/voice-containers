@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# wyoming-piper1-tts (standalone) — the TTS half of wyoming.
+# wyoming-piper1-tts (standalone) — the TTS half of the former combined wyoming image.
 # wyoming 1.10.2 + wyoming-piper 2.5.2 + piper-tts 1.8.0 on OUR onnxruntime-gpu
 # 1.31.1 build (sm_87 + sm_90a + sm_110a SASS, sm_110a PTX).
 # Same PIPER_* env contract as the combined image -> HA config drop-in.
