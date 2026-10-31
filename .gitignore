@@ -1,7 +1,7 @@
 # local build/test scratch
 **/results/
 bench/results/
-bench/datasets/*/cache/
+datasets/
 artifacts/
 vendor/
 *.gguf

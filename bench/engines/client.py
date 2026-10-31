@@ -57,7 +57,7 @@ class FasterWhisper:
     def actual_backend(self) -> str:
         return self.opts_backend
 
-    def transcribe(self, pcm, sr: int):
+    def transcribe(self, pcm, sr: int, wav_path: str | None = None):
         import numpy as np
 
         segs, info = self.m.transcribe(
@@ -115,7 +115,9 @@ class ParakeetCpp:
             "--input",
             wav_path,
         ]
-        if self.device:
+        if self.device and self.device != "cuda":
+            # images default to GPU (ggml CUDA0); "cuda" means "leave default".
+            # Explicit values pass through: cpu, CUDA0, CUDA1, ...
             cmd += ["--device", self.device]
         if self.lang:
             cmd += ["--lang", self.lang]
@@ -312,6 +314,7 @@ def main() -> None:
     for i, s in enumerate(job["samples"]):
         rec_utt = {
             "engine": eng.name,
+            "engine_id": job.get("engine_id", eng.name),
             "task": task,
             "utt_id": s["utt_id"],
             "run_position": i,
@@ -336,6 +339,7 @@ def main() -> None:
                     hyp_raw=text, proc_ns=t2 - t1, feed_mode="fast", status="ok"
                 )
             else:
+                sr_out = None
                 if job.get("streaming") and eng.supports_streaming:
                     chunks, first, last, n = [], None, None, 0
                     for pcm, sr in eng.synthesize_stream(s["text_raw"]):
@@ -343,6 +347,7 @@ def main() -> None:
                         first = first or now
                         last = now
                         n += 1
+                        sr_out = sr
                         chunks.append(np.asarray(pcm))
                     synth_ns = last - t0
                     audio = np.concatenate(chunks) if chunks else np.zeros(1)
@@ -350,28 +355,25 @@ def main() -> None:
                         ttfa_ns=(first - t0) if first else None,
                         synth_ns=synth_ns,
                         chunk_count=n,
-                        sample_rate=job.get("opts", {}).get(
-                            "sample_rate", eng.output_sample_rate
-                        ),
                         status="ok",
                     )
                 else:
-                    audio, sr = eng.synthesize(s["text_raw"])
-                    t2 = _now_ns()
+                    audio, sr_out = eng.synthesize(s["text_raw"])
                     audio = np.asarray(audio)
-                    rec_utt.update(synth_ns=t2 - t0, sample_rate=sr, status="ok")
+                    rec_utt.update(synth_ns=_now_ns() - t0, status="ok")
+                rec_utt["sample_rate"] = int(sr_out or eng.output_sample_rate)
+                # output duration drives TTS RTF (PRD 6.2)
+                rec_utt["out_audio_s"] = len(audio) / rec_utt["sample_rate"]
                 wav_out = out_dir / "audio" / f"{s['utt_id']}.wav"
                 import soundfile as sf
 
-                sf.write(
-                    wav_out, audio, rec_utt.get("sample_rate") or eng.output_sample_rate
-                )
+                sf.write(wav_out, audio, rec_utt["sample_rate"])
         except (
             Exception
         ) as e:  # record and continue (PRD: a crash must not kill the suite)
             rec_utt.update(status="error", error=repr(e)[:500])
         jsonl_append(utt_path, rec_utt)
-    jsonl_append(out_dir / "run_meta.jsonl", [rec])
+    jsonl_append(out_dir / "run_meta.jsonl", rec)
 
 
 def jsonl_append(path: Path, row: dict) -> None:
