@@ -147,6 +147,7 @@ def run_config(config_path: str) -> str:
     teg.start()
 
     manifest = list(jsonl_read(cfg["dataset"]["manifest"]))
+    manifest = manifest[: int(cfg["dataset"].get("n", len(manifest)))]
     task = cfg["task"]
     for eng in cfg["engines"]:
         job = {
