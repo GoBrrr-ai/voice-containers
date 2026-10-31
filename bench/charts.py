@@ -46,30 +46,26 @@ def _load_utterances(bench_root: Path, run_id: str, engine_id: str) -> list[dict
     return rows
 
 
-def _label(row: dict) -> str:
-    """Short series label from the original engine + model (never the config id);
-    the cohort winner carries a star."""
-    return _names.star(row) + _names.display(row)
+def _label(row: dict, star: bool = False) -> str:
+    """Short series label from the original engine + model (never the config id).
+    ``star`` marks the best row FOR THE CHART BEING DRAWN — the metric shown
+    decides (lower is better everywhere), never the composite rank."""
+    return ("★ " if star else "") + _names.display(row)
+
+
+def _best_id(rows, key, lower=True):
+    """id() of the row with the best (direction-aware) value of ``key``."""
+    rows = [r for r in rows if _matrix._metric(r, key) is not None]
+    if not rows:
+        return None
+    fn = min if lower else max
+    return id(fn(rows, key=lambda r: _matrix._metric(r, key)))
 
 
 def _title(ax, text: str, mode: Mode = DARK) -> None:
     """Consistent chart title: big, bold, left-aligned, light on dark."""
     ax.set_title(text, loc="left", fontsize=15, fontweight="bold",
                  color=mode.text, pad=22)
-
-
-def _labels(rows: list[dict]) -> list[str]:
-    """_label per row; duplicate labels get a backend suffix (paradee CPU vs CUDA)."""
-    names = [_label(r) for r in rows]
-    seen: set[str] = set()
-    out = []
-    for r, n in zip(rows, names):
-        if n in seen:
-            out.append(f"{n} ({r.get('requested_backend', '?')})")
-        else:
-            out.append(n)
-        seen.add(n)
-    return out
 
 
 def _backend_marker(row: dict) -> str:
@@ -137,7 +133,8 @@ def stt_ranking(rows: list[dict], mode: Mode = DARK):
     plt = _plt()
     fig, ax = plt.subplots(figsize=(9.5, 4.2))
     apply(fig, ax)
-    names = _labels(rows)
+    best = _best_id(rows, "wer")
+    names = [_label(r, star=id(r) == best) for r in rows]
     wers = [(_matrix._metric(r, "wer") or 0) * 100 for r in rows]
     colors = [row_color(r) for r in rows]
     _hbar(ax, names, wers, colors, mode, "{:.2f}%", "corpus WER % (lower is better ↓)")
@@ -260,7 +257,7 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     plt = _plt()
     fig, ax = plt.subplots(figsize=(9.5, 4.6))
     apply(fig, ax)
-    data, labels, colors = [], [], []
+    data, colors, rows_used = [], [], []
     for r in rows:
         utts = _load_utterances(bench_root, r["run_id"], r["engine_id"])
         rtfs = [
@@ -271,10 +268,13 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         if not rtfs:
             continue
         data.append(rtfs)
-        labels.append(_label(r))
-        colors.append(row_color(r))
+        rows_used.append(r)
     if not data:
         return None
+    best_i = min(
+        range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2]
+    )
+    labels = [_label(r, star=i == best_i) for i, r in enumerate(rows_used)]
     bp = ax.boxplot(
         data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
     )
@@ -353,7 +353,8 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
     plt = _plt()
     fig, ax = plt.subplots(figsize=(9.5, 4.4))
     apply(fig, ax)
-    names = _labels(rows)
+    best = _best_id(rows, "rtf")
+    names = [_label(r, star=id(r) == best) for r in rows]
     rtfs = [_matrix._metric(r, "rtf") for r in rows]
     colors = [row_color(r) for r in rows]
     _hbar(
@@ -381,7 +382,8 @@ def tts_ttfa(rows: list[dict], mode: Mode = DARK):
     if not pts:
         return None
     pts.sort(key=lambda x: x[1])
-    names = [_label(r) for r, _ in pts]
+    best = _best_id([r for r, _ in pts], "ttfa_s")
+    names = [_label(r, star=id(r) == best) for r, _ in pts]
     vals = [v * 1000 for _, v in pts]
     colors = [row_color(r) for r, _ in pts]
     p90s = [(_matrix._metric(r, "ttfa_s_p90") or 0) * 1000 for r, _ in pts]
@@ -426,17 +428,20 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     plt = _plt()
     fig, ax = plt.subplots(figsize=(9.5, 4.2))
     apply(fig, ax)
-    data, labels, colors = [], [], []
+    data, colors, rows_used = [], [], []
     for r in rows:
         utts = _load_utterances(bench_root, r["run_id"], r["engine_id"])
         vals = [u["synth_ns"] / 1e9 for u in utts if u.get("synth_ns")]
         if not vals:
             continue
         data.append(vals)
-        labels.append(_label(r))
-        colors.append(row_color(r))
+        rows_used.append(r)
     if not data:
         return None
+    best_i = min(
+        range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2]
+    )
+    labels = [_label(r, star=i == best_i) for i, r in enumerate(rows_used)]
     bp = ax.boxplot(
         data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
     )
@@ -476,7 +481,8 @@ def _memory_bars(rows: list[dict], mode: Mode):
     if not pts:
         return None
     pts.sort(key=lambda x: -x[1])
-    names = _labels([r for r, _ in pts])
+    best = _best_id([r for r, _ in pts], "mem_peak_mib")
+    names = [_label(r, star=id(r) == best) for r, _ in pts]
     vals = [v for _, v in pts]
     colors = [row_color(r) for r, _ in pts]
     _hbar(
@@ -511,7 +517,7 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
     raw_vals, labels = [], []
     for r in sorted(rows, key=lambda x: x.get("rank", 999)):
         raw_vals.append([_matrix._metric(r, k) for k in metric_keys])
-        labels.append(_label(r))
+        labels.append(_label(r, star=r.get("rank") == 1))  # aggregate view -> composite winner
     if len(raw_vals) < 2:
         return None
     grid = []

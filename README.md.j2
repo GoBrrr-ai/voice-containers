@@ -15,6 +15,18 @@
   userspace with the GPU driver injected from the host.
 </p>
 
+> Status: **local only** — nothing is on Docker Hub or GitHub yet. The publish
+> workflow activates when this repo is pushed and tagged.
+
+<p align="center">
+  <a href="#engine-families">Families</a> •
+  <a href="#-benchmarks">Benchmarks</a> •
+  <a href="#projects">Projects</a> •
+  <a href="#quick-start">Quick start</a> •
+  <a href="#benchmarking">Benchmarking</a> •
+  <a href="#ci">CI</a>
+</p>
+
 {% if ctx.stt or ctx.tts %}
 ## Engine families
 
@@ -75,6 +87,9 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 {{ chart("stt-wer-vs-rtf", "Speech recognition — accuracy vs speed with Pareto front") }}
 </p>
 
+<details>
+<summary><strong>More speech-recognition charts</strong> — distribution, power, memory, ranking, heatmap (★ = best on each chart)</summary>
+
 <p align="center">
 {{ chart("stt-latency-box", "Speech recognition — per-utterance RTF distributions") }}
 </p>
@@ -88,8 +103,13 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 </p>
 
 <p align="center">
+{{ chart("stt-ranking", "Speech recognition — corpus WER") }}
+</p>
+
+<p align="center">
 {{ chart("stt-heatmap", "Speech recognition — normalized metric heatmap") }}
 </p>
+</details>
 {% endif %}
 {% if ctx.tts %}
 ### Speech synthesis — {{ ctx.tts.n_sent }} sentences (LibriSpeech text)
@@ -110,6 +130,9 @@ their TTFA equals the synth p50/p90.*
 {{ chart("tts-ttfa", "Speech synthesis — time to first audio with p90 ticks") }}
 </p>
 
+<details>
+<summary><strong>More speech-synthesis charts</strong> — distributions, memory, heatmap (★ = best on each chart)</summary>
+
 <p align="center">
 {{ chart("tts-synth-box", "Speech synthesis — synthesis latency distributions") }}
 </p>
@@ -121,6 +144,7 @@ their TTFA equals the synth p50/p90.*
 <p align="center">
 {{ chart("tts-heatmap", "Speech synthesis — normalized metric heatmap") }}
 </p>
+</details>
 {% endif %}
 
 Full per-utterance data, probes and gate details: `reports/matrix/`, `docs/REPORT-benchmark.md`.
@@ -189,7 +213,7 @@ test/{verify_arch,smoke_*}`.
 **Decoupling contract:** an engine references shared artifacts only through a single
 overridable ARG (`WHEELS_IMAGE`, `PARAKEET_DIST_IMAGE`) — see `ARCHITECTURE.md`.
 
-## Benchmarks
+## Benchmarking
 
 ```bash
 make bench-prepare      # frozen manifests: 500 utterances + 444 sentences (LibriSpeech, seed 42)
