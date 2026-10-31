@@ -1,0 +1,492 @@
+"""Chart generation from the benchmark history (mirrors mjolnir's charts.py).
+
+``render_all`` builds every chart that has data into
+``assets/benchmarks/<task>/<name>.png`` (dark theme, 2x) and writes
+``manifest.json``; ``readme.py`` resolves ``{{ chart("name") }}`` from it.
+Charts needing per-utterance data read the raw run dirs under
+``benchmarks/raw/`` (fallback: results/).
+"""
+
+from __future__ import annotations
+import json
+import time
+from pathlib import Path
+
+from . import matrix as _matrix
+from . import theme
+from .theme import DARK, Mode, apply, engine_color, footer, log_y_if_spanning
+
+DPI = 200  # 2x PNG per PRD 10.3 (vs matplotlib's default 100)
+
+
+def _plt():
+    return theme._plt()
+
+
+def _resolve_raw(bench_root: Path, run_id: str) -> Path | None:
+    for cand in (
+        bench_root / "benchmarks" / "raw" / run_id,
+        bench_root / "results" / run_id,
+    ):
+        if (cand / "utterances.jsonl").exists():
+            return cand
+    return None
+
+
+def _load_utterances(bench_root: Path, run_id: str, engine_id: str) -> list[dict]:
+    raw = _resolve_raw(bench_root, run_id)
+    if not raw:
+        return []
+    rows = []
+    for line in (raw / "utterances.jsonl").read_text().splitlines():
+        r = json.loads(line)
+        if r.get("engine_id") == engine_id and r.get("status") == "ok":
+            rows.append(r)
+    return rows
+
+
+def _label(row: dict) -> str:
+    """Short series label: model name for parakeet variants, engine otherwise."""
+    eng = row.get("engine", "?")
+    model = str(row.get("model", ""))
+    if eng == "parakeet_cpp":
+        base = model.rsplit("/", 1)[-1].replace(".gguf", "")
+        return "parakeet · " + ("packed CPU" if "packed" in model else base[:18])
+    return eng
+
+
+def _labels(rows: list[dict]) -> list[str]:
+    """_label per row; duplicate labels get a backend suffix (paradee CPU vs CUDA)."""
+    names = [_label(r) for r in rows]
+    seen: set[str] = set()
+    out = []
+    for r, n in zip(rows, names):
+        if n in seen:
+            out.append(f"{n} ({r.get('requested_backend', '?')})")
+        else:
+            out.append(n)
+        seen.add(n)
+    return out
+
+
+def _backend_marker(row: dict) -> str:
+    return theme.BACKEND_MARKERS.get((row.get("requested_backend") or "cuda"), "D")
+
+
+def _footer_common(fig, rows: list[dict], extra: str = "") -> None:
+    r0 = rows[0]
+    footer(
+        fig,
+        DARK,
+        left=(
+            f"edge-containers bench · {r0.get('device_label', '?')} · "
+            f"{r0.get('power_profile', 'default')} power · manifest {r0.get('manifest', '?')[-44:]}"
+        ),
+        right=f"commit {r0.get('git_commit', '?')} · {time.strftime('%Y-%m-%d')}{extra}",
+    )
+
+
+def _hbar(ax, names, values, colors, mode: Mode, fmt: str, xlabel: str,
+          log: bool | None = None):
+    """Horizontal bar with in-axes value labels + footer-safe layout."""
+    if log is None:
+        vals = [v for v in values if v and v > 0]
+        log = bool(vals) and max(vals) / max(min(vals), 1e-12) >= 10
+    ax.barh(names, values, color=colors, edgecolor=mode.grid)
+    ax.invert_yaxis()
+    if log:
+        ax.set_xscale("log")
+        lo = min(v for v in values if v > 0)
+        hi = max(values)
+        ax.set_xlim(lo * 0.8, hi * 1.45)
+        offset = hi * 0.06
+    else:
+        hi = max(values)
+        ax.set_xlim(0, hi * 1.18)
+        offset = hi * 0.015
+    for i, v in enumerate(values):
+        x = (v * 1.06) if (log and v > 0) else (v + offset)
+        ax.text(x, i, fmt.format(v), va="center", fontsize=9, color=mode.text,
+                bbox=dict(boxstyle="round,pad=0.15", fc=mode.panel, ec="none", alpha=0.7))
+    ax.set_xlabel(xlabel)
+
+
+# --------------------------------------------------------------------- STT
+def stt_ranking(rows: list[dict], mode: Mode = DARK):
+    rows = sorted(rows, key=lambda r: _matrix._metric(r, "wer") or 9)
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=(9.5, 4.2))
+    apply(fig, ax)
+    names = _labels(rows)
+    wers = [(_matrix._metric(r, "wer") or 0) * 100 for r in rows]
+    colors = [engine_color(r.get("engine", "")) for r in rows]
+    _hbar(ax, names, wers, colors, mode, "{:.2f}%", "corpus WER % (lower is better ↓)")
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _footer_common(fig, rows)
+    return fig
+
+
+
+def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=(9.5, 5.2))
+    apply(fig, ax)
+    pts = []
+    for r in rows:
+        wer, rtf = _matrix._metric(r, "wer"), _matrix._metric(r, "rtf")
+        if wer is None or rtf is None:
+            continue
+        pts.append((r, wer * 100, rtf))
+    if not pts:
+        return None
+    mems = [(_matrix._metric(r, "mem_peak_mib") or 0) for r, _, _ in pts]
+    mmax = max(mems) or 1
+    for (r, wer, rtf), mem in zip(pts, mems):
+        ax.scatter(
+            rtf,
+            wer,
+            s=60 + 240 * (mem / mmax),
+            color=engine_color(r.get("engine", "")),
+            marker=_backend_marker(r),
+            edgecolor=mode.text_dim,
+            linewidth=0.6,
+            zorder=3,
+        )
+        ax.annotate(
+            _label(r),
+            (rtf, wer),
+            textcoords="offset points",
+            xytext=(6, 5),
+            fontsize=8.5,
+            color=mode.text,
+        )
+    # Pareto front (minimize WER then RTF) drawn as a step line
+    front = sorted(
+        _matrix.score_cohort([dict(r) for r in rows], "stt"),
+        key=lambda r: r["pareto"] is False,
+    )
+    pf = sorted(
+        [r for r in front if r.get("pareto")],
+        key=lambda r: _matrix._metric(r, "rtf") or 0,
+    )
+    if len(pf) > 1:
+        ax.step(
+            [_matrix._metric(r, "rtf") for r in pf],
+            [_matrix._metric(r, "wer") * 100 for r in pf],
+            where="post",
+            color=mode.green,
+            linewidth=1.4,
+            linestyle="--",
+            alpha=0.8,
+            zorder=2,
+        )
+        ax.annotate(
+            "Pareto front",
+            (0.99, 0.03),
+            xycoords="axes fraction",
+            ha="right",
+            fontsize=8.5,
+            color=mode.green,
+        )
+    ax.set_xlabel("RTF p50 — audio-s per s (lower is better ↓, log)")
+    ax.set_ylabel("corpus WER % (lower is better ↓)")
+    ax.set_xscale("log")
+    _footer_common(fig, rows, extra=" · point size = peak container memory")
+    return fig
+
+
+def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=(9.5, 4.6))
+    apply(fig, ax)
+    data, labels, colors = [], [], []
+    for r in rows:
+        utts = _load_utterances(bench_root, r["run_id"], r["engine_id"])
+        rtfs = [
+            u["proc_ns"] / 1e9 / max(u.get("audio_s") or 1, 1e-9)
+            for u in utts
+            if u.get("proc_ns")
+        ]
+        if not rtfs:
+            continue
+        data.append(rtfs)
+        labels.append(_label(r))
+        colors.append(engine_color(r.get("engine", "")))
+    if not data:
+        return None
+    bp = ax.boxplot(
+        data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
+    )
+    for patch, c in zip(bp["boxes"], colors):
+        patch.set_facecolor(c)
+        patch.set_alpha(0.75)
+    for el in ("whiskers", "caps", "medians"):
+        for line in bp[el]:
+            line.set_color(mode.text_dim)
+    ax.invert_yaxis()
+    ax.set_xlabel("RTF per utterance (lower is better ↓, log)")
+    ax.set_xscale("log")
+    _footer_common(fig, rows)
+    return fig
+
+
+def stt_memory(rows: list[dict], mode: Mode = DARK):
+    return _memory_bars(rows, mode)
+
+
+def stt_heatmap(rows: list[dict], mode: Mode = DARK):
+    return _heatmap(rows, "stt", mode)
+
+
+def stt_power(rows: list[dict], mode: Mode = DARK):
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=(9.5, 4.2))
+    apply(fig, ax)
+    pts = [
+        (r, _matrix._metric(r, "gpu_power_w_mean"), _matrix._metric(r, "wer"))
+        for r in rows
+        if _matrix._metric(r, "gpu_power_w_mean")
+    ]
+    if len(pts) < 2:
+        return None
+    for r, w, wer in pts:
+        ax.scatter(
+            w,
+            (wer or 0) * 100,
+            s=90,
+            color=engine_color(r.get("engine", "")),
+            marker=_backend_marker(r),
+            edgecolor=mode.text_dim,
+            zorder=3,
+        )
+        ax.annotate(
+            _label(r),
+            (w, (wer or 0) * 100),
+            textcoords="offset points",
+            xytext=(6, 5),
+            fontsize=8.5,
+            color=mode.text,
+        )
+    ax.set_xlabel("mean GPU power over the engine window (W, lower is better ↓)")
+    ax.set_ylabel("corpus WER % (lower is better ↓)")
+    _footer_common(fig, rows, extra=" · power from tegrastats job windows")
+    return fig
+
+
+# --------------------------------------------------------------------- TTS
+def tts_ranking(rows: list[dict], mode: Mode = DARK):
+    rows = sorted(rows, key=lambda r: _matrix._metric(r, "rtf") or 9)
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=(9.5, 4.4))
+    apply(fig, ax)
+    names = _labels(rows)
+    rtfs = [_matrix._metric(r, "rtf") for r in rows]
+    colors = [engine_color(r.get("engine", "")) for r in rows]
+    _hbar(ax, names, rtfs, colors, mode, "{:.3f}",
+          "RTF p50 — s audio per s wall (lower is better ↓)")
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _footer_common(fig, rows)
+    return fig
+
+
+
+def tts_ttfa(rows: list[dict], mode: Mode = DARK):
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=(9.5, 4.0))
+    apply(fig, ax)
+    pts = [
+        (r, _matrix._metric(r, "ttfa_s")) for r in rows if _matrix._metric(r, "ttfa_s")
+    ]
+    if not pts:
+        return None
+    pts.sort(key=lambda x: x[1])
+    names = [_label(r) for r, _ in pts]
+    vals = [v * 1000 for _, v in pts]
+    colors = [engine_color(r.get("engine", "")) for r, _ in pts]
+    _hbar(ax, names, vals, colors, mode, "{:.0f} ms", "TTFA p50 (ms, lower is better ↓)")
+    ax.axvline(300, color=mode.red, linestyle=":", linewidth=1.2)
+    ax.annotate("300 ms gate", (300, len(pts) - 0.55), fontsize=8, color=mode.red)
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _footer_common(fig, rows)
+    return fig
+
+
+
+def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=(9.5, 4.2))
+    apply(fig, ax)
+    data, labels, colors = [], [], []
+    for r in rows:
+        utts = _load_utterances(bench_root, r["run_id"], r["engine_id"])
+        vals = [u["synth_ns"] / 1e9 for u in utts if u.get("synth_ns")]
+        if not vals:
+            continue
+        data.append(vals)
+        labels.append(_label(r))
+        colors.append(engine_color(r.get("engine", "")))
+    if not data:
+        return None
+    bp = ax.boxplot(
+        data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
+    )
+    for patch, c in zip(bp["boxes"], colors):
+        patch.set_facecolor(c)
+        patch.set_alpha(0.75)
+    for el in ("whiskers", "caps", "medians"):
+        for line in bp[el]:
+            line.set_color(mode.text_dim)
+    ax.invert_yaxis()
+    ax.set_xlabel("synthesis latency per sentence (s, lower is better ↓, log)")
+    ax.set_xscale("log")
+    _footer_common(fig, rows)
+    return fig
+
+
+def tts_memory(rows: list[dict], mode: Mode = DARK):
+    return _memory_bars(rows, mode)
+
+
+def tts_heatmap(rows: list[dict], mode: Mode = DARK):
+    return _heatmap(rows, "tts", mode)
+
+
+# -------------------------------------------------------------- shared
+def _memory_bars(rows: list[dict], mode: Mode):
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=(9.5, 4.2))
+    apply(fig, ax)
+    pts = [(r, _matrix._metric(r, "mem_peak_mib")) for r in rows if _matrix._metric(r, "mem_peak_mib")]
+    if not pts:
+        return None
+    pts.sort(key=lambda x: -x[1])
+    names = [_label(r) for r, _ in pts]
+    vals = [v for _, v in pts]
+    colors = [engine_color(r.get("engine", "")) for r, _ in pts]
+    _hbar(ax, names, vals, colors, mode, "{:,.0f} MiB", "peak container memory (MiB, lower is better ↓)")
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _footer_common(fig, rows)
+    return fig
+
+
+
+def _heatmap(rows: list[dict], task: str, mode: Mode):
+    """Configurations × metrics, cells colored by normalized score (PRD chart 5)."""
+    import numpy as np
+
+    plt = _plt()
+    # only metrics present in EVERY row (absent columns dropped, not rows)
+    metric_keys = [
+        h
+        for h, _ in _matrix.METRICS[task]
+        if all(_matrix._metric(r, h) is not None for r in rows)
+    ]
+    if len(metric_keys) < 3:
+        return None
+    lower_of = dict(_matrix.METRICS[task])
+    raw_vals, labels = [], []
+    for r in sorted(rows, key=lambda x: x.get("rank", 999)):
+        raw_vals.append([_matrix._metric(r, k) for k in metric_keys])
+        labels.append(_label(r))
+    if len(raw_vals) < 2:
+        return None
+    grid = []
+    for j, k in enumerate(metric_keys):
+        lower = lower_of[k]
+        col = [rv[j] for rv in raw_vals]
+        if k in _matrix.LOG_METRICS:
+            col = [max(v, 1e-9) for v in col]
+            col = [__import__("math").log10(v) for v in col]
+        grid.append(_matrix._norm(col, lower))
+    g = np.array(grid).T  # rows=configs, cols=metrics
+    fig, ax = plt.subplots(
+        figsize=(1.9 + 1.55 * len(metric_keys), 1.2 + 0.55 * len(labels))
+    )
+    im = ax.imshow(g, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
+    ax.set_xticks(
+        range(len(metric_keys)), metric_keys, rotation=30, ha="right", fontsize=8.5
+    )
+    ax.set_yticks(range(len(labels)), labels, fontsize=8.5)
+    for i in range(len(labels)):
+        for j in range(len(metric_keys)):
+            raw = raw_vals[i][j]
+            txt = (
+                f"{raw:.3f}" if (isinstance(raw, float) and raw < 10) else f"{raw:,.0f}"
+            )
+            ax.text(j, i, txt, ha="center", va="center", fontsize=7.5, color=mode.text)
+    ax.grid(False)
+    cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
+    cb.ax.tick_params(colors=mode.text_dim, labelsize=7)
+    cb.set_label("normalized score (1 = best)", color=mode.text_dim, fontsize=8)
+    _footer_common(fig, rows, extra=" · green = better (direction-aware)")
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    return fig
+
+
+TASK_CHARTS = {
+    "stt": {
+        "stt-ranking": stt_ranking,
+        "stt-wer-vs-rtf": stt_wer_vs_rtf,
+        "stt-latency-box": stt_latency_box,
+        "stt-memory": stt_memory,
+        "stt-heatmap": stt_heatmap,
+        "stt-power": stt_power,
+    },
+    "tts": {
+        "tts-ranking": tts_ranking,
+        "tts-ttfa": tts_ttfa,
+        "tts-synth-box": tts_synth_box,
+        "tts-memory": tts_memory,
+        "tts-heatmap": tts_heatmap,
+    },
+}
+
+
+def render_all(bench_root: Path, include: str = "baseline") -> dict:
+    """Render every chart that has data; write manifest.json. Returns it."""
+    plt = _plt()
+    bench_root = Path(bench_root)
+    out_dir = bench_root / "assets" / "benchmarks"
+    rows = _matrix.select_rows(bench_root, include)
+    manifest: dict[str, list[dict]] = {}
+    keep = set()
+
+    def save(name: str, task: str, build) -> bool:
+        fig = build()
+        if fig is None:
+            return False
+        d = out_dir / task
+        d.mkdir(parents=True, exist_ok=True)
+        p = d / f"{name}.png"
+        fig.savefig(p, dpi=DPI, facecolor=fig.get_facecolor(), bbox_inches="tight")
+        plt.close(fig)
+        manifest.setdefault(name, []).append(
+            {"task": task, "dark": str(p.relative_to(bench_root))}
+        )
+        keep.add(p.resolve())
+        return True
+
+    for task, charts in TASK_CHARTS.items():
+        task_rows = [r for r in rows if (r.get("task") or cohort_task(r)) == task]
+        if not task_rows:
+            continue
+        scored = _matrix.score_cohort([dict(r) for r in task_rows], task)
+        for name, build in charts.items():
+            if "bench_root" in build.__code__.co_varnames[: build.__code__.co_argcount]:
+                save(name, task, lambda b=build: b(bench_root, scored))
+            else:
+                save(name, task, lambda b=build: b(scored))
+    # prune stale renders
+    for png in out_dir.rglob("*.png"):
+        if png.resolve() not in keep:
+            png.unlink()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=1, sort_keys=True) + "\n"
+    )
+    print(f"[bench] {sum(len(v) for v in manifest.values())} charts -> {out_dir}")
+    return manifest
+
+
+def cohort_task(row: dict) -> str:
+    return "stt" if "wer" in (row.get("metrics") or {}) else "tts"

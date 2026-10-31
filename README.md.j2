@@ -1,0 +1,149 @@
+# edge-containers
+
+<p align="center">
+  <img src="https://img.shields.io/badge/platforms-Jetson%20AGX%20Thor%20%C2%B7%20AGX%20Orin%20%28sm_110%20%C2%B7%20sm_87%29-76b900" alt="Platforms: Jetson AGX Thor, AGX Orin">
+  <img src="https://img.shields.io/badge/CUDA-13.2%20SBSA%20%C2%B7%20JetPack%207.2.1-76b900" alt="CUDA 13.2 SBSA on JetPack 7.2.1">
+  <img src="https://img.shields.io/docker/v/narandill/llama-cpp?label=llama-cpp&sort=semver&color=1baf7a" alt="llama-cpp on Docker Hub">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
+</p>
+
+<p align="center">
+  <b>Production container images for NVIDIA Jetson edge GPUs</b> — an LLM runtime, a full
+  streaming voice stack (STT + TTS), and a PRD-driven benchmark harness. One fat image per
+  package serves <b>both boards</b> (native cubins for sm_87 + sm_110a plus forward-compat
+  PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1 userspace with the GPU driver injected
+  from the host.
+</p>
+
+> Status: **local only** — nothing is on Docker Hub or GitHub yet. The publish workflow
+> activates when this repo is pushed and tagged.
+
+{% if ctx.stt or ctx.tts %}
+## 📊 Benchmarks
+
+Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
+by `bench plot --readme` — regenerate with `make bench-plot`. Cohort:
+**{{ ctx.device }} · {{ ctx.power }} power · commit {{ ctx.commit }} · {{ ctx.date }}**.
+{% if ctx.stt %}
+### Speech recognition (STT) — LibriSpeech test-clean
+
+{{ ctx.stt.table }}
+
+*{{ ctx.stt.n_utt }} utterances · {{ ctx.stt.n_configs }} configurations · winner:
+**{{ ctx.stt.winner_id }}** ({{ ctx.stt.winner_model }}) at **{{ ctx.stt.best_wer }} WER**;
+fastest RTF p50 **{{ ctx.stt.best_rtf }}**. Green = best in column, red = worst.*
+{% endif %}
+{% if ctx.stt and ctx.tts %}
+{% endif %}
+{% if ctx.tts %}
+### Speech synthesis (TTS) — 444 sentences (LibriSpeech text)
+
+{{ ctx.tts.table }}
+
+*{{ ctx.tts.n_sent }} sentences · {{ ctx.tts.n_configs }} configurations · fastest RTF p50
+**{{ ctx.tts.best_rtf }}**{% if ctx.tts.best_ttfa_ms %}; best TTFA p50 **{{ ctx.tts.best_ttfa_ms }} ms**
+(gate 300 ms){% endif %}.*
+{% endif %}
+{% if ctx.stt %}
+<p align="center">
+{{ chart("stt-wer-vs-rtf", "STT accuracy vs speed — WER against RTF, Pareto front") }}
+</p>
+
+<p align="center">
+{{ chart("stt-heatmap", "STT normalized metric heatmap") }}
+</p>
+{% endif %}
+{% if ctx.tts %}
+<p align="center">
+{{ chart("tts-ranking", "TTS RTF ranking") }}
+</p>
+
+<p align="center">
+{{ chart("tts-ttfa", "TTS time-to-first-audio") }}
+</p>
+{% endif %}
+
+Full per-utterance data, probes and gate details: `reports/matrix/`, `docs/REPORT-benchmark.md`.
+{% endif %}
+
+## Projects
+
+| Project | Image (`narandill/<name>`) | What it is | Streaming |
+|---|---|---|---|
+| `llama-cpp` | `llama-cpp:0.8.0` | llama.cpp v0.8.0 + llama-cpp-python 0.3.36, CUDA graphs, Orin MMVQ patch | — (LLM) |
+| `wyoming-faster-whisper` | `wyoming-faster-whisper:0.1.0` | Wyoming STT: faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
+| `wyoming-piper1-tts` | `wyoming-piper1-tts:0.1.0` | Wyoming TTS: piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1 | wyoming streaming |
+| `nemotron-unified-asr` | `nemotron-unified-asr:0.1.0` | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF on parakeet.cpp | **true buffered** (0.16–2.08 s) |
+| `parakeet-redux-stt` | `parakeet-redux-stt:0.1.0` | moondream/parakeet-redux (ternary 178M) q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
+| `phonon2-stt` | `phonon2-stt:0.1.0` | Fermion Phonon-2.5-english q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
+| `kokoro-tts` | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a) | `create_stream()` |
+| `phonon31m-tts` | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~76 ms p95) |
+| `paradee-tts` | `paradee-tts:0.1.0` | Paradee-8M-v1.0 int8 ONNX (Kokoro distillation) | sentence-chunked |
+
+## Quick start
+
+```bash
+# 1) shared artifact builders (cached; seconds on replay)
+make builders
+
+# 2) build everything
+make build-all          # or: cd <project> && ./build.sh
+
+# 3) verify cubins + smoke on the GPU (waits for free VRAM, never kills co-tenants)
+make verify-all
+make smoke-all
+
+# 4) run something
+docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.0
+docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
+```
+
+On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
+580.00 vs the baked 13.2 userspace — minor-version compatibility). After the host
+upgrade, drop the flag.
+
+## Layout
+
+```
+<project>/            each is standalone: Dockerfile + build.sh + README + test/{verify_arch,smoke_*}
+builders/             shared artifact builders (wheels-cu132, parakeet-cpp) — not shipped
+bench/                PRD-driven benchmark harness (datasets, engines, probes, metrics)
+benchmarks/           history.jsonl + raw run artifacts (committed) — feeds the charts
+assets/benchmarks/    generated charts + manifest (committed)
+reports/matrix/       generated matrix.csv/md + HTML per task
+scripts/              sweep-build.sh / sweep-smoke.sh
+docs/                 build & benchmark reports
+```
+
+**Decoupling contract:** an engine references shared artifacts only through a single
+overridable ARG (`WHEELS_IMAGE`, `PARAKEET_DIST_IMAGE`) — see `ARCHITECTURE.md`.
+
+## Benchmarks
+
+```bash
+make bench-prepare      # frozen manifests: 500 STT + 444 TTS sentences (LibriSpeech, seed 42)
+make bench-selfcheck    # device, CUDA arch, probes, engines
+bench/.venv/bin/python -m bench.cli run bench/configs/thor_stt_baseline.yaml
+bench/.venv/bin/python -m bench.cli run bench/configs/thor_tts_baseline.yaml
+
+# matrix + charts + README (reads benchmarks/history.jsonl — never re-runs inference)
+make bench-plot
+```
+
+The runner **gates every GPU run on co-tenancy**: if other compute apps hold the GPU,
+it waits for a clean window and defers rather than measure contaminated. Every run
+appends to `benchmarks/history.jsonl`; baseline-class runs also publish their raw
+artifacts to `benchmarks/raw/<run_id>/`.
+
+## CI
+
+| Workflow | Trigger | Runner | What it does |
+|---|---|---|---|
+| `lint.yml` | push/PR | `ubuntu-latest` | pre-commit (shellcheck, hadolint, ruff, yaml/json checks) |
+| `build-smoke.yml` | `workflow_dispatch` | `[self-hosted, jetson]` | build matrix + arch verification (+ optional GPU smoke) |
+| `publish.yml` | tag `v*` | `[self-hosted, jetson]` | build → arch gate → push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
+
+## Licenses
+
+Build recipes are MIT. Each image carries its engine's license — check every project's
+README (all engines here are permissive or OpenMDW; nothing NC).

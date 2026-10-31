@@ -71,6 +71,87 @@ def report(run_dir: str):
 
 
 @app.command()
+def plot(
+    readme: bool = True, include: str = "baseline", matrix_out: str = "reports/matrix"
+):
+    """Render all charts (+ README.md with --readme) from benchmarks/history.jsonl.
+
+    Mirrors mjolnir's `plot --readme`: charts render dark-theme 2x PNGs into
+    assets/benchmarks/ with a manifest; the README is rendered from
+    README.md.j2 (StrictUndefined). Never re-runs inference.
+    """
+    from . import charts
+    from . import matrix as _matrix
+    from . import readme as _readme
+
+    charts.render_all(BENCH, include)
+    for task in ("stt", "tts"):
+        rows = _matrix.select_rows(BENCH, include)
+        task_rows = [
+            r
+            for r in rows
+            if (
+                r.get("task") or ("stt" if "wer" in (r.get("metrics") or {}) else "tts")
+            )
+            == task
+        ]
+        if not task_rows:
+            continue
+        coh = _matrix.cohorts(task_rows)
+        tables = _matrix.write_outputs(coh, task, Path(matrix_out))
+        _write_html(Path(matrix_out) / f"index_{task}.html", tables, task)
+    if readme:
+        p = _readme.render_readme(BENCH, include=include)
+        typer.echo(f"README rendered: {p}")
+
+
+def _write_html(path: Path, tables: dict, task: str) -> None:
+    """Sortable self-contained HTML matrix (PRD 10.1) with direction-aware coloring."""
+    import html as _html
+
+    parts = [
+        "<!doctype html><meta charset=utf-8><title>edge-containers matrix — "
+        f"{_html.escape(task)}</title>",
+        "<style>body{font:14px/1.5 system-ui;background:#0d1117;color:#e6edf3}"
+        "table{border-collapse:collapse}td,th{padding:4px 10px;border:1px solid #30363d}"
+        "th{background:#161b22;cursor:pointer}.g{color:#3fb950}.r{color:#f85149}"
+        "</style><h1>Results matrix — " + _html.escape(task) + "</h1>",
+    ]
+    for cohort, t in sorted(tables.items()):
+        parts.append(
+            f"<h3>{_html.escape(cohort[1])} · {cohort[2]} power · {_html.escape(cohort[3])}</h3>"
+        )
+        parts.append("<table id=t>")
+        parts.append(
+            "<tr>"
+            + "".join(
+                f"<th onclick=sortTable(this)>{_html.escape(h)}</th>"
+                for h in t["heads"]
+            )
+            + "</tr>"
+        )
+        for row in t["body"]:
+            cells = []
+            for c in row:
+                cls = ""
+                if isinstance(c, str) and c.startswith("$\\color"):
+                    cls = "g" if "#3fb950" in c else ("r" if "#f85149" in c else "")
+                    c = c
+                cells.append(f'<td class="{cls}">{_html.escape(str(c))}</td>')
+            parts.append("<tr>" + "".join(cells) + "</tr>")
+        parts.append("</table>")
+    parts.append(
+        "<script>function sortTable(th){const t=th.closest('table'),i=[...th.parentNode.children].indexOf(th),"
+        "asc=th.asc=!th.asc;[...t.rows].slice(1).sort((a,b)=>{const x=a.cells[i].innerText,y=b.cells[i].innerText;"
+        "const nx=parseFloat(x),ny=parseFloat(y);const c=(isNaN(nx)||isNaN(ny))?x.localeCompare(y):nx-ny;"
+        "return asc?c:-c;}).forEach(r=>t.appendChild(r));}</script>"
+    )
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(parts))
+
+
+@app.command()
 def compare(run_dirs: list[str], out: str = "compare.md"):
     """Side-by-side headline table (full matrix is PRD §10, fast-follow)."""
     from .runner import compare as run_compare
