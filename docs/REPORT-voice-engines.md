@@ -21,7 +21,7 @@ All: `test/verify_arch.sh` + `test/smoke_*.sh` per project; entrypoint wrapper (
 
 - Plain `docker build` per project (`build.sh`); no `#---` package headers, no `packages/`, no JC CLI (verified by grep).
 - **Shared artifacts, each referenced via a single overridable ARG** (`PARAKEET_DIST_IMAGE`, `ORT_WHEEL_IMAGE`) — the future standalone-repo migration is a one-line change per engine (see `projects/ARCHITECTURE.md` dependency graph).
-- `narandill/jetson-builder:parakeet-cpp` (intermediate): parakeet.cpp @ pinned `2eac2e77` + vendored ggml, gcc-11 host compiler, `87-real;110a-real;110-virtual`, carries our upstream-bound MelKernel fix (below).
+- `futureproofhomes/edge-builder:parakeet-cpp` (intermediate): parakeet.cpp @ pinned `2eac2e77` + vendored ggml, gcc-11 host compiler, `87-real;110a-real;110-virtual`, carries our upstream-bound MelKernel fix (below).
 
 ## Verification matrix — all on Thor GPU
 

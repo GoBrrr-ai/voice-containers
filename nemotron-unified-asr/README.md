@@ -3,7 +3,7 @@
 **nvidia/nemotron-labs-unified-asr-0.6b** (OpenMDW-1.1, 25 EU languages) as an
 official **q8_0 GGUF** (895 MB) running on [mudler/parakeet.cpp](https://github.com/mudler/parakeet.cpp)
 (GGML) with **native sm_87 + sm_110a cubins and compute_110 PTX** baked by our
-shared builder (`narandill/jetson-builder:parakeet-cpp`).
+shared builder (`futureproofhomes/edge-builder:parakeet-cpp`).
 
 Why GGUF and not ONNX: the RNNT/TDT architecture has **no ONNX export path**
 (optimum can't export it; vLLM/SGLang/TensorRT-LLM don't do RNNT), but the
