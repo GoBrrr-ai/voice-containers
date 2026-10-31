@@ -155,9 +155,9 @@ def _container_anon_mib(container: str) -> str:
             timeout=10,
         )
         for line in r.stdout.splitlines():
-            key, _, val = line.partition(":")
-            if key.strip() in ("anon", "total_anon"):
-                return f"{int(val.strip()) / 1024:.0f}MiB"  # kB -> MiB
+            parts = line.split()  # cgroup memory.stat is space-separated
+            if len(parts) == 2 and parts[0] in ("anon", "total_anon"):
+                return f"{int(parts[1]) / 1024:.0f}MiB"  # kB -> MiB
     except Exception:
         pass
     return ""
