@@ -71,6 +71,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
 by `bench plot --readme` — regenerate with `make bench-plot`. 
 > Cohort: **{{ ctx.device }} · {{ ctx.power }} power · commit {{ ctx.commit }} · {{ ctx.date }}**.
+Charts: ★ marks the best engine for that chart's metric.
 
 {% if ctx.stt %}
 ### Speech recognition — LibriSpeech test-clean
@@ -87,8 +88,6 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 {{ chart("stt-wer-vs-rtf", "Speech recognition — accuracy vs speed with Pareto front") }}
 </p>
 
-<details>
-<summary><strong>More speech-recognition charts</strong> — distribution, power, memory, ranking, heatmap (★ = best on each chart)</summary>
 
 <p align="center">
 {{ chart("stt-latency-box", "Speech recognition — per-utterance RTF distributions") }}
@@ -109,7 +108,6 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 <p align="center">
 {{ chart("stt-heatmap", "Speech recognition — normalized metric heatmap") }}
 </p>
-</details>
 {% endif %}
 {% if ctx.tts %}
 ### Speech synthesis — {{ ctx.tts.n_sent }} sentences (LibriSpeech text)
@@ -130,8 +128,6 @@ their TTFA equals the synth p50/p90.*
 {{ chart("tts-ttfa", "Speech synthesis — time to first audio with p90 ticks") }}
 </p>
 
-<details>
-<summary><strong>More speech-synthesis charts</strong> — distributions, memory, heatmap (★ = best on each chart)</summary>
 
 <p align="center">
 {{ chart("tts-synth-box", "Speech synthesis — synthesis latency distributions") }}
@@ -144,7 +140,6 @@ their TTFA equals the synth p50/p90.*
 <p align="center">
 {{ chart("tts-heatmap", "Speech synthesis — normalized metric heatmap") }}
 </p>
-</details>
 {% endif %}
 
 Full per-utterance data, probes and gate details: `reports/matrix/`, `docs/REPORT-benchmark.md`.
