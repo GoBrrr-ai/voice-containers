@@ -63,12 +63,19 @@ def _gpu_used_mib() -> int:
         return 0
 
 
-def _wait_for_free_gpu(threshold_mib: int, wait_minutes: float) -> None:
-    """Co-tenancy policy: never measure on a busy GPU.
+def _wait_for_free_gpu(
+    threshold_mib: int,
+    wait_minutes: float,
+    confirm: int = 6,
+    poll_s: float = 2.0,
+) -> None:
+    """Co-tenancy policy (mjolnir-style clean window): never measure on a busy GPU.
 
-    If other compute apps hold >= threshold MiB, wait for a clean window and
-    DEFER (hard error) rather than produce contaminated timings. Other
-    processes are never killed.
+    The window counts as clean only after ``confirm`` CONSECUTIVE samples
+    below the threshold (a single lucky sample between co-tenant bursts
+    doesn't). If it never opens within ``wait_minutes``, DEFER (hard error)
+    rather than produce contaminated timings. Other processes are never
+    killed.
     """
     used = _gpu_used_mib()
     if used < threshold_mib:
@@ -76,15 +83,24 @@ def _wait_for_free_gpu(threshold_mib: int, wait_minutes: float) -> None:
         return
     print(
         f"[runner] GPU busy ({used} MiB in use) — waiting up to "
-        f"{wait_minutes:.0f} min for a clean window"
+        f"{wait_minutes:.0f} min for a clean window "
+        f"({confirm} consecutive samples @ {poll_s:.0f}s)"
     )
     deadline = time.monotonic() + wait_minutes * 60
+    streak = 0
     while time.monotonic() < deadline:
-        time.sleep(20)
+        time.sleep(poll_s)
         used = _gpu_used_mib()
         if used < threshold_mib:
-            print(f"[runner] GPU clean again ({used} MiB) — proceeding")
-            return
+            streak += 1
+            if streak >= confirm:
+                print(
+                    f"[runner] clean window confirmed ({used} MiB, "
+                    f"{streak} consecutive samples) — proceeding"
+                )
+                return
+        else:
+            streak = 0
     _fail(
         f"GPU still busy ({used} MiB >= {threshold_mib} MiB threshold) after "
         f"{wait_minutes:.0f} min — deferred. Re-run when the GPU is free."
@@ -120,12 +136,39 @@ class TegraStats:
         self.out.close()
 
 
+def _container_anon_mib(container: str) -> str:
+    """Anon (process) memory of the container from its own cgroup memory.stat
+    ('' if unavailable). Handles cgroup v2 (anon) and v1 (total_anon)."""
+    try:
+        r = subprocess.run(
+            [
+                "docker",
+                "exec",
+                container,
+                "sh",
+                "-c",
+                "cat /sys/fs/cgroup/memory.stat 2>/dev/null || "
+                "cat /sys/fs/cgroup/memory/memory.stat 2>/dev/null",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        for line in r.stdout.splitlines():
+            key, _, val = line.partition(":")
+            if key.strip() in ("anon", "total_anon"):
+                return f"{int(val.strip()) / 1024:.0f}MiB"  # kB -> MiB
+    except Exception:
+        pass
+    return ""
+
+
 def docker_stats_sampler(
     container: str, out_path: Path, stop_evt: threading.Event, interval: float = 1.0
 ):
     """Sample `docker stats --no-stream` for the child container (RSS, CPU%)."""
     with open(out_path, "w") as f:
-        f.write("t_ns,cpu_perc,mem_usage,mem_limit\n")
+        f.write("t_ns,cpu_perc,mem_usage,mem_limit,anon\n")
         t0 = time.perf_counter_ns()
         failures = 0
         while not stop_evt.is_set():
@@ -147,7 +190,13 @@ def docker_stats_sampler(
                 if "," in line:
                     cpu, mem = line.split(",", 1)
                     mem_used = mem.split("/")[0].strip()
-                    f.write(f"{time.perf_counter_ns() - t0},{cpu},{mem_used},\n")
+                    # anon = true process memory; MemUsage also counts the
+                    # container's ACTIVE file cache (the model just read),
+                    # which is exactly the ~1 GB of noise we're excluding
+                    anon = _container_anon_mib(container)
+                    f.write(
+                        f"{time.perf_counter_ns() - t0},{cpu},{mem_used},,{anon}\n"
+                    )
                     f.flush()
                     failures = 0
                 else:
@@ -292,6 +341,7 @@ def run_config(config_path: str) -> str:
         _wait_for_free_gpu(
             int(cfg.get("gpu_free_threshold_mib", 100000)),
             float(cfg.get("gpu_wait_minutes", 30)),
+            confirm=int(cfg.get("gpu_confirm_samples", 6)),
         )
     root = Path(config_path).resolve().parents[2]  # bench/configs/x.yaml -> repo root
     ts = time.strftime("%Y%m%d_%H%M%S")
@@ -319,14 +369,12 @@ def run_config(config_path: str) -> str:
         env_rec["config"] = cfg  # full resolved config, for provenance
         (out / "env.json").write_text(json.dumps(env_rec, indent=2))
 
-        if cfg.get("drop_caches"):
-            # best-effort page-cache drop (needs root; warn and continue otherwise)
-            rc = subprocess.run(
-                ["sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"],
-                capture_output=True,
-            ).returncode
-            if rc != 0:
-                print("[runner] WARNING: drop_caches requested but failed (need root?)")
+        # page-cache drop right before measuring (mjolnir cachectl): a warm
+        # file cache inflates the container memory numbers. Automatic — runs
+        # passwordlessly with the grant, silently skips without it.
+        from . import cachectl
+
+        cachectl.prepare_bench()
 
         manifest = list(jsonl_read(root / cfg["dataset"]["manifest"]))
         manifest = manifest[: int(cfg["dataset"].get("n", len(manifest)))]
@@ -348,6 +396,12 @@ def run_config(config_path: str) -> str:
                 if cooldown_s and not first_job:
                     time.sleep(cooldown_s)
                 first_job = False
+                # cold page cache per measurement — without this the previous
+                # engine's model files sit in cache and inflate the next one's
+                # cgroup memory reading (mjolnir cachectl; silent sans grant)
+                from . import cachectl
+
+                cachectl.prepare_bench(quiet=i > 0 or bi > 0)
                 job = {
                     "task": task,
                     "engine": eng["name"],
@@ -372,6 +426,13 @@ def run_config(config_path: str) -> str:
             time.sleep(soak_s)
     finally:
         teg.stop()
+        # release the run's page cache back to the host
+        try:
+            from . import cachectl
+
+            cachectl.prepare_bench(quiet=True)
+        except Exception:
+            pass
 
     # aggregate
     write_summary(out, task)

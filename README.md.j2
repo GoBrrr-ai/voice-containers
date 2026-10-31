@@ -71,7 +71,9 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
 by `bench plot --readme` — regenerate with `make bench-plot`. 
 > Cohort: **{{ ctx.device }} · {{ ctx.power }} power · commit {{ ctx.commit }} · {{ ctx.date }}**.
-Charts: ★ marks the best engine for that chart's metric.
+Charts: ★ marks the best engine for that chart's metric. Memory: **cgroup MiB**
+counts the container's active file cache too (the model was just read from
+disk); **anon MiB** is true process memory.
 
 {% if ctx.stt %}
 ### Speech recognition — LibriSpeech test-clean
@@ -144,6 +146,24 @@ their TTFA equals the synth p50/p90.*
 
 Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
 {% endif %}
+
+## Supported Hardware
+
+One image per package serves **both boards** — native cubins for sm_87 and
+sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
+
+<table width="100%">
+  <thead>
+    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
+  </thead>
+  <tbody>
+    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
+    <tr><td align="center"><strong>compute capability</strong></td><td align="center">sm_110a + sm_110 PTX</td><td align="center">sm_87 + sm_87 PTX</td></tr>
+    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
+    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
+    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
+  </tbody>
+</table>
 
 ## Projects
 
@@ -221,9 +241,15 @@ bench/.venv/bin/python -m bench.cli run bench/configs/thor_tts_baseline.yaml
 make bench-plot
 ```
 
-The runner **gates every GPU run on co-tenancy**: if other compute apps hold the GPU,
-it waits for a clean window and defers rather than measure contaminated. Every run
-appends to `benchmarks/history.jsonl`; baseline-class runs also publish their raw
+The runner **gates every GPU run on co-tenancy**: the window counts as clean
+only after `gpu_confirm_samples` (default 6) consecutive samples under the
+threshold — a lucky gap between co-tenant bursts doesn't count — and it defers
+rather than measure contaminated. Co-tenants are never killed. Before each
+engine (and once the window opens) the runner also **drops the host page
+cache** (`sysctl -w vm.drop_caches=3` via a targeted NOPASSWD grant — install
+it with `bench grant-permissions`; without the grant it silently skips), so a
+warm file cache can't inflate the memory numbers. Every run appends to
+`benchmarks/history.jsonl`; baseline-class runs also publish their raw
 artifacts to `benchmarks/raw/<run_id>/`.
 
 ## CI

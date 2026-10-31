@@ -76,7 +76,7 @@ def _colored_table(rows: list[dict], task: str) -> str:
     heads = (
         ["engine", "model", "backend"]
         + [h for _, h in COLS[task]]
-        + ["mem MiB", "GPU W"]
+        + ["cgroup MiB", "anon MiB", "GPU W"]
     )
     # per-column best/worst for coloring
     best: dict[str, float] = {}
@@ -108,6 +108,8 @@ def _colored_table(rows: list[dict], task: str) -> str:
                 cells.append(txt)
         mem = _metric_v(r, "mem_peak_mib")
         cells.append(f"{mem:,.0f}" if mem else "—")
+        anon = _metric_v(r, "anon_peak_mib")
+        cells.append(f"{anon:,.0f}" if anon else "—")
         if is_cpu:
             cells.append("— (CPU)")  # module-wide idle draw, not the engine's
         else:

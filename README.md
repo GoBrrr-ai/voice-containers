@@ -99,18 +99,20 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
 by `bench plot --readme` — regenerate with `make bench-plot`. 
 > Cohort: **jetson-agx-thor-128gb · default power · commit 4dd4272 · 2026-10-31**.
-Charts: ★ marks the best engine for that chart's metric.
+Charts: ★ marks the best engine for that chart's metric. Memory: **cgroup MiB**
+counts the container's active file cache too (the model was just read from
+disk); **anon MiB** is true process memory.
 
 
 ### Speech recognition — LibriSpeech test-clean
 
-| engine | model | backend | WER | CER | SER | halluc. | RTF p50 | RTF p90 | lat p50 (s) | lat p90 (s) | mem MiB | GPU W |
-|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 🥇 nemotron-unified-asr | nemotron-labs-unified-asr-0.6b-q8_0 | cuda | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.1113}}$ | $\color{#f85149}{\text{0.2486}}$ | $\color{#f85149}{\text{0.6912}}$ | 0.8496 | 2,119 | 11 |
-| 🥈 phonon2-stt | phonon-2.5-english-q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.0900 | 0.2010 | 0.5754 | 0.6871 | 2,070 | 8 |
-| 🥉 parakeet-redux-stt | redux-q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0984 | 0.2206 | 0.5806 | 0.7790 | 2,102 | 18 |
-| parakeet-redux-stt | parakeet-redux packed (redux-packed.gguf) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0707 | 0.1041 | 0.4580 | $\color{#f85149}{\text{0.9607}}$ | 1,006 | — (CPU) |
-| wyoming-faster-whisper | faster-whisper-tiny-int8 | cuda | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0130}}$ | $\color{#3fb950}{\text{0.0185}}$ | $\color{#3fb950}{\text{0.0857}}$ | $\color{#3fb950}{\text{0.1507}}$ | 613 | 14 |
+| engine | model | backend | WER | CER | SER | halluc. | RTF p50 | RTF p90 | lat p50 (s) | lat p90 (s) | cgroup MiB | anon MiB | GPU W |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| 🥇 nemotron-unified-asr | nemotron-labs-unified-asr-0.6b-q8_0 | cuda | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.1113}}$ | $\color{#f85149}{\text{0.2486}}$ | $\color{#f85149}{\text{0.6912}}$ | 0.8496 | 2,119 | — | 11 |
+| 🥈 phonon2-stt | phonon-2.5-english-q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.0900 | 0.2010 | 0.5754 | 0.6871 | 2,070 | — | 8 |
+| 🥉 parakeet-redux-stt | redux-q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0984 | 0.2206 | 0.5806 | 0.7790 | 2,102 | — | 18 |
+| parakeet-redux-stt | parakeet-redux packed (redux-packed.gguf) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0707 | 0.1041 | 0.4580 | $\color{#f85149}{\text{0.9607}}$ | 1,006 | — | — (CPU) |
+| wyoming-faster-whisper | faster-whisper-tiny-int8 | cuda | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0130}}$ | $\color{#3fb950}{\text{0.0185}}$ | $\color{#3fb950}{\text{0.0857}}$ | $\color{#3fb950}{\text{0.1507}}$ | 613 | — | 14 |
 
 *500 utterances · 5 configurations · 🥇 **nemotron-unified 0.6B q8_0** at **1.77% WER**
 (🥇🥈🥉 = composite top 3); fastest RTF p50
@@ -146,13 +148,13 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 
 ### Speech synthesis — 444 sentences (LibriSpeech text)
 
-| engine | model | backend | RTF p50 | RTF p90 | synth p50 (s) | synth p90 (s) | TTFA p50 (s) | TTFA p90 (s) | mem MiB | GPU W |
-|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 🥇 kokoro-tts | Kokoro-82M v1.0 int8 (model_uint8.onnx) | cuda | 0.0850 | $\color{#f85149}{\text{0.1923}}$ | 0.5781 | 1.2016 | 0.5773 | 1.1899 | 1,526 | 34 |
-| 🥈 paradee-tts | Paradee-8M-v1.0 int8 (baked) | cpu | $\color{#f85149}{\text{0.1503}}$ | 0.1522 | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | 604 | — (CPU) |
-| 🥉 paradee-tts | Paradee-8M-v1.0 int8 (baked) | cuda | $\color{#3fb950}{\text{0.0188}}$ | $\color{#3fb950}{\text{0.0462}}$ | $\color{#3fb950}{\text{0.1414}}$ | 0.1912 | 0.1414 | 0.1912 | 1,508 | 16 |
-| wyoming-piper1-tts | en_US-libritts_r-medium | cuda | 0.0334 | 0.0998 | 0.1587 | $\color{#3fb950}{\text{0.1738}}$ | 0.1587 | 0.1738 | 1,149 | 12 |
-| phonon31m-tts | phonon-31m-en | cpu | 0.1237 | 0.1553 | 0.7679 | 2.3239 | $\color{#3fb950}{\text{0.0757}}$ | $\color{#3fb950}{\text{0.1124}}$ | 516 | — (CPU) |
+| engine | model | backend | RTF p50 | RTF p90 | synth p50 (s) | synth p90 (s) | TTFA p50 (s) | TTFA p90 (s) | cgroup MiB | anon MiB | GPU W |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| 🥇 kokoro-tts | Kokoro-82M v1.0 int8 (model_uint8.onnx) | cuda | 0.0850 | $\color{#f85149}{\text{0.1923}}$ | 0.5781 | 1.2016 | 0.5773 | 1.1899 | 1,526 | — | 34 |
+| 🥈 paradee-tts | Paradee-8M-v1.0 int8 (baked) | cpu | $\color{#f85149}{\text{0.1503}}$ | 0.1522 | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | 604 | — | — (CPU) |
+| 🥉 paradee-tts | Paradee-8M-v1.0 int8 (baked) | cuda | $\color{#3fb950}{\text{0.0188}}$ | $\color{#3fb950}{\text{0.0462}}$ | $\color{#3fb950}{\text{0.1414}}$ | 0.1912 | 0.1414 | 0.1912 | 1,508 | — | 16 |
+| wyoming-piper1-tts | en_US-libritts_r-medium | cuda | 0.0334 | 0.0998 | 0.1587 | $\color{#3fb950}{\text{0.1738}}$ | 0.1587 | 0.1738 | 1,149 | — | 12 |
+| phonon31m-tts | phonon-31m-en | cpu | 0.1237 | 0.1553 | 0.7679 | 2.3239 | $\color{#3fb950}{\text{0.0757}}$ | $\color{#3fb950}{\text{0.1124}}$ | 516 | — | — (CPU) |
 
 *444 sentences · 5 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
 **0.019**; best TTFA p50 **76 ms**
@@ -184,6 +186,24 @@ their TTFA equals the synth p50/p90.*
 
 Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
 
+
+## Supported Hardware
+
+One image per package serves **both boards** — native cubins for sm_87 and
+sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
+
+<table width="100%">
+  <thead>
+    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
+  </thead>
+  <tbody>
+    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
+    <tr><td align="center"><strong>compute capability</strong></td><td align="center">sm_110a + sm_110 PTX</td><td align="center">sm_87 + sm_87 PTX</td></tr>
+    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
+    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
+    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
+  </tbody>
+</table>
 
 ## Projects
 
@@ -261,9 +281,15 @@ bench/.venv/bin/python -m bench.cli run bench/configs/thor_tts_baseline.yaml
 make bench-plot
 ```
 
-The runner **gates every GPU run on co-tenancy**: if other compute apps hold the GPU,
-it waits for a clean window and defers rather than measure contaminated. Every run
-appends to `benchmarks/history.jsonl`; baseline-class runs also publish their raw
+The runner **gates every GPU run on co-tenancy**: the window counts as clean
+only after `gpu_confirm_samples` (default 6) consecutive samples under the
+threshold — a lucky gap between co-tenant bursts doesn't count — and it defers
+rather than measure contaminated. Co-tenants are never killed. Before each
+engine (and once the window opens) the runner also **drops the host page
+cache** (`sysctl -w vm.drop_caches=3` via a targeted NOPASSWD grant — install
+it with `bench grant-permissions`; without the grant it silently skips), so a
+warm file cache can't inflate the memory numbers. Every run appends to
+`benchmarks/history.jsonl`; baseline-class runs also publish their raw
 artifacts to `benchmarks/raw/<run_id>/`.
 
 ## CI

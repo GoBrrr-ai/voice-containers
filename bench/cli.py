@@ -70,6 +70,38 @@ def report(run_dir: str):
     typer.echo(json.dumps(s, indent=2))
 
 
+@app.command("grant-permissions")
+def grant_permissions(yes: bool = typer.Option(False, "--yes", "-y")):
+    """Install the NOPASSWD sudo grant for the page-cache clear (one prompt).
+
+    Idempotent: a present grant (even one installed by another checkout, e.g.
+    mjolnir's) is detected and left untouched. Adds ONLY
+    `sysctl -w vm.drop_caches=3` — never full sudo."""
+    from . import cachectl
+
+    raise typer.Exit(cachectl.grant_drop_caches(assume_yes=yes))
+
+
+@app.command("drop-caches")
+def drop_caches():
+    """Clear the host page cache (sysctl -w vm.drop_caches=3) — never prompts."""
+    from . import cachectl
+
+    if not cachectl.drop_caches_granted():
+        typer.secho(
+            "drop-caches grant missing — run: bench grant-permissions",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+        raise typer.Exit(4)
+    rc = cachectl.drop_caches()
+    if rc == 0:
+        typer.secho("page cache cleared (vm.drop_caches=3)", fg=typer.colors.GREEN)
+    else:
+        typer.secho(f"drop_caches failed (exit {rc})", fg=typer.colors.RED, err=True)
+    raise typer.Exit(rc)
+
+
 @app.command()
 def plot(readme: bool = True, include: str = "baseline"):
     """Render all charts (+ README.md with --readme) from benchmarks/history.jsonl.
