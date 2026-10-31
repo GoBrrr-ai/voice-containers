@@ -128,9 +128,11 @@ def _cards(rows: list[dict], task: str) -> list[dict]:
         fams.setdefault(_names.family(r), []).append(r)
     out = []
     for fam, fam_rows in fams.items():
-        # identity only: model list (winner first); benchmark data lives in the tables
+        # identity only: model list (winner first); benchmark data lives in the tables.
+        # each model links to its project README (raw <a> — markdown links don't
+        # render inside the cards' HTML block)
         lines = [
-            _names.model_pretty(r)
+            f'<a href="{task}/{_names.project(r)}/">{_names.model_pretty(r)}</a>'
             for r in sorted(fam_rows, key=lambda x: x.get("rank", 999))
         ]
         out.append(

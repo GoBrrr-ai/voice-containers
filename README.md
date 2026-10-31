@@ -40,7 +40,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🦜&nbsp;parakeet.cpp</h3>
       <p>one parakeet.cpp runtime, several q8_0 GGUF models</p>
-      <p>nemotron-labs-unified-asr-0.6b-q8_0<br>phonon-2.5-english-q8_0<br>redux-q8_0<br>parakeet-redux packed (redux-packed.gguf)<br></p>
+      <p><a href="stt/nemotron-unified-asr/">nemotron-labs-unified-asr-0.6b-q8_0</a><br><a href="stt/phonon2-stt/">phonon-2.5-english-q8_0</a><br><a href="stt/parakeet-redux-stt/">redux-q8_0</a><br><a href="stt/parakeet-redux-stt/">parakeet-redux packed (redux-packed.gguf)</a><br></p>
       <p><em>true buffered streaming (0.16–2.08 s chunks)</em></p>
       <br>
     </td>
@@ -48,7 +48,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>⚡&nbsp;faster-whisper</h3>
       <p>faster-whisper 1.2.1 on our CTranslate2 4.8.4 build</p>
-      <p>faster-whisper-tiny-int8<br></p>
+      <p><a href="stt/wyoming-faster-whisper/">faster-whisper-tiny-int8</a><br></p>
       <p><em>Wyoming streaming</em></p>
       <br>
     </td>
@@ -62,7 +62,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🗣️&nbsp;kokoro</h3>
       <p>Kokoro-82M v1.0, int8 ONNX on onnxruntime-gpu</p>
-      <p>Kokoro-82M v1.0 int8 (model_uint8.onnx)<br></p>
+      <p><a href="tts/kokoro-tts/">Kokoro-82M v1.0 int8 (model_uint8.onnx)</a><br></p>
       <p><em>create_stream()</em></p>
       <br>
     </td>
@@ -70,7 +70,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>✨&nbsp;paradee</h3>
       <p>Paradee-8M v1.0 int8 ONNX — a Kokoro distillation</p>
-      <p>Paradee-8M-v1.0 int8 (baked)<br>Paradee-8M-v1.0 int8 (baked)<br></p>
+      <p><a href="tts/paradee-tts/">Paradee-8M-v1.0 int8 (baked)</a><br><a href="tts/paradee-tts/">Paradee-8M-v1.0 int8 (baked)</a><br></p>
       <p><em>sentence-chunked</em></p>
       <br>
     </td>
@@ -78,7 +78,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🎺&nbsp;piper1-tts</h3>
       <p>piper-tts 1.8.0 on our onnxruntime-gpu build</p>
-      <p>en_US-libritts_r-medium<br></p>
+      <p><a href="tts/wyoming-piper1-tts/">en_US-libritts_r-medium</a><br></p>
       <p><em>Wyoming streaming</em></p>
       <br>
     </td>
@@ -86,7 +86,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🌊&nbsp;phonon-31m</h3>
       <p>gradium/phonon-31m-en via the ptts runtime — CPU-only by design</p>
-      <p>phonon-31m-en<br></p>
+      <p><a href="tts/phonon31m-tts/">phonon-31m-en</a><br></p>
       <p><em>true streaming on CPU (307 MB)</em></p>
       <br>
     </td>
