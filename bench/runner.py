@@ -157,7 +157,7 @@ def _container_anon_mib(container: str) -> str:
         for line in r.stdout.splitlines():
             parts = line.split()  # cgroup memory.stat is space-separated
             if len(parts) == 2 and parts[0] in ("anon", "total_anon"):
-                return f"{int(parts[1]) / 1024:.0f}MiB"  # kB -> MiB
+                return f"{int(parts[1]) / 1024 / 1024:.0f}MiB"  # bytes -> MiB
     except Exception:
         pass
     return ""
