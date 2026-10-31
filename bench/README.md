@@ -31,6 +31,27 @@ JSONL schema already carries their fields.
 
 ## Usage
 
+## Matrix, charts and README (PRD §10 — mjolnir methodology)
+
+Every run appends one line per engine config to `benchmarks/history.jsonl`;
+baseline-class runs also publish their raw artifacts (no audio) to
+`benchmarks/raw/<run_id>/`. From that data alone — never re-running inference:
+
+```bash
+bench/.venv/bin/python -m bench.cli plot --readme
+# charts (dark 2x PNGs + manifest.json) -> assets/benchmarks/<task>/
+# matrix.csv / matrix.json / sortable index_<task>.html -> reports/matrix/
+# README.md rendered from README.md.j2 (StrictUndefined) — tables colored
+# green/best, red/worst per column; charts embedded via a manifest
+
+make bench-plot   # same thing
+```
+
+Ranking = composite score (direction-aware min-max within the cohort, log-scale
+for RTF/latency/memory/power; preset weights `default|realtime_assistant|batch_transcription|low_power`)
++ hard gates (STT WER ≤ 10%, RTF ≤ 1; TTS RTF ≤ 1, synth p50 ≤ 2 s) + Pareto flags.
+Cohorts `(task, device, power_profile, manifest)` are never ranked together.
+
 ```bash
 python -m venv bench/.venv && bench/.venv/bin/pip install -r bench/requirements.txt
 source bench/.venv/bin/activate

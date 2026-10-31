@@ -80,9 +80,9 @@ def _footer_common(fig, rows: list[dict], extra: str = "") -> None:
         DARK,
         left=(
             f"edge-containers bench · {r0.get('device_label', '?')} · "
-            f"{r0.get('power_profile', 'default')} power · manifest {r0.get('manifest', '?')[-44:]}"
+            f"{r0.get('power_profile', 'default')} power · …{r0.get('manifest', '?')[-20:]}"
         ),
-        right=f"commit {r0.get('git_commit', '?')} · {time.strftime('%Y-%m-%d')}{extra}",
+        right=f"commit {r0.get('git_commit', '?')}{extra}",
     )
 
 
@@ -402,9 +402,20 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
     fig, ax = plt.subplots(
         figsize=(1.9 + 1.55 * len(metric_keys), 1.2 + 0.55 * len(labels))
     )
+    apply(fig, ax)
     im = ax.imshow(g, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
+    pretty = {
+        "wer": "WER", "cer": "CER", "ser": "SER", "hallucination_rate": "halluc.",
+        "rtf": "RTF p50", "offline_latency_s": "lat p50 (s)",
+        "synth_latency_s": "synth p50 (s)", "ttfa_s": "TTFA p50 (s)",
+        "mem_peak_mib": "mem (MiB)", "gpu_power_w_mean": "GPU power (W)",
+    }
     ax.set_xticks(
-        range(len(metric_keys)), metric_keys, rotation=30, ha="right", fontsize=8.5
+        range(len(metric_keys)),
+        [pretty.get(k, k) for k in metric_keys],
+        rotation=30,
+        ha="right",
+        fontsize=8.5,
     )
     ax.set_yticks(range(len(labels)), labels, fontsize=8.5)
     for i in range(len(labels)):
