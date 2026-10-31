@@ -85,6 +85,13 @@ def run_container_job(
 ) -> dict:
     """Spawn the engine container with the client mounted; wait; return meta."""
     name = f"bench-{job['task']}-{job['engine']}-{int(time.time())}"
+    # rewrite host cache paths to their container mount (/data/bench-cache)
+    cache_root = Path(cache_dir).resolve()
+    for s in job["samples"]:
+        if s.get("audio_path"):
+            s["audio_path"] = "/data/bench-cache/" + str(
+                Path(s["audio_path"]).resolve().relative_to(cache_root)
+            )
     job_path = run_dir / f"job_{job['engine']}.json"
     job_path.write_text(
         json.dumps({**job, "out_dir": "/bench/out"}, ensure_ascii=False)
@@ -98,18 +105,13 @@ def run_container_job(
         "-v",
         f"{str(bench_dir)}:/bench/code:ro",
         "-v",
-        f"{cache_dir}:/data/bench-cache",
-        "-v",
-        f"{Path(job['out_dir'])}:/data/bench-audio",
+        f"{cache_root}:/data/bench-cache:ro",
         "--entrypoint",
         "python3",
         engine_img,
         "/bench/code/client.py",
-        "/bench/out",
+        f"/bench/out/job_{job['engine']}.json",
     ]
-    # NOTE: /bench/out must exist before mount; job json path passed as the file
-    job_file = run_dir / f"job_{job['engine']}.json"
-    cmd[-2] = str(job_file)
     t0 = time.perf_counter_ns()
     proc = subprocess.Popen(cmd)
     stop_evt = threading.Event()
