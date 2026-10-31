@@ -272,6 +272,7 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
             continue
         data.append(rtfs)
         rows_used.append(r)
+        colors.append(row_color(r))
     if not data:
         return None
     best_i = min(
@@ -439,6 +440,7 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
             continue
         data.append(vals)
         rows_used.append(r)
+        colors.append(row_color(r))
     if not data:
         return None
     best_i = min(
@@ -532,10 +534,17 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
             col = [__import__("math").log10(v) for v in col]
         grid.append(_matrix._norm(col, lower))
     g = np.array(grid).T  # rows=configs, cols=metrics
-    # narrow cells + bigger fonts: the README displays the PNG at ~1/2 scale,
-    # so an over-wide figure renders the labels unreadably small
+    # stt's 8 columns made the figure over-wide (the README displays the PNG
+    # at ~1/2 scale), so its cells are compact with bigger fonts; tts keeps
+    # the original wide layout
+    geom = (
+        dict(w=1.5, cw=0.95, h=1.1, ch=0.62, tick=10, ylab=10.5, cell=9.5, cb=8)
+        if task == "stt"
+        else dict(w=1.9, cw=1.55, h=1.2, ch=0.55, tick=8.5, ylab=8.5, cell=7.5, cb=7)
+    )
     fig, ax = plt.subplots(
-        figsize=(1.5 + 0.95 * len(metric_keys), 1.1 + 0.62 * len(labels))
+        figsize=(geom["w"] + geom["cw"] * len(metric_keys),
+                 geom["h"] + geom["ch"] * len(labels))
     )
     apply(fig, ax)
     im = ax.imshow(g, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
@@ -556,19 +565,24 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
         [pretty.get(k, k) for k in metric_keys],
         rotation=30,
         ha="right",
-        fontsize=10,
+        fontsize=geom["tick"],
     )
-    ax.set_yticks(range(len(labels)), labels, fontsize=10.5)
+    ax.set_yticks(range(len(labels)), labels, fontsize=geom["ylab"])
     for i in range(len(labels)):
         for j in range(len(metric_keys)):
             raw = raw_vals[i][j]
             txt = (
                 f"{raw:.3f}" if (isinstance(raw, float) and raw < 10) else f"{raw:,.0f}"
             )
-            ax.text(j, i, txt, ha="center", va="center", fontsize=9.5, color=mode.text)
+            # pick the text color from the cell's own luminance — white on the
+            # pale yellow/green mid tones was unreadable
+            rgba = im.cmap(im.norm(g[i][j]))  # g: configs × metrics (transposed)
+            lum = 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]
+            ax.text(j, i, txt, ha="center", va="center", fontsize=geom["cell"],
+                    color=mode.bg if lum > 0.55 else mode.text)
     ax.grid(False)
     cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
-    cb.ax.tick_params(colors=mode.text_dim, labelsize=8)
+    cb.ax.tick_params(colors=mode.text_dim, labelsize=geom["cb"])
     cb.set_label("normalized score (1 = best)", color=mode.text_dim, fontsize=8)
     _title(ax, "Speech "
            + ("recognition" if task == "stt" else "synthesis")
