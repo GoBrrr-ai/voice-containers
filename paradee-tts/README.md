@@ -20,10 +20,10 @@ ONNX **distillation of Kokoro-82M** (paper 2610.06817): UTMOS 4.41 (teacher
 ```sh
 # batch
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -v /data:/data \
-  narandill/paradee-tts-thor:0.1.0 paradee-say "Hello from Jetson Thor." -o /data/p.wav
+  futureproofhomes/paradee-tts-thor:0.1.0 paradee-say "Hello from Jetson Thor." -o /data/p.wav
 
 # sentence-chunked streaming (prints first-chunk TTFA)
-docker run ... narandill/paradee-tts-thor:0.1.0 paradee-stream "First sentence. Second one." -o /data/ps.wav
+docker run ... futureproofhomes/paradee-tts-thor:0.1.0 paradee-stream "First sentence. Second one." -o /data/ps.wav
 ```
 
 ## Library use

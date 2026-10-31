@@ -16,11 +16,11 @@ sm_110a PTX). CUDA EP first, CPU EP fallback.
 ```sh
 # batch to wav
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -v /data:/data \
-  narandill/kokoro-tts-thor:0.1.0 kokoro-say "Hello from Jetson Thor." -o /data/kokoro.wav
+  futureproofhomes/kokoro-tts-thor:0.1.0 kokoro-say "Hello from Jetson Thor." -o /data/kokoro.wav
 
 # true streaming (prints TTFA)
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -v /data:/data \
-  narandill/kokoro-tts-thor:0.1.0 kokoro-stream-demo "Streaming is native here." -o /data/stream.wav
+  futureproofhomes/kokoro-tts-thor:0.1.0 kokoro-stream-demo "Streaming is native here." -o /data/stream.wav
 ```
 
 ## Library use (recommended for the assistant)

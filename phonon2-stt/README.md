@@ -39,7 +39,7 @@ streaming: use `nemotron-unified-asr` (same binary).
 ```sh
 # GPU q8 (default)
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -p 8080:8080 \
-  narandill/phonon2-stt-thor:0.1.0
+  futureproofhomes/phonon2-stt-thor:0.1.0
 
 # Ultra-light CPU packed
 docker run ... -e PARAKEET_DEVICE=cpu -e PARAKEET_MODEL=/models/phonon-2.5-english-packed.gguf ...
