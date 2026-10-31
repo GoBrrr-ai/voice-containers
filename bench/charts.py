@@ -141,6 +141,8 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
         return None
     mems = [(_matrix._metric(r, "mem_peak_mib") or 0) for r, _, _ in pts]
     mmax = max(mems) or 1
+    x_lo, x_hi = min(p[2] for p in pts), max(p[2] for p in pts)
+    ax.set_xlim(x_lo * 0.55, x_hi * 2.6)
     for (r, wer, rtf), mem in zip(pts, mems):
         ax.scatter(
             rtf,
@@ -152,11 +154,14 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
             linewidth=0.6,
             zorder=3,
         )
+        # avoid right-edge overflow: label left when past ~60% of the log span
+        right_side = rtf > x_lo * (x_hi / x_lo) ** 0.6
         ax.annotate(
             _label(r),
             (rtf, wer),
             textcoords="offset points",
-            xytext=(6, 5),
+            xytext=(-6, 5) if right_side else (6, 5),
+            ha="right" if right_side else "left",
             fontsize=8.5,
             color=mode.text,
         )
