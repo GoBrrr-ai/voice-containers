@@ -173,6 +173,11 @@ def run_config(config_path: str) -> str:
     teg = TegraStats(out / "tegrastats.log")
     teg.start()
 
+    # 2) environment record per run (PRD 9.1 / 5.4)
+    from .env import collect
+
+    (out / "env.json").write_text(json.dumps(collect(), indent=2))
+
     manifest = list(jsonl_read(root / cfg["dataset"]["manifest"]))
     manifest = manifest[: int(cfg["dataset"].get("n", len(manifest)))]
     task = cfg["task"]
