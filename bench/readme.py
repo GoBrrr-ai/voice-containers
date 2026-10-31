@@ -91,7 +91,7 @@ def _colored_table(rows: list[dict], task: str) -> str:
         is_cpu = (r.get("requested_backend") or "").lower() == "cpu"
         cells = [
             _names.medal(r) + _names.project(r),  # 🥇🥈🥉 + NBSP
-            _names.model_pretty(r),
+            _names.display(r),
             r.get("requested_backend", "?"),
         ]
         for k, _ in COLS[task]:

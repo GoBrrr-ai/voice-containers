@@ -121,19 +121,6 @@ def _model_base(row: dict) -> str:
     return base.removesuffix(".gguf").removesuffix(".onnx")
 
 
-def model_pretty(row: dict) -> str:
-    """Original model name for tables (extension stripped, baked models named)."""
-    proj = project(row)
-    base = _model_base(row)
-    if proj == "paradee-tts":
-        return "Paradee-8M-v1.0 int8 (baked)"
-    if proj == "kokoro-tts":
-        return "Kokoro-82M v1.0 int8 (model_uint8.onnx)"
-    if proj == "parakeet-redux-stt" and "packed" in base:
-        return "parakeet-redux packed (redux-packed.gguf)"
-    return base or "—"
-
-
 def display(row: dict) -> str:
     """Short chart label: original engine + model variant."""
     proj = project(row)

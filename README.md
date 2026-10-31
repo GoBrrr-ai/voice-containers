@@ -102,11 +102,11 @@ disk); **anon MiB** is true process memory.
 
 | engine | model | backend | WER | CER | SER | halluc. | RTF p50 | RTF p90 | lat p50 (s) | lat p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 🥇 nemotron-unified-asr | nemotron-labs-unified-asr-0.6b-q8_0 | cuda | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.1113}}$ | $\color{#f85149}{\text{0.2486}}$ | $\color{#f85149}{\text{0.6912}}$ | 0.8496 | 2,119 | — | 11 |
-| 🥈 phonon2-stt | phonon-2.5-english-q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.0900 | 0.2010 | 0.5754 | 0.6871 | 2,070 | — | 8 |
-| 🥉 parakeet-redux-stt | redux-q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0984 | 0.2206 | 0.5806 | 0.7790 | 2,102 | — | 18 |
-| parakeet-redux-stt | parakeet-redux packed (redux-packed.gguf) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0707 | 0.1041 | 0.4580 | $\color{#f85149}{\text{0.9607}}$ | 1,006 | — | — (CPU) |
-| wyoming-faster-whisper | faster-whisper-tiny-int8 | cuda | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0130}}$ | $\color{#3fb950}{\text{0.0185}}$ | $\color{#3fb950}{\text{0.0857}}$ | $\color{#3fb950}{\text{0.1507}}$ | 613 | — | 14 |
+| 🥇 nemotron-unified-asr | nemotron-unified 0.6B q8_0 | cuda | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.1113}}$ | $\color{#f85149}{\text{0.2486}}$ | $\color{#f85149}{\text{0.6912}}$ | 0.8496 | 2,119 | — | 11 |
+| 🥈 phonon2-stt | phonon-2.5 q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.0900 | 0.2010 | 0.5754 | 0.6871 | 2,070 | — | 8 |
+| 🥉 parakeet-redux-stt | parakeet-redux 178M q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0984 | 0.2206 | 0.5806 | 0.7790 | 2,102 | — | 18 |
+| parakeet-redux-stt | redux packed (CPU) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0707 | 0.1041 | 0.4580 | $\color{#f85149}{\text{0.9607}}$ | 1,006 | — | — (CPU) |
+| wyoming-faster-whisper | faster-whisper tiny int8 | cuda | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0130}}$ | $\color{#3fb950}{\text{0.0185}}$ | $\color{#3fb950}{\text{0.0857}}$ | $\color{#3fb950}{\text{0.1507}}$ | 613 | — | 14 |
 
 *500 utterances · 5 configurations · 🥇 **nemotron-unified 0.6B q8_0** at **1.77% WER**
 (🥇🥈🥉 = composite top 3); fastest RTF p50
@@ -144,11 +144,11 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 
 | engine | model | backend | RTF p50 | RTF p90 | synth p50 (s) | synth p90 (s) | TTFA p50 (s) | TTFA p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 🥇 kokoro-tts | Kokoro-82M v1.0 int8 (model_uint8.onnx) | cuda | 0.0850 | $\color{#f85149}{\text{0.1923}}$ | 0.5781 | 1.2016 | 0.5773 | 1.1899 | 1,526 | — | 34 |
-| 🥈 paradee-tts | Paradee-8M-v1.0 int8 (baked) | cpu | $\color{#f85149}{\text{0.1503}}$ | 0.1522 | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | 604 | — | — (CPU) |
-| 🥉 paradee-tts | Paradee-8M-v1.0 int8 (baked) | cuda | $\color{#3fb950}{\text{0.0188}}$ | $\color{#3fb950}{\text{0.0462}}$ | $\color{#3fb950}{\text{0.1414}}$ | 0.1912 | 0.1414 | 0.1912 | 1,508 | — | 16 |
-| wyoming-piper1-tts | en_US-libritts_r-medium | cuda | 0.0334 | 0.0998 | 0.1587 | $\color{#3fb950}{\text{0.1738}}$ | 0.1587 | 0.1738 | 1,149 | — | 12 |
-| phonon31m-tts | phonon-31m-en | cpu | 0.1237 | 0.1553 | 0.7679 | 2.3239 | $\color{#3fb950}{\text{0.0757}}$ | $\color{#3fb950}{\text{0.1124}}$ | 516 | — | — (CPU) |
+| 🥇 kokoro-tts | kokoro 82M int8 | cuda | 0.0850 | $\color{#f85149}{\text{0.1923}}$ | 0.5781 | 1.2016 | 0.5773 | 1.1899 | 1,526 | — | 34 |
+| 🥈 paradee-tts | paradee 8M int8 (CPU) | cpu | $\color{#f85149}{\text{0.1503}}$ | 0.1522 | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | $\color{#f85149}{\text{1.1309}}$ | $\color{#f85149}{\text{3.2617}}$ | 604 | — | — (CPU) |
+| 🥉 paradee-tts | paradee 8M int8 (GPU) | cuda | $\color{#3fb950}{\text{0.0188}}$ | $\color{#3fb950}{\text{0.0462}}$ | $\color{#3fb950}{\text{0.1414}}$ | 0.1912 | 0.1414 | 0.1912 | 1,508 | — | 16 |
+| wyoming-piper1-tts | piper1-tts libritts-r medium | cuda | 0.0334 | 0.0998 | 0.1587 | $\color{#3fb950}{\text{0.1738}}$ | 0.1587 | 0.1738 | 1,149 | — | 12 |
+| phonon31m-tts | phonon-31m (CPU) | cpu | 0.1237 | 0.1553 | 0.7679 | 2.3239 | $\color{#3fb950}{\text{0.0757}}$ | $\color{#3fb950}{\text{0.1124}}$ | 516 | — | — (CPU) |
 
 *444 sentences · 5 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
 **0.019**; best TTFA p50 **76 ms**
@@ -206,9 +206,9 @@ sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
 | Package | Image (`narandill/<name>`) | What it is | Streaming |
 |---|---|---|---|
 | `packages/stt/wyoming-faster-whisper` | `wyoming-faster-whisper:0.1.0` | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
-| `packages/stt/nemotron-unified-asr` | `nemotron-unified-asr:0.1.0` | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF on parakeet.cpp | **true buffered** (0.16–2.08 s) |
-| `packages/stt/parakeet-redux-stt` | `parakeet-redux-stt:0.1.0` | moondream/parakeet-redux (ternary 178M) q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
-| `packages/stt/phonon2-stt` | `phonon2-stt:0.1.0` | Fermion Phonon-2.5-english q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
+| `packages/stt/nemotron-unified-asr` | `nemotron-unified-asr:0.1.0` | nvidia nemotron-unified-asr 0.6B (q8_0) on parakeet.cpp | **true buffered** (0.16–2.08 s) |
+| `packages/stt/parakeet-redux-stt` | `parakeet-redux-stt:0.1.0` | moondream parakeet-redux 178M (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
+| `packages/stt/phonon2-stt` | `phonon2-stt:0.1.0` | fermion phonon-2.5 (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
 
 ### Speech synthesis (`packages/tts/`)
 

@@ -170,9 +170,9 @@ sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
 | Package | Image (`narandill/<name>`) | What it is | Streaming |
 |---|---|---|---|
 | `packages/stt/wyoming-faster-whisper` | `wyoming-faster-whisper:0.1.0` | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
-| `packages/stt/nemotron-unified-asr` | `nemotron-unified-asr:0.1.0` | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF on parakeet.cpp | **true buffered** (0.16–2.08 s) |
-| `packages/stt/parakeet-redux-stt` | `parakeet-redux-stt:0.1.0` | moondream/parakeet-redux (ternary 178M) q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
-| `packages/stt/phonon2-stt` | `phonon2-stt:0.1.0` | Fermion Phonon-2.5-english q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
+| `packages/stt/nemotron-unified-asr` | `nemotron-unified-asr:0.1.0` | nvidia nemotron-unified-asr 0.6B (q8_0) on parakeet.cpp | **true buffered** (0.16–2.08 s) |
+| `packages/stt/parakeet-redux-stt` | `parakeet-redux-stt:0.1.0` | moondream parakeet-redux 178M (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
+| `packages/stt/phonon2-stt` | `phonon2-stt:0.1.0` | fermion phonon-2.5 (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
 
 ### Speech synthesis (`packages/tts/`)
 
