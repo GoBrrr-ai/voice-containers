@@ -170,11 +170,24 @@ class Kokoro:
         return audio, sr
 
     def synthesize_stream(self, text: str):
+        """Drive kokoro's async generator incrementally so TTFA stays real."""
+        import asyncio
+
         import numpy as np
 
-        for samples, sr in self.k.create_stream(text, voice=self.voice, lang="en-us"):
-            _sync_cuda()
-            yield np.asarray(samples), sr
+        it = self.k.create_stream(text, voice=self.voice, lang="en-us")
+        loop = asyncio.new_event_loop()
+        try:
+            while True:
+                try:
+                    samples, sr = loop.run_until_complete(it.__anext__())
+                except StopAsyncIteration:
+                    break
+                _sync_cuda()
+                yield np.asarray(samples), sr
+        finally:
+            loop.run_until_complete(it.aclose())
+            loop.close()
 
 
 class Ptts:
@@ -190,7 +203,7 @@ class Ptts:
         self.tts = TTS(
             opts.get("model", "/models/phonon-31m-en"),
             lang=opts.get("lang", "en"),
-            quant=opts.get("quant", "q8"),
+            quant=opts.get("quant", "q8_0"),
         )
 
     def load(self, opts):
