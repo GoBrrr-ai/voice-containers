@@ -1,16 +1,14 @@
-# Build architecture — `projects/` (JP 7.2.1 fleet, sm_87 + sm_110)
+# Build architecture (JP 7.2.1 fleet, sm_87 + sm_110)
 
 **Status:** 2026-10-31 · This repo is the single source of truth (migrated from the jetson-containers working branch).
 
 ## Rules
 
-1. **No jetson-containers builder system.** Nothing under `projects/` is a JC
-   package: no `#---` YAML Dockerfile headers, nothing under `packages/`, and
-   no `jetson-containers build` CLI anywhere — every project is a plain
-   `docker build` via its own `build.sh`. (JC stays the *host repo* until the
-   standalone-repo migration; see below.)
+1. **No jetson-containers builder system.** No `#---` YAML Dockerfile headers,
+   nothing under `packages/`, and no `jetson-containers build` CLI anywhere —
+   every project is a plain `docker build` via its own `build.sh`.
 2. **Shared dependencies are allowed** but each must be a **self-contained
-   builder project** under `projects/`, producing tagged artifact images.
+   builder project** under `builders/`, producing tagged artifact images.
 3. **Decoupling contract:** an engine image may reference shared artifacts
    only through a **single overridable `ARG` per artifact** — so decoupling is
    a one-line change (override the ARG, vendor the file, or inline a builder
@@ -19,8 +17,8 @@
 ## Dependency graph
 
 ```
-projects/
-├── parakeet-cpp-builder/   → narandill/edge-builder:parakeet-cpp
+(builders/)
+├── parakeet-cpp/           → narandill/edge-builder:parakeet-cpp
 │     (parakeet.cpp GGML dist: parakeet-cli/-server + libggml*,
 │      sm_87+sm_110a SASS + compute_110 PTX; pinned ref 2eac2e77)
 │        ↑ ARG PARAKEET_DIST_IMAGE
@@ -59,6 +57,11 @@ by the same image — sm_87 and sm_110 cubins are baked side by side).
 
 ## Build order
 
-1. `parakeet-cpp-builder` (once; ~7 min) — done
+1. `builders/parakeet-cpp` (once; ~7 min) — done
 2. STT trio (each ~2–4 min: models download + runtime assembly; builder cached)
 3. TTS trio (kokoro/paradee reuse the existing cu132 wheel image — no rebuild)
+4. `builders/wheels-cu132` (only if the wheel set changes; ~75 min source build)
+
+Consumers of `narandill/edge-wheels:cu132` also include the two wyoming
+projects (`wyoming-faster-whisper`, `wyoming-piper1-tts`) and `llama-cpp`
+stands alone (own builder stage).

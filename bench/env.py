@@ -16,6 +16,19 @@ def _run(cmd: list[str]) -> str:
         return ""
 
 
+def _git_commit() -> str:
+    try:
+        root = Path(__file__).resolve().parent.parent
+        return subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.strip()
+    except Exception:
+        return ""
+
+
 def collect(git_commit: str = "") -> dict:
     env = {
         "python": platform.python_version(),
@@ -47,18 +60,25 @@ def collect(git_commit: str = "") -> dict:
                 "docker images --format '{{.Repository}}' | grep narandill | sort | uniq",
             ]
         ),
-        "git_commit": git_commit,
+        "git_commit": git_commit or _git_commit(),
         "utc_ts": _run(["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"]),
     }
-    # compute capability from the GPU query (accept 8.7 / 11.0 / 10.1 legacy — PRD 7A)
+    # compute capability from the GPU query (accept 8.7 / 11.0 / 10.1 — PRD 7A);
+    # parse the CSV column, don't substring-match (driver 511.05 contains "11.0")
+    cc = ""
+    for line in env["nvidia_smi"].splitlines():
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) >= 2:
+            cc = parts[1]
+            break
+    env["compute_cap"] = cc
+    env["compute_cap_ok"] = cc in {"8.7", "11.0", "10.1"}
     return env
 
 
 def selfcheck(bench_root: Path) -> dict:
     """PRD 7A.5 fail-fast: compute cap + a tiny CUDA EP session + probe presence."""
-    report = collect()
-    cc_ok = any(x in report["nvidia_smi"] for x in ("8.7", "11.0", "10.1"))
-    report["compute_cap_ok"] = cc_ok
+    report = collect()  # compute_cap / compute_cap_ok set by collect()
     try:
         import onnxruntime as ort  # noqa
 

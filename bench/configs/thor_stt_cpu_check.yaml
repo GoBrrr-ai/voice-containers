@@ -1,7 +1,7 @@
 # Quick check: packed-ternary redux on CPU (needs PARAKEET_DEVICE=cpu env — see client adapter).
 run_name: thor_stt_cpu_check
 task: stt
-device_label: jetson-agx-128gb
+device_label: jetson-agx-thor-128gb
 power_profile: default
 dataset:
   name: librispeech

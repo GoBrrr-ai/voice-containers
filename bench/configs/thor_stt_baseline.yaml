@@ -1,7 +1,7 @@
 # Thor STT baseline — LibriSpeech test-clean 500 utts, seed 42 (PRD 9.2)
 run_name: thor_stt_baseline
 task: stt
-device_label: jetson-agx-128gb
+device_label: jetson-agx-thor-128gb
 power_profile: default            # flip to `locked` (sudo jetson_clocks) for comparable best-case
 dataset:
   name: librispeech

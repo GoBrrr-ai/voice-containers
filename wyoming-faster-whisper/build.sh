@@ -15,10 +15,8 @@ echo "Building ${REPO}/wyoming-faster-whisper:${VERSION}"
 docker build "${TAGS[@]}" .
 
 if [ "${1:-}" = "--push" ]; then
-  for tag in "${REPO}/wyoming-faster-whisper:${VERSION}" "${REPO}/wyoming-faster-whisper:${VERSION}" \
-             "${REPO}/wyoming-faster-whisper:${VERSION}" "${REPO}/wyoming-faster-whisper:latest"; do
-    docker push "$tag"
-  done
+  docker push "${REPO}/wyoming-faster-whisper:${VERSION}"
+  docker push "${REPO}/wyoming-faster-whisper:latest"
 fi
 
 echo "Done. Run e.g.:"

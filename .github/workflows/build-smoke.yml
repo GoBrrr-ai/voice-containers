@@ -24,9 +24,10 @@ jobs:
           (cd builders/parakeet-cpp && ./build.sh)
           (cd builders/wheels-cu132 && ./build.sh)
       - name: Build engine images
+        env:
+          PROJECTS: ${{ inputs.projects }}   # via env, never inline into shell
         run: |
-          projects="${{ inputs.projects }}"
-          for p in ${projects:-llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts}; do
+          for p in ${PROJECTS:-llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts}; do
             echo "== build $p"
             (cd "$p" && ./build.sh)
           done

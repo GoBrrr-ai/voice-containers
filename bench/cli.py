@@ -73,9 +73,9 @@ def report(run_dir: str):
 @app.command()
 def compare(run_dirs: list[str], out: str = "compare.md"):
     """Side-by-side headline table (full matrix is PRD §10, fast-follow)."""
-    from .runner import compare
+    from .runner import compare as run_compare
 
-    typer.echo(Path(compare(run_dirs, out)).read_text())
+    typer.echo(Path(run_compare(run_dirs, out)).read_text())
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 # PILOT: 5 utterances x 3 engines — validates the container-job pipeline end to end.
 run_name: thor_stt_pilot
 task: stt
-device_label: jetson-agx-128gb
+device_label: jetson-agx-thor-128gb
 power_profile: default
 dataset:
   name: librispeech

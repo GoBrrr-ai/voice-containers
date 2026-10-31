@@ -15,10 +15,8 @@ echo "Building ${REPO}/phonon31m-tts:${VERSION}"
 docker build "${TAGS[@]}" .
 
 if [ "${1:-}" = "--push" ]; then
-  for tag in "${REPO}/phonon31m-tts:${VERSION}" "${REPO}/phonon31m-tts:${VERSION}" \
-             "${REPO}/phonon31m-tts:${VERSION}" "${REPO}/phonon31m-tts:latest"; do
-    docker push "$tag"
-  done
+  docker push "${REPO}/phonon31m-tts:${VERSION}"
+  docker push "${REPO}/phonon31m-tts:latest"
 fi
 
 echo "Done. Run e.g.:"

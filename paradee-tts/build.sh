@@ -15,10 +15,8 @@ echo "Building ${REPO}/paradee-tts:${VERSION}"
 docker build "${TAGS[@]}" .
 
 if [ "${1:-}" = "--push" ]; then
-  for tag in "${REPO}/paradee-tts:${VERSION}" "${REPO}/paradee-tts:${VERSION}" \
-             "${REPO}/paradee-tts:${VERSION}" "${REPO}/paradee-tts:latest"; do
-    docker push "$tag"
-  done
+  docker push "${REPO}/paradee-tts:${VERSION}"
+  docker push "${REPO}/paradee-tts:latest"
 fi
 
 echo "Done. Run e.g.:"

@@ -8,7 +8,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-VERSION="${LLAMA_CPP_VERSION:-0.8.0}"
+VERSION="${LLAMA_CPP_VERSION:-${VERSION:-0.8.0}}"
 REF="${LLAMA_CPP_REF:-v${VERSION}}"
 PYVER="${LLAMA_CPP_PYTHON_VERSION:-0.3.36}"
 CUDA_ARCHS="${CUDA_ARCHS:-87-real;110a-real;110-virtual}"
@@ -18,7 +18,7 @@ TAGS=(
   -t "${REPO}/llama-cpp:${VERSION}"
   -t "${REPO}/llama-cpp:latest"
 )
-[ "${1:-}" = "--push" ] && TAGS+=("${EXTRA_PUSH_TAGS:-}")
+if [ "${1:-}" = "--push" ] && [ -n "${EXTRA_PUSH_TAGS:-}" ]; then TAGS+=("$EXTRA_PUSH_TAGS"); fi
 
 echo "Building ${REPO}/llama-cpp:${VERSION}"
 echo "  ref=${REF} python=${PYVER} archs=${CUDA_ARCHS}"

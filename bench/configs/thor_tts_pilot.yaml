@@ -1,7 +1,7 @@
 # TTS pilot — 3 sentences x 4 engines; validates adapters end to end before the 444-sent baseline.
 run_name: thor_tts_pilot
 task: tts
-device_label: jetson-agx-128gb
+device_label: jetson-agx-thor-128gb
 power_profile: default
 dataset:
   name: librispeech

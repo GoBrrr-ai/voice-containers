@@ -2,7 +2,9 @@ name: publish
 
 # Push all images to Docker Hub under narandill/<project>.
 # Requires repo secrets: DOCKERHUB_USER, DOCKERHUB_TOKEN.
-# Runs ONLY on version tags, on the Jetson runner (the images are aarch64).
+# Runs ONLY on version tags (vX.Y.Z -> image version X.Y.Z), on the Jetson
+# runner (the images are aarch64). Order: build -> arch gate -> push, so a
+# failed gate can never publish.
 on:
   push:
     tags: ["v*"]
@@ -12,19 +14,28 @@ jobs:
     runs-on: [self-hosted, jetson]
     env:
       DOCKER_REPO: narandill
+      VERSION: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+      - name: Derive image version from the git tag (v0.2.0 -> 0.2.0)
+        run: echo "VERSION=${VERSION#v}" >> "$GITHUB_ENV"
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
       - name: Build shared builders (cached)
         run: |
           (cd builders/parakeet-cpp && ./build.sh)
           (cd builders/wheels-cu132 && ./build.sh)
-      - name: Build + push engine images
+      - name: Build all engine images at the tagged version (no push yet)
         run: |
           for p in llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts; do
-            echo "== publish $p"
-            (cd "$p" && ./build.sh --push)
+            echo "== build $p"
+            (cd "$p" && ./build.sh)
           done
       - name: Arch verification gate (fail the release on missing cubins)
         run: SMOKE=0 ./scripts/sweep-smoke.sh
+      - name: Push all images (cached rebuild + push)
+        run: |
+          for p in llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts; do
+            echo "== push $p"
+            (cd "$p" && ./build.sh --push)
+          done
