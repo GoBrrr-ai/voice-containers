@@ -23,7 +23,7 @@ engines:
     image: futureproofhomes/wyoming-faster-whisper-thor:0.1.0
     backends: [cuda]
     opts:
-      model: tiny-int8
+      model: Systran/faster-whisper-tiny-int8  # wyoming "tiny-int8" alias resolved
       device: cuda
       compute_type: default
 streaming: {chunk_ms: 160, realtime_pass: false}

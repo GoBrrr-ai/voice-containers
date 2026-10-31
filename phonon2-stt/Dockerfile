@@ -42,7 +42,7 @@ COPY --from=models /models /models
 COPY rootfs/ /
 
 # libgomp for the ggml/parakeet binaries (OpenMP runtime)
-RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 python3 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN echo "/opt/parakeet-dist/lib" > /etc/ld.so.conf.d/parakeet-dist.conf \
