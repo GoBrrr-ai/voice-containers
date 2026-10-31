@@ -2,7 +2,9 @@
 
 Nov 1, 2026 · Thor AGX 128 GB (sm_110), JetPack 7.2.1 userspace, driver 580.00,
 CUDA 13.2 SBSA containers · default DVFS (no `jetson_clocks`) · all runs on the
-frozen manifests (`manifests/*_seed42.jsonl`, LibriSpeech test-clean).
+frozen manifests (`manifests/*_seed42.jsonl`, LibriSpeech test-clean) · **idle
+GPU enforced** (the runner now gates every GPU run on co-tenant memory and
+defers to a clean window rather than measure contaminated).
 
 Companion: `docs/REPORT-voice-engines.md` (builds + smokes), `task/benchmark-prd.md` (spec).
 
@@ -54,19 +56,29 @@ Headlines:
 v1 uses LibriSpeech transcripts as prompts (LibriTTS-R text fast-follow — TTS
 needs text only; the 30 GB audio download is avoidable).
 
-`bench/configs/thor_tts_baseline.yaml` · run `20261031_162802_*` (4 × 444 = 1776/1776 ok)
+`bench/configs/thor_tts_baseline.yaml` · run `20261031_175952_*` (5 × 444 = 2220/2220 ok, idle GPU)
 
 | Engine | Backend | RTF p50 | RTF p95 | TTFA p50 | Notes |
 |---|---|---|---|---|---|
-| **piper en_US-libritts_r-medium** | GPU (ORT) | **0.035** | 0.126 | — | fastest overall |
-| **kokoro-82M int8** | GPU (ORT), streaming | 0.050 | 0.098 | **320 ms** | sentence-chunked stream |
-| **phonon-31m int8** | **CPU** (by design) | 0.119 | 0.132 | **75 ms** | TTFA champion; tightest RTF spread |
-| **paradee-8M int8** | GPU (ORT) | 0.151 | 0.153 | — | most predictable (p95≈p50) |
+| **paradee-8M int8** | **GPU** (ORT) | **0.019** | 0.052 | — | fastest overall (see mislabel note) |
+| **piper en_US-libritts_r-medium** | GPU (ORT) | 0.033 | 0.121 | — | |
+| **kokoro-82M int8** | GPU (ORT), streaming | 0.085 | 0.233 | **577 ms** | sentence-chunked stream |
+| **phonon-31m int8** | **CPU** (by design) | 0.124 | 0.160 | **76 ms** | TTFA champion; tightest spread |
+| **paradee-8M int8** | **CPU** (fan-out row) | 0.150 | 0.153 | — | most predictable (p95≈p50) |
 
-- All four engines are comfortably real-time (RTF ≪ 1); the spread across *GPU*
-  engines is only 0.035–0.151.
-- **ptts on CPU** beats every GPU engine on TTFA (75 ms p50, p95-stable) — the
-  best fit for a full-duplex assistant that starts playing audio immediately.
+> **Mislabel caught and fixed (v1.1):** the paradee *package* hardcodes
+> `providers=["CPUExecutionProvider"]`, and its dependency set drags in the PyPI
+> CPU `onnxruntime` wheel whose `onnxruntime_pybind11_state` lib shadowed our
+> GPU wheel — the first TTS baseline silently ran paradee on CPU while labeling
+> it cuda. The harness's honest provider probe (`session.get_providers()`)
+> caught it; the image now uninstalls both CPU/GPU ort dists before installing
+> our wheel (verified: `get_available_providers()` includes CUDAExecutionProvider),
+> and the baseline was re-run on an idle GPU. paradee: **8× faster on GPU**
+> (0.150 → 0.019 RTF).
+
+- All five engine rows are comfortably real-time (RTF ≪ 1).
+- **ptts on CPU** beats every GPU engine on TTFA (76 ms p50) — the best fit for
+  a full-duplex assistant that starts playing audio immediately.
 - kokoro streams sentence-by-sentence (async generator driven incrementally);
   its TTFA includes the first-sentence phonemization + vocoder warmup.
 - TTS determinism (seed pinning per engine) is a fast-follow — sampling engines
