@@ -1,4 +1,4 @@
-"""CLI: prepare | selfcheck | run | report | compare (PRD 9.3)."""
+"""CLI: prepare | selfcheck | run | report | compare (spec 9.3)."""
 
 from __future__ import annotations
 import json
@@ -23,7 +23,7 @@ def prepare(
     hf_config: str = "en_us",
     folder: str = "",
 ):
-    """Download, resample-cache and freeze a manifest (PRD 3.4)."""
+    """Download, resample-cache and freeze a manifest (spec 3.4)."""
     from bench.datasets import prepare
 
     out = prepare(
@@ -43,7 +43,7 @@ def prepare(
 
 @app.command()
 def selfcheck():
-    """Device / CUDA / probes / engines availability (PRD 7A.5, 9.3)."""
+    """Device / CUDA / probes / engines availability (spec 7A.5, 9.3)."""
     from .env import selfcheck
 
     r = selfcheck(BENCH)
@@ -52,7 +52,7 @@ def selfcheck():
 
 @app.command()
 def run(config: str):
-    """Execute one config through the PRD 9.1 protocol."""
+    """Execute one config through the spec 9.1 protocol."""
     from .runner import run_config
 
     rid = run_config(config)
@@ -106,7 +106,7 @@ def plot(
 
 
 def _write_html(path: Path, tables: dict, task: str) -> None:
-    """Sortable self-contained HTML matrix (PRD 10.1) with direction-aware coloring."""
+    """Sortable self-contained HTML matrix (spec 10.1) with direction-aware coloring."""
     import html as _html
 
     parts = [
@@ -153,7 +153,7 @@ def _write_html(path: Path, tables: dict, task: str) -> None:
 
 @app.command()
 def compare(run_dirs: list[str], out: str = "compare.md"):
-    """Side-by-side headline table (full matrix is PRD §10, fast-follow)."""
+    """Side-by-side headline table (full matrix is spec §10, fast-follow)."""
     from .runner import compare as run_compare
 
     typer.echo(Path(run_compare(run_dirs, out)).read_text())

@@ -27,7 +27,7 @@ jobs:
         env:
           PROJECTS: ${{ inputs.projects }}   # via env, never inline into shell
         run: |
-          for p in ${PROJECTS:-llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts}; do
+          for p in ${PROJECTS:-llm/llama-cpp stt/wyoming-faster-whisper stt/nemotron-unified-asr stt/parakeet-redux-stt stt/phonon2-stt tts/wyoming-piper1-tts tts/kokoro-tts tts/phonon31m-tts tts/paradee-tts}; do
             echo "== build $p"
             (cd "$p" && ./build.sh)
           done

@@ -27,7 +27,7 @@ jobs:
           (cd builders/wheels-cu132 && ./build.sh)
       - name: Build all engine images at the tagged version (no push yet)
         run: |
-          for p in llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts; do
+          for p in llm/llama-cpp stt/wyoming-faster-whisper stt/nemotron-unified-asr stt/parakeet-redux-stt stt/phonon2-stt tts/wyoming-piper1-tts tts/kokoro-tts tts/phonon31m-tts tts/paradee-tts; do
             echo "== build $p"
             (cd "$p" && ./build.sh)
           done
@@ -35,7 +35,7 @@ jobs:
         run: SMOKE=0 ./scripts/sweep-smoke.sh
       - name: Push all images (cached rebuild + push)
         run: |
-          for p in llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts; do
+          for p in llm/llama-cpp stt/wyoming-faster-whisper stt/nemotron-unified-asr stt/parakeet-redux-stt stt/phonon2-stt tts/wyoming-piper1-tts tts/kokoro-tts tts/phonon31m-tts tts/paradee-tts; do
             echo "== push $p"
             (cd "$p" && ./build.sh --push)
           done

@@ -1,4 +1,4 @@
-# Thor STT baseline — LibriSpeech test-clean 500 utts, seed 42 (PRD 9.2)
+# Thor STT baseline — LibriSpeech test-clean 500 utts, seed 42 (spec 9.2)
 run_name: thor_stt_baseline
 task: stt
 device_label: jetson-agx-thor-128gb

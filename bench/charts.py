@@ -13,10 +13,11 @@ import time
 from pathlib import Path
 
 from . import matrix as _matrix
+from . import names as _names
 from . import theme
 from .theme import DARK, Mode, apply, engine_color, footer, log_y_if_spanning
 
-DPI = 200  # 2x PNG per PRD 10.3 (vs matplotlib's default 100)
+DPI = 200  # 2x PNG per spec 10.3 (vs matplotlib's default 100)
 
 
 def _plt():
@@ -46,13 +47,8 @@ def _load_utterances(bench_root: Path, run_id: str, engine_id: str) -> list[dict
 
 
 def _label(row: dict) -> str:
-    """Short series label: model name for parakeet variants, engine otherwise."""
-    eng = row.get("engine", "?")
-    model = str(row.get("model", ""))
-    if eng == "parakeet_cpp":
-        base = model.rsplit("/", 1)[-1].replace(".gguf", "")
-        return "parakeet · " + ("packed CPU" if "packed" in model else base[:18])
-    return eng
+    """Short series label from the original engine + model (never the config id)."""
+    return _names.display(row)
 
 
 def _labels(rows: list[dict]) -> list[str]:
@@ -86,8 +82,17 @@ def _footer_common(fig, rows: list[dict], extra: str = "") -> None:
     )
 
 
-def _hbar(ax, names, values, colors, mode: Mode, fmt: str, xlabel: str,
-          log: bool | None = None):
+def _hbar(
+    ax,
+    names,
+    values,
+    colors,
+    mode: Mode,
+    fmt: str,
+    xlabel: str,
+    log: bool | None = None,
+    label_x: list | None = None,
+):
     """Horizontal bar with in-axes value labels + footer-safe layout."""
     if log is None:
         vals = [v for v in values if v and v > 0]
@@ -105,9 +110,17 @@ def _hbar(ax, names, values, colors, mode: Mode, fmt: str, xlabel: str,
         ax.set_xlim(0, hi * 1.18)
         offset = hi * 0.015
     for i, v in enumerate(values):
-        x = (v * 1.06) if (log and v > 0) else (v + offset)
-        ax.text(x, i, fmt.format(v), va="center", fontsize=9, color=mode.text,
-                bbox=dict(boxstyle="round,pad=0.15", fc=mode.panel, ec="none", alpha=0.7))
+        default_x = (v * 1.06) if (log and v > 0) else (v + offset)
+        x = label_x[i] if label_x else default_x
+        ax.text(
+            x,
+            i,
+            fmt.format(v),
+            va="center",
+            fontsize=9,
+            color=mode.text,
+            bbox=dict(boxstyle="round,pad=0.15", fc=mode.panel, ec="none", alpha=0.7),
+        )
     ax.set_xlabel(xlabel)
 
 
@@ -121,10 +134,10 @@ def stt_ranking(rows: list[dict], mode: Mode = DARK):
     wers = [(_matrix._metric(r, "wer") or 0) * 100 for r in rows]
     colors = [engine_color(r.get("engine", "")) for r in rows]
     _hbar(ax, names, wers, colors, mode, "{:.2f}%", "corpus WER % (lower is better ↓)")
+    ax.set_title("Speech recognition — corpus WER", loc="left", fontsize=13)
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     _footer_common(fig, rows)
     return fig
-
 
 
 def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
@@ -143,28 +156,61 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     mmax = max(mems) or 1
     x_lo, x_hi = min(p[2] for p in pts), max(p[2] for p in pts)
     ax.set_xlim(x_lo * 0.55, x_hi * 2.6)
-    for (r, wer, rtf), mem in zip(pts, mems):
-        ax.scatter(
+
+    # when most points crowd into a small region, blow it up in an inset
+    import statistics
+
+    med = statistics.median(p[2] for p in pts)
+    cluster = [p for p in pts if med / 3 <= p[2] <= med * 3]
+    zoomed = set()
+    axins = None
+    if len(cluster) >= 3 and len(cluster) < len(pts):
+        c_lo, c_hi = min(p[2] for p in cluster), max(p[2] for p in cluster)
+        w_lo, w_hi = min(p[1] for p in cluster), max(p[1] for p in cluster)
+        if c_hi / c_lo < 3 and (x_hi / x_lo) > 3:  # tight cluster, wide span
+            axins = ax.inset_axes([0.07, 0.10, 0.42, 0.52])
+            apply(fig, axins)
+            axins.set_xlim(c_lo * 0.9, c_hi * 1.1)
+            axins.set_ylim(
+                w_lo - (w_hi - w_lo) * 0.35 - 0.05, w_hi + (w_hi - w_lo) * 0.35 + 0.05
+            )
+            axins.set_title(
+                "parakeet cluster (zoom)", fontsize=8.5, color=mode.text_dim, loc="left"
+            )
+            axins.tick_params(labelsize=7)
+            ax.indicate_inset_zoom(axins, edgecolor=mode.text_dim, alpha=0.6)
+            zoomed = {id(p[0]) for p in cluster}
+
+    def _dot(axes, r, wer, rtf, mem, size_scale=1.0, label=True):
+        axes.scatter(
             rtf,
             wer,
-            s=60 + 240 * (mem / mmax),
+            s=(60 + 240 * (mem / mmax)) * size_scale,
             color=engine_color(r.get("engine", "")),
             marker=_backend_marker(r),
             edgecolor=mode.text_dim,
             linewidth=0.6,
             zorder=3,
         )
-        # avoid right-edge overflow: label left when past ~60% of the log span
-        right_side = rtf > x_lo * (x_hi / x_lo) ** 0.6
-        ax.annotate(
-            _label(r),
-            (rtf, wer),
-            textcoords="offset points",
-            xytext=(-6, 5) if right_side else (6, 5),
-            ha="right" if right_side else "left",
-            fontsize=8.5,
-            color=mode.text,
-        )
+        if label:
+            axes.annotate(
+                _label(r),
+                (rtf, wer),
+                textcoords="offset points",
+                xytext=(7, 5),
+                fontsize=8.5 if size_scale == 1.0 else 8,
+                color=mode.text,
+            )
+
+    for (r, wer, rtf), mem in zip(pts, mems):
+        if id(r) in zoomed:
+            _dot(ax, r, wer, rtf, mem, label=False)  # labeled in the inset
+        else:
+            _dot(ax, r, wer, rtf, mem)
+    if axins is not None:
+        for (r, wer, rtf), mem in zip(pts, mems):
+            if id(r) in zoomed:
+                _dot(axins, r, wer, rtf, mem, size_scale=1.15)
     # Pareto front (minimize WER then RTF) drawn as a step line
     front = sorted(
         _matrix.score_cohort([dict(r) for r in rows], "stt"),
@@ -196,6 +242,8 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     ax.set_xlabel("RTF p50 — audio-s per s (lower is better ↓, log)")
     ax.set_ylabel("corpus WER % (lower is better ↓)")
     ax.set_xscale("log")
+    ax.set_title("Speech recognition — accuracy vs speed", loc="left", fontsize=13)
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
     _footer_common(fig, rows, extra=" · point size = peak container memory")
     return fig
 
@@ -229,8 +277,12 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         for line in bp[el]:
             line.set_color(mode.text_dim)
     ax.invert_yaxis()
+    ax.set_title(
+        "Speech recognition — per-utterance RTF distribution", loc="left", fontsize=13
+    )
     ax.set_xlabel("RTF per utterance (lower is better ↓, log)")
     ax.set_xscale("log")
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
     _footer_common(fig, rows)
     return fig
 
@@ -254,26 +306,37 @@ def stt_power(rows: list[dict], mode: Mode = DARK):
     ]
     if len(pts) < 2:
         return None
+    w_lo, w_hi = min(p[1] for p in pts), max(p[1] for p in pts)
+    ax.set_xlim(w_lo * 0.85, w_hi * 1.18)
     for r, w, wer in pts:
+        is_cpu = (r.get("requested_backend") or "").lower() == "cpu"
         ax.scatter(
             w,
             (wer or 0) * 100,
             s=90,
-            color=engine_color(r.get("engine", "")),
+            facecolor="none" if is_cpu else engine_color(r.get("engine", "")),
             marker=_backend_marker(r),
-            edgecolor=mode.text_dim,
+            edgecolor=engine_color(r.get("engine", "")),
+            linewidth=1.6,
             zorder=3,
         )
+        lbl = _label(r) + (" — CPU (GPU idle)" if is_cpu else "")
+        right_side = w > w_lo + (w_hi - w_lo) * 0.7
         ax.annotate(
-            _label(r),
+            lbl,
             (w, (wer or 0) * 100),
             textcoords="offset points",
-            xytext=(6, 5),
+            xytext=(-6, 5) if right_side else (6, 5),
+            ha="right" if right_side else "left",
             fontsize=8.5,
             color=mode.text,
         )
-    ax.set_xlabel("mean GPU power over the engine window (W, lower is better ↓)")
+    ax.set_xlabel(
+        "mean GPU power over the engine window (W) — hollow = CPU engine (idle draw)"
+    )
     ax.set_ylabel("corpus WER % (lower is better ↓)")
+    ax.set_title("Speech recognition — GPU power vs accuracy", loc="left", fontsize=13)
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
     _footer_common(fig, rows, extra=" · power from tegrastats job windows")
     return fig
 
@@ -287,12 +350,19 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
     names = _labels(rows)
     rtfs = [_matrix._metric(r, "rtf") for r in rows]
     colors = [engine_color(r.get("engine", "")) for r in rows]
-    _hbar(ax, names, rtfs, colors, mode, "{:.3f}",
-          "RTF p50 — s audio per s wall (lower is better ↓)")
+    _hbar(
+        ax,
+        names,
+        rtfs,
+        colors,
+        mode,
+        "{:.3f}",
+        "RTF p50 — s audio per s wall (lower is better ↓)",
+    )
+    ax.set_title("Speech synthesis — real-time factor", loc="left", fontsize=13)
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     _footer_common(fig, rows)
     return fig
-
 
 
 def tts_ttfa(rows: list[dict], mode: Mode = DARK):
@@ -308,13 +378,42 @@ def tts_ttfa(rows: list[dict], mode: Mode = DARK):
     names = [_label(r) for r, _ in pts]
     vals = [v * 1000 for _, v in pts]
     colors = [engine_color(r.get("engine", "")) for r, _ in pts]
-    _hbar(ax, names, vals, colors, mode, "{:.0f} ms", "TTFA p50 (ms, lower is better ↓)")
+    p90s = [(_matrix._metric(r, "ttfa_s_p90") or 0) * 1000 for r, _ in pts]
+    label_x = [max(v, p) * 1.12 for v, p in zip(vals, p90s)]
+    _hbar(
+        ax,
+        names,
+        vals,
+        colors,
+        mode,
+        "{:.0f} ms",
+        "TTFA (ms, lower is better ↓)",
+        log=True,
+        label_x=label_x,
+    )
+    ax.set_xlim(min(vals) * 0.7, max(max(vals), max(p90s)) * 1.25)
+    # p90 whisker ticks on each bar
+    for i, p90 in enumerate(p90s):
+        if p90:
+            ax.plot(
+                [p90, p90],
+                [i - 0.28, i + 0.28],
+                color=mode.text,
+                linewidth=1.6,
+                alpha=0.85,
+                zorder=4,
+            )
+    if any(p90s):
+        ax.plot([], [], color=mode.text, linewidth=1.6, label="p90")
+        ax.legend(
+            loc="upper right", frameon=False, fontsize=8, labelcolor=mode.text_dim
+        )
     ax.axvline(300, color=mode.red, linestyle=":", linewidth=1.2)
-    ax.annotate("300 ms gate", (300, len(pts) - 0.55), fontsize=8, color=mode.red)
+    ax.annotate("300 ms gate", (300 * 1.03, -0.45), fontsize=8, color=mode.red)
+    ax.set_title("Speech synthesis — time to first audio", loc="left", fontsize=13)
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     _footer_common(fig, rows)
     return fig
-
 
 
 def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
@@ -342,8 +441,12 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         for line in bp[el]:
             line.set_color(mode.text_dim)
     ax.invert_yaxis()
+    ax.set_title(
+        "Speech synthesis — synthesis latency distribution", loc="left", fontsize=13
+    )
     ax.set_xlabel("synthesis latency per sentence (s, lower is better ↓, log)")
     ax.set_xscale("log")
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
     _footer_common(fig, rows)
     return fig
 
@@ -361,22 +464,34 @@ def _memory_bars(rows: list[dict], mode: Mode):
     plt = _plt()
     fig, ax = plt.subplots(figsize=(9.5, 4.2))
     apply(fig, ax)
-    pts = [(r, _matrix._metric(r, "mem_peak_mib")) for r in rows if _matrix._metric(r, "mem_peak_mib")]
+    pts = [
+        (r, _matrix._metric(r, "mem_peak_mib"))
+        for r in rows
+        if _matrix._metric(r, "mem_peak_mib")
+    ]
     if not pts:
         return None
     pts.sort(key=lambda x: -x[1])
-    names = [_label(r) for r, _ in pts]
+    names = _labels([r for r, _ in pts])
     vals = [v for _, v in pts]
     colors = [engine_color(r.get("engine", "")) for r, _ in pts]
-    _hbar(ax, names, vals, colors, mode, "{:,.0f} MiB", "peak container memory (MiB, lower is better ↓)")
+    _hbar(
+        ax,
+        names,
+        vals,
+        colors,
+        mode,
+        "{:,.0f} MiB",
+        "peak container memory (MiB, lower is better ↓)",
+    )
+    ax.set_title("Peak container memory", loc="left", fontsize=13)
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     _footer_common(fig, rows)
     return fig
 
 
-
 def _heatmap(rows: list[dict], task: str, mode: Mode):
-    """Configurations × metrics, cells colored by normalized score (PRD chart 5)."""
+    """Configurations × metrics, cells colored by normalized score (spec chart 5)."""
     import numpy as np
 
     plt = _plt()
@@ -410,10 +525,16 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
     apply(fig, ax)
     im = ax.imshow(g, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
     pretty = {
-        "wer": "WER", "cer": "CER", "ser": "SER", "hallucination_rate": "halluc.",
-        "rtf": "RTF p50", "offline_latency_s": "lat p50 (s)",
-        "synth_latency_s": "synth p50 (s)", "ttfa_s": "TTFA p50 (s)",
-        "mem_peak_mib": "mem (MiB)", "gpu_power_w_mean": "GPU power (W)",
+        "wer": "WER",
+        "cer": "CER",
+        "ser": "SER",
+        "hallucination_rate": "halluc.",
+        "rtf": "RTF p50",
+        "offline_latency_s": "lat p50 (s)",
+        "synth_latency_s": "synth p50 (s)",
+        "ttfa_s": "TTFA p50 (s)",
+        "mem_peak_mib": "mem (MiB)",
+        "gpu_power_w_mean": "GPU power (W)",
     }
     ax.set_xticks(
         range(len(metric_keys)),

@@ -1,4 +1,4 @@
-"""Environment record (PRD §5.4, §7A): device, stack, probes availability."""
+"""Environment record (spec §5.4, §7A): device, stack, probes availability."""
 
 from __future__ import annotations
 import json
@@ -63,7 +63,7 @@ def collect(git_commit: str = "") -> dict:
         "git_commit": git_commit or _git_commit(),
         "utc_ts": _run(["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"]),
     }
-    # compute capability from the GPU query (accept 8.7 / 11.0 / 10.1 — PRD 7A);
+    # compute capability from the GPU query (accept 8.7 / 11.0 / 10.1 — spec 7A);
     # parse the CSV column, don't substring-match (driver 511.05 contains "11.0")
     cc = ""
     for line in env["nvidia_smi"].splitlines():
@@ -77,7 +77,7 @@ def collect(git_commit: str = "") -> dict:
 
 
 def selfcheck(bench_root: Path) -> dict:
-    """PRD 7A.5 fail-fast: compute cap + a tiny CUDA EP session + probe presence."""
+    """spec 7A.5 fail-fast: compute cap + a tiny CUDA EP session + probe presence."""
     report = collect()  # compute_cap / compute_cap_ok set by collect()
     try:
         import onnxruntime as ort  # noqa

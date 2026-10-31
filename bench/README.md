@@ -4,7 +4,7 @@ Implements `task/benchmark-prd.md` §1-9 (core). **§10 matrix/dashboard and
 §7.3 off-device quality scoring (UTMOS, round-trip WER) are fast-follow** — the
 JSONL schema already carries their fields.
 
-## Design (PRD §1, non-negotiable)
+## Design (spec §1, non-negotiable)
 
 - Datasets and engines are **plugins behind fixed interfaces** — no engine- or
   dataset-specific branches in runner/metrics.
@@ -16,7 +16,7 @@ JSONL schema already carries their fields.
 - Per-utterance JSONL appended immediately (crash-safe).
 - Each (engine × backend × dataset) job runs in a **fresh container** (the
   engine image itself, with `bench/engines/client.py` mounted) — process
-  isolation per PRD §2; parent probes sample `tegrastats` + `docker stats`.
+  isolation per spec §2; parent probes sample `tegrastats` + `docker stats`.
 
 ## Engines (adapters in `bench/engines/client.py`)
 
@@ -31,7 +31,7 @@ JSONL schema already carries their fields.
 
 ## Usage
 
-## Matrix, charts and README (PRD §10 — mjolnir methodology)
+## Matrix, charts and README (spec §10 — mjolnir methodology)
 
 Every run appends one line per engine config to `benchmarks/history.jsonl`;
 baseline-class runs also publish their raw artifacts (no audio) to
@@ -64,14 +64,14 @@ python -m bench.cli report results/<run_id>
 python -m bench.cli compare results/<run_a> results/<run_b> --out compare.md
 ```
 
-## Config (PRD 9.2)
+## Config (spec 9.2)
 
 See `configs/thor_stt_baseline.yaml` and `configs/thor_tts_baseline.yaml` —
 switching dataset/task/engines is config-only. Power profiles (`locked` via
 `sudo jetson_clocks` vs `default` DVFS) are recorded in `env.json`; never
-compare across profiles (PRD 7A.2).
+compare across profiles (spec 7A.2).
 
-## Acceptance (PRD 9.4 — v1 coverage)
+## Acceptance (spec 9.4 — v1 coverage)
 
 1. ✅ dataset swap = config change; identical schemas
 2. ✅ CPU-only engine (ptts) + CUDA engines from one config; unsupported pairs → `skipped`

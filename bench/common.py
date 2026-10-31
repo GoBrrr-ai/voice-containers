@@ -1,4 +1,4 @@
-"""Common records shared by datasets, engines, runner and metrics (PRD §3.1)."""
+"""Common records shared by datasets, engines, runner and metrics (spec §3.1)."""
 
 from dataclasses import dataclass, field, asdict
 from typing import Optional

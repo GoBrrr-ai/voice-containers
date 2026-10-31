@@ -71,12 +71,15 @@ def _plt():
 def apply(fig, ax, mode: Mode = DARK) -> None:
     fig.patch.set_facecolor(mode.bg)
     ax.set_facecolor(mode.panel)
-    for spine in ax.spines.values():
-        spine.set_color(mode.grid)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    for spine in ("left", "bottom"):
+        ax.spines[spine].set_color(mode.grid)
     ax.tick_params(colors=mode.text_dim, labelcolor=mode.text)
     ax.xaxis.label.set_color(mode.text)
     ax.yaxis.label.set_color(mode.text)
-    ax.title.set_color(mode.text)
+    if ax.get_title():
+        ax.title.set_color(mode.text)
     ax.grid(True, color=mode.grid, linewidth=0.6, alpha=0.6)
 
 
@@ -86,7 +89,7 @@ def footer(fig, mode: Mode = DARK, left: str = "", right: str = "") -> None:
 
 
 def log_y_if_spanning(ax, values, min_span: float = 10.0) -> bool:
-    """Log scale when the range spans > min_span (PRD 10.3). Returns applied."""
+    """Log scale when the range spans > min_span (spec 10.3). Returns applied."""
     vals = [v for v in values if v and v > 0]
     if not vals:
         return False

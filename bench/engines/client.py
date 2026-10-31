@@ -1,10 +1,10 @@
-"""Engine client — copied/mounted INTO each engine container (PRD §4).
+"""Engine client — copied/mounted INTO each engine container (spec §4).
 
 Reads a job spec (JSON on argv), runs the manifest against one engine, and
 appends per-utterance records to utterances.jsonl (+ events.jsonl for streams,
 WAVs to audio/ for TTS). Never computes metrics; never times itself — the
 client DOES stamp perf_counter_ns around engine calls because it is the only
-process that can synchronize the device before stopping the clock (PRD 5.1/4.3).
+process that can synchronize the device before stopping the clock (spec 5.1/4.3).
 
 Usage: python client.py <job.json>
 """
@@ -22,7 +22,7 @@ def _now_ns() -> int:
 
 
 def _sync_cuda() -> None:
-    """Real device sync before stopping a timer (PRD 4.3).
+    """Real device sync before stopping a timer (spec 4.3).
 
     Every engine API used here is synchronous, but the contract is enforced
     anyway via cudart so a future async adapter cannot silently under-report.
@@ -282,7 +282,7 @@ class Paradee:
             )
 
     def load(self, opts):
-        # honest provider record (PRD 7A): ORT falls back to CPU silently
+        # honest provider record (spec 7A): ORT falls back to CPU silently
         try:
             self._prov = self.tts.session.get_providers()[0]
         except Exception:
@@ -472,7 +472,7 @@ def run_sample(
                 audio = np.asarray(audio)
                 rec_utt.update(synth_ns=_now_ns() - t0, status="ok")
             rec_utt["sample_rate"] = int(sr_out or eng.output_sample_rate)
-            # output duration drives TTS RTF (PRD 6.2)
+            # output duration drives TTS RTF (spec 6.2)
             rec_utt["out_audio_s"] = len(audio) / rec_utt["sample_rate"]
             if record:
                 _write_wav(
@@ -480,7 +480,7 @@ def run_sample(
                     audio,
                     rec_utt["sample_rate"],
                 )
-    except Exception as e:  # record and continue (PRD: a crash must not kill the suite)
+    except Exception as e:  # record and continue (spec: a crash must not kill the suite)
         rec_utt.update(status="error", error=repr(e)[:500])
     return rec_utt if record else None
 

@@ -1,4 +1,4 @@
-"""Runner — orchestrates per-(engine, backend, dataset) container jobs (PRD §2, §5, §9).
+"""Runner — orchestrates per-(engine, backend, dataset) container jobs (spec §2, §5, §9).
 
 Each job runs in a FRESH container (process isolation); the parent hosts the
 background probes (tegrastats + docker stats) and writes env.json (device info,
@@ -17,7 +17,7 @@ from .common import jsonl_read
 from .metrics.wer import corpus_wer_cer, dist_stats
 
 # Config keys understood by this runner. Unknown keys are REJECTED loudly so a
-# methodology knob can never be a silent no-op (PRD 9.2); unsupported values
+# methodology knob can never be a silent no-op (spec 9.2); unsupported values
 # are rejected with an explicit message instead of being ignored.
 KNOWN_KEYS = {
     "run_name",
@@ -265,7 +265,7 @@ def run_container_job(
 
 
 def run_config(config_path: str) -> str:
-    """Execute the PRD §9.1 protocol for one config. Returns run_id."""
+    """Execute the spec §9.1 protocol for one config. Returns run_id."""
     import yaml
 
     cfg = yaml.safe_load(Path(config_path).read_text())
@@ -276,7 +276,7 @@ def run_config(config_path: str) -> str:
     if (norm := cfg.get("normalizer")) and norm != "whisper_english":
         _fail(
             f"normalizer {norm!r} unsupported (only the fixed whisper_english "
-            "normalizer exists — PRD 3.5 forbids per-engine normalizers)"
+            "normalizer exists — spec 3.5 forbids per-engine normalizers)"
         )
     teg_cfg = cfg.get("probes", {}) or {}
     if teg_cfg.get("tegrastats") not in (None, "auto", True, False):
@@ -310,7 +310,7 @@ def run_config(config_path: str) -> str:
     teg = TegraStats(out / "tegrastats.log", interval_ms)
     teg.start()
     try:
-        # 2) environment record per run (PRD 9.1 / 5.4): device info + config
+        # 2) environment record per run (spec 9.1 / 5.4): device info + config
         from .env import collect
 
         env_rec = collect()
@@ -387,7 +387,7 @@ def run_config(config_path: str) -> str:
 
 
 def _engine_summary(rows: list[dict], task: str) -> dict:
-    """Aggregate one engine's utterance rows (PRD 8.3). Mutates rows with hyp_norm."""
+    """Aggregate one engine's utterance rows (spec 8.3). Mutates rows with hyp_norm."""
     ok = [r for r in rows if r.get("status") == "ok"]
     s: dict = {"n": len(rows), "n_ok": len(ok)}
     if skipped := [r for r in rows if r.get("status") == "skipped"]:
@@ -414,7 +414,7 @@ def _engine_summary(rows: list[dict], task: str) -> dict:
         s.update(dist_stats([r["synth_ns"] / 1e9 for r in ok], "synth_latency_s"))
         if all(r.get("ttfa_ns") for r in ok):
             s.update(dist_stats([r["ttfa_ns"] / 1e9 for r in ok], "ttfa_s"))
-        # RTF against the produced audio's duration (PRD 6.2)
+        # RTF against the produced audio's duration (spec 6.2)
         s.update(
             dist_stats(
                 [
@@ -428,7 +428,7 @@ def _engine_summary(rows: list[dict], task: str) -> dict:
 
 
 def write_summary(run_dir: Path, task: str) -> dict:
-    """Aggregate utterances.jsonl → summary.json + summary.csv (PRD §8.3).
+    """Aggregate utterances.jsonl → summary.json + summary.csv (spec §8.3).
 
     Headline metrics are computed PER ENGINE (per_engine.engine_id); the top
     level is corpus-wide and only meaningful for single-engine runs.
@@ -457,7 +457,7 @@ def write_summary(run_dir: Path, task: str) -> dict:
 
 
 def compare(run_dirs: list[str], out: str) -> str:
-    """Side-by-side headline table (PRD 8.4; the full §10 matrix is fast-follow)."""
+    """Side-by-side headline table (spec 8.4; the full §10 matrix is fast-follow)."""
     lines = ["| run | task | n_ok | headline |", "|---|---|---|---|"]
     for rd in run_dirs:
         p = Path(rd) / "summary.json"
