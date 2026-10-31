@@ -26,7 +26,7 @@ engines:
     opts:
       model: /models/phonon-31m-en
       lang: en
-      quant: q8
+      quant: q8_0
   - name: paradee                 # 8.6MB int8 Kokoro distillation
     image: narandill/paradee-tts-thor:0.1.0
     backends: [cuda, cpu]
