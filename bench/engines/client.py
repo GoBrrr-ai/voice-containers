@@ -249,9 +249,37 @@ class Paradee:
     def __init__(self, opts):
         from paradee import Paradee
 
-        self.tts = Paradee(
-            version=opts.get("version", "1.0"), quantized=opts.get("quantized", True)
-        )
+        device = opts.get("device", "cuda")
+        if device == "cuda":
+            # the paradee package hardcodes providers=["CPUExecutionProvider"]
+            # in its constructor — intercept session construction in the
+            # class's own module (paradee.tts) so the GPU image actually uses
+            # the CUDA EP (CPU stays the fallback)
+            import sys
+
+            mod = sys.modules[Paradee.__module__]
+            real = mod.ort.InferenceSession
+
+            def _with_cuda(model_path, so=None, providers=None):
+                return real(
+                    model_path,
+                    so,
+                    providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+                )
+
+            mod.ort.InferenceSession = _with_cuda
+            try:
+                self.tts = Paradee(
+                    version=opts.get("version", "1.0"),
+                    quantized=opts.get("quantized", True),
+                )
+            finally:
+                mod.ort.InferenceSession = real
+        else:
+            self.tts = Paradee(
+                version=opts.get("version", "1.0"),
+                quantized=opts.get("quantized", True),
+            )
 
     def load(self, opts):
         # honest provider record (PRD 7A): ORT falls back to CPU silently
@@ -328,41 +356,54 @@ def main() -> None:
     (out_dir / "audio").mkdir(exist_ok=True)
     task = job["task"]
     reg = STT_ENGINES if task == "stt" else TTS_ENGINES
+    requested = job.get("requested_backend") or job.get("opts", {}).get(
+        "device", "cuda"
+    )
+    # unsupported (engine, backend) pair: honest skip rows, never a silent
+    # no-op — decided from the class attribute BEFORE any model is loaded
+    if requested not in reg[job["engine"]].backends:
+        utt_path = Path(job["out_dir"]) / "utterances.jsonl"
+        for i, s in enumerate(job["samples"]):
+            jsonl_append(
+                utt_path,
+                {
+                    "engine": job["engine"],
+                    "engine_id": job.get("engine_id", job["engine"]),
+                    "task": task,
+                    "utt_id": s["utt_id"],
+                    "run_position": i,
+                    "status": "skipped",
+                    "reason": (
+                        f"backend {requested!r} unsupported by {job['engine']} "
+                        f"(supports {sorted(reg[job['engine']].backends)})"
+                    ),
+                },
+            )
+        jsonl_append(
+            Path(job["out_dir"]) / "run_meta.jsonl",
+            {
+                "engine": job["engine"],
+                "engine_id": job.get("engine_id"),
+                "actual_backend": "skipped",
+                "requested_backend": requested,
+            },
+        )
+        return
+
     eng = reg[job["engine"]](job.get("opts", {}))
     eng.load(job.get("opts", {}))
     t_load0 = _now_ns()
 
-    requested = job.get("requested_backend") or job.get("opts", {}).get(
-        "device", "cuda"
-    )
     # load time is measured from process start; approximate with first-record
     rec = {
+        "engine": eng.name,
+        "engine_id": job.get("engine_id", eng.name),
         "load_ns_after_imports": t_load0,
         "actual_backend": eng.actual_backend(),
         "requested_backend": requested,
     }
 
     utt_path = out_dir / "utterances.jsonl"
-
-    # unsupported (engine, backend) pair: honest skip rows, never a silent no-op
-    if requested not in eng.backends:
-        for i, s in enumerate(job["samples"]):
-            jsonl_append(
-                utt_path,
-                {
-                    "engine": eng.name,
-                    "engine_id": job.get("engine_id", eng.name),
-                    "task": task,
-                    "utt_id": s["utt_id"],
-                    "run_position": i,
-                    "status": "skipped",
-                    "reason": (
-                        f"backend {requested!r} unsupported by {eng.name} "
-                        f"(supports {sorted(eng.backends)})"
-                    ),
-                },
-            )
-        return
 
     # warmup: the first warmup_n utterances run untimed and are not recorded
     warm = int(job.get("warmup_n", 0) or 0)
@@ -404,9 +445,7 @@ def run_sample(
             t1 = _now_ns()
             text = eng.transcribe(pcm, sr, wav_path=s["audio_path"])
             t2 = _now_ns()
-            rec_utt.update(
-                hyp_raw=text, proc_ns=t2 - t1, feed_mode="fast", status="ok"
-            )
+            rec_utt.update(hyp_raw=text, proc_ns=t2 - t1, feed_mode="fast", status="ok")
         else:
             import numpy as np  # lazy: parakeet images ship no numpy
 
@@ -436,8 +475,11 @@ def run_sample(
             # output duration drives TTS RTF (PRD 6.2)
             rec_utt["out_audio_s"] = len(audio) / rec_utt["sample_rate"]
             if record:
-                _write_wav(out_dir / "audio" / f"{s['utt_id']}.wav",
-                           audio, rec_utt["sample_rate"])
+                _write_wav(
+                    out_dir / "audio" / f"{s['utt_id']}.wav",
+                    audio,
+                    rec_utt["sample_rate"],
+                )
     except Exception as e:  # record and continue (PRD: a crash must not kill the suite)
         rec_utt.update(status="error", error=repr(e)[:500])
     return rec_utt if record else None

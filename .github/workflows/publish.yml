@@ -14,11 +14,11 @@ jobs:
     runs-on: [self-hosted, jetson]
     env:
       DOCKER_REPO: narandill
-      VERSION: ${{ github.ref_name }}
+      GIT_REF: ${{ github.ref_name }}   # vX.Y.Z; derived below (no env shadowing)
     steps:
       - uses: actions/checkout@v4
       - name: Derive image version from the git tag (v0.2.0 -> 0.2.0)
-        run: echo "VERSION=${VERSION#v}" >> "$GITHUB_ENV"
+        run: echo "VERSION=${GIT_REF#v}" >> "$GITHUB_ENV"
       - name: Login to Docker Hub
         run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
       - name: Build shared builders (cached)

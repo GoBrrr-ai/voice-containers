@@ -48,7 +48,10 @@ RUN python3 -m venv /opt/venv \
     # espeakng-loader + num2words — deliberately NOT misaki[en], whose extra
     # pulls spacy-curated-transformers -> torch
     && /opt/venv/bin/pip install --no-cache-dir /tmp/paradee \
-    # GPU runtime LAST so it wins over the CPU ort paradee drags in
+    # GPU runtime must be the ONLY ort: the CPU wheel paradee drags in ships
+    # its own onnxruntime_pybind11_state.*.so which shadows the GPU one
+    # (silent CPU fallback) — so remove both dist names before installing ours
+    && /opt/venv/bin/pip uninstall -y onnxruntime onnxruntime-gpu \
     && /opt/venv/bin/pip install --no-cache-dir --force-reinstall /tmp/onnxruntime_gpu-*.whl \
     && rm -rf /tmp/onnxruntime* /tmp/paradee \
     && chmod +x /usr/local/bin/paradee-say /usr/local/bin/paradee-stream
