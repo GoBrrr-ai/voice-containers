@@ -7,7 +7,7 @@ dataset:
   name: librispeech
   split: test-clean
   language: en
-  manifest: manifests/librispeech_test-clean_en_500_seed42.jsonl
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
   n: 500
   seed: 42
 normalizer: whisper_english

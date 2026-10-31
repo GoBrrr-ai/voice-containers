@@ -1,0 +1,36 @@
+# PILOT: 5 utterances x 3 engines — validates the container-job pipeline end to end.
+run_name: thor_stt_pilot
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 5
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: parakeet_cpp            # nemotron-unified-asr (GPU q8_0, true streaming)
+    image: narandill/nemotron-unified-asr-thor:0.1.0
+    backends: [cuda]
+    opts:
+      model: /models/nemotron-labs-unified-asr-0.6b-q8_0.gguf
+      lang: en
+  - name: faster_whisper          # wave-1 baseline (tiny-int8, CT2 GPU)
+    image: narandill/wyoming-faster-whisper-thor:0.1.0
+    backends: [cuda]
+    opts:
+      model: tiny-int8
+      device: cuda
+      compute_type: default
+streaming: {chunk_ms: 160, realtime_pass: false}
+warmup_n: 1
+repeats: 1
+cooldown_s: 0
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+drop_caches: false
+output_dir: results

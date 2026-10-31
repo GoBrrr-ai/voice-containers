@@ -75,13 +75,20 @@ class LibriSpeechAdapter(BaseAdapter):
         return f"openslr/librispeech_asr@{self._rev}"
 
     def iter_samples(self, split: str, language: str):
+        import numpy as np
+        import soundfile as sf
+
         for row in self._ds:
             utt = row["id"]
-            src = row["audio"]["path"] or ""
             dst = wav_cache_path(self.cache_dir, self.name, utt)
+            # Always decode via the embedded audio (torchcodec) — extraction
+            # paths recorded in the datasets cache can be stale on other hosts.
+            dec = row["audio"].get_all_samples()
+            data = dec.data.numpy()
+            mono = data.mean(axis=0) if data.ndim > 1 else data
             if not dst.exists():
-                resample_to_cache(src, dst)
-            dur = row["audio"]["array"].shape[0] / row["audio"]["sampling_rate"]
+                sf.write(str(dst), mono, dec.sample_rate, subtype="PCM_16")
+            dur = len(mono) / dec.sample_rate
             yield Sample(
                 dataset=self.name,
                 dataset_version=self.dataset_version(),
@@ -246,7 +253,7 @@ def build_manifest(samples, n: int, seed: int, task: str) -> list[dict]:
     by char-length bucket + the 20 longest sentences appended explicitly."""
     import random
 
-    rows = [s.to_dict() for s in samples]
+    rows = list(samples)  # plain dicts from prepare()
     rng = random.Random(seed)
     if task == "stt":
         by_spk: dict[str, list[dict]] = {}
@@ -315,7 +322,7 @@ def prepare(
         rows.append(d)
     picked = build_manifest(rows, n, seed, task)
     Path(out_dir).mkdir(parents=True, exist_ok=True)
-    name = f"{dataset}_{split.replace('.', '_')}_{language}_{n}_seed{seed}"
+    name = f"{task}_{dataset}_{split.replace('.', '_')}_{language}_{n}_seed{seed}"
     out = Path(out_dir) / f"{name}.jsonl"
     with open(out, "w", encoding="utf-8") as f:
         for r in picked:
