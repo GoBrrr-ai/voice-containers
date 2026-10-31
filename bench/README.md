@@ -56,8 +56,18 @@ compare across profiles (PRD 7A.2).
 1. ✅ dataset swap = config change; identical schemas
 2. ✅ CPU-only engine (ptts) + CUDA engines from one config; unsupported pairs → `skipped`
 3. ✅ GPU timings synchronized (client-side `_sync_cuda`)
-4. ⏳ LibriSpeech small.en WER sanity gate — run once models are cached
+4. ✅ LibriSpeech sanity gate — pilot: tiny-int8 WER 7.2% (expected 5–8% band)
 5. ✅ distribution stats (p50/90/95/99, std, IQR, MAD, low-confidence flag)
-6. ✅ crash-safe JSONL append
-7. ⏳ determinism check after first two runs
+6. ✅ crash-safe JSONL append + per-engine container logs captured to the run dir
+7. ⏳ determinism check (run pilot twice, compare WER) — after baselines
 8. ⏳ Orin-side run (no Orin on this bench)
+
+### v1 measurement caveats (documented deviations)
+
+- **parakeet adapters measure CLI cold-start per utterance** (`parakeet-cli` subprocess
+  per row) — this matches deployment usage (`stt-transcribe` per audio segment) but is
+  pessimistic vs. a resident server. RTF includes process spawn + model load.
+- **TTS text v1 = LibriSpeech test-clean transcripts** (444 sentences); LibriTTS-R
+  text is a fast-follow (avoids the 30 GB dataset download — TTS needs text only).
+- §10 comparison matrix/dashboard and §7.3 off-device quality scoring (UTMOS /
+  round-trip WER) are fast-follow; the JSONL schema already carries their fields.
