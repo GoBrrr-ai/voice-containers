@@ -40,7 +40,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🦜&nbsp;parakeet.cpp</h3>
       <p>one parakeet.cpp runtime, several q8_0 GGUF models</p>
-      <p><a href="stt/nemotron-unified-asr/">nemotron-labs-unified-asr-0.6b-q8_0</a><br><a href="stt/phonon2-stt/">phonon-2.5-english-q8_0</a><br><a href="stt/parakeet-redux-stt/">redux-q8_0</a><br><a href="stt/parakeet-redux-stt/">parakeet-redux packed (redux-packed.gguf)</a><br></p>
+      <p><a href="packages/stt/nemotron-unified-asr/">nemotron-labs-unified-asr-0.6b-q8_0</a><br><a href="packages/stt/phonon2-stt/">phonon-2.5-english-q8_0</a><br><a href="packages/stt/parakeet-redux-stt/">redux-q8_0</a><br><a href="packages/stt/parakeet-redux-stt/">parakeet-redux packed (redux-packed.gguf)</a><br></p>
       <p><em>true buffered streaming (0.16–2.08 s chunks)</em></p>
       <br>
     </td>
@@ -48,7 +48,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>⚡&nbsp;faster-whisper</h3>
       <p>faster-whisper 1.2.1 on our CTranslate2 4.8.4 build</p>
-      <p><a href="stt/wyoming-faster-whisper/">faster-whisper-tiny-int8</a><br></p>
+      <p><a href="packages/stt/wyoming-faster-whisper/">faster-whisper-tiny-int8</a><br></p>
       <p><em>Wyoming streaming</em></p>
       <br>
     </td>
@@ -62,7 +62,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🗣️&nbsp;kokoro</h3>
       <p>Kokoro-82M v1.0, int8 ONNX on onnxruntime-gpu</p>
-      <p><a href="tts/kokoro-tts/">Kokoro-82M v1.0 int8 (model_uint8.onnx)</a><br></p>
+      <p><a href="packages/tts/kokoro-tts/">Kokoro-82M v1.0 int8 (model_uint8.onnx)</a><br></p>
       <p><em>create_stream()</em></p>
       <br>
     </td>
@@ -70,7 +70,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>✨&nbsp;paradee</h3>
       <p>Paradee-8M v1.0 int8 ONNX — a Kokoro distillation</p>
-      <p><a href="tts/paradee-tts/">Paradee-8M-v1.0 int8 (baked)</a><br><a href="tts/paradee-tts/">Paradee-8M-v1.0 int8 (baked)</a><br></p>
+      <p><a href="packages/tts/paradee-tts/">Paradee-8M-v1.0 int8 (baked)</a><br><a href="packages/tts/paradee-tts/">Paradee-8M-v1.0 int8 (baked)</a><br></p>
       <p><em>sentence-chunked</em></p>
       <br>
     </td>
@@ -78,7 +78,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🎺&nbsp;piper1-tts</h3>
       <p>piper-tts 1.8.0 on our onnxruntime-gpu build</p>
-      <p><a href="tts/wyoming-piper1-tts/">en_US-libritts_r-medium</a><br></p>
+      <p><a href="packages/tts/wyoming-piper1-tts/">en_US-libritts_r-medium</a><br></p>
       <p><em>Wyoming streaming</em></p>
       <br>
     </td>
@@ -86,7 +86,7 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🌊&nbsp;phonon-31m</h3>
       <p>gradium/phonon-31m-en via the ptts runtime — CPU-only by design</p>
-      <p><a href="tts/phonon31m-tts/">phonon-31m-en</a><br></p>
+      <p><a href="packages/tts/phonon31m-tts/">phonon-31m-en</a><br></p>
       <p><em>true streaming on CPU (307 MB)</em></p>
       <br>
     </td>
@@ -182,28 +182,28 @@ their TTFA equals the synth p50/p90.*
 </p>
 
 
-Full per-utterance data, probes and gate details: `reports/matrix/`, `docs/REPORT-benchmark.md`.
+Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
 
 
 ## Projects
 
-### Speech recognition (`stt/`)
+### Speech recognition (`packages/stt/`)
 
 | Project | Image (`narandill/<name>`) | What it is | Streaming |
 |---|---|---|---|
-| `stt/wyoming-faster-whisper` | `wyoming-faster-whisper:0.1.0` | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
-| `stt/nemotron-unified-asr` | `nemotron-unified-asr:0.1.0` | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF on parakeet.cpp | **true buffered** (0.16–2.08 s) |
-| `stt/parakeet-redux-stt` | `parakeet-redux-stt:0.1.0` | moondream/parakeet-redux (ternary 178M) q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
-| `stt/phonon2-stt` | `phonon2-stt:0.1.0` | Fermion Phonon-2.5-english q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
+| `packages/stt/wyoming-faster-whisper` | `wyoming-faster-whisper:0.1.0` | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
+| `packages/stt/nemotron-unified-asr` | `nemotron-unified-asr:0.1.0` | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF on parakeet.cpp | **true buffered** (0.16–2.08 s) |
+| `packages/stt/parakeet-redux-stt` | `parakeet-redux-stt:0.1.0` | moondream/parakeet-redux (ternary 178M) q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
+| `packages/stt/phonon2-stt` | `phonon2-stt:0.1.0` | Fermion Phonon-2.5-english q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
 
-### Speech synthesis (`tts/`)
+### Speech synthesis (`packages/tts/`)
 
 | Project | Image (`narandill/<name>`) | What it is | Streaming |
 |---|---|---|---|
-| `tts/wyoming-piper1-tts` | `wyoming-piper1-tts:0.1.0` | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1 | wyoming streaming |
-| `tts/kokoro-tts` | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a) | `create_stream()` |
-| `tts/phonon31m-tts` | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~76 ms p95) |
-| `tts/paradee-tts` | `paradee-tts:0.1.0` | Paradee-8M-v1.0 int8 ONNX (Kokoro distillation) | sentence-chunked |
+| `packages/tts/wyoming-piper1-tts` | `wyoming-piper1-tts:0.1.0` | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1 | wyoming streaming |
+| `packages/tts/kokoro-tts` | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a) | `create_stream()` |
+| `packages/tts/phonon31m-tts` | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~76 ms p95) |
+| `packages/tts/paradee-tts` | `paradee-tts:0.1.0` | Paradee-8M-v1.0 int8 ONNX (Kokoro distillation) | sentence-chunked |
 
 ## Quick start
 
@@ -212,7 +212,7 @@ Full per-utterance data, probes and gate details: `reports/matrix/`, `docs/REPOR
 make builders
 
 # 2) build everything
-make build-all          # or: cd tts/kokoro-tts && ./build.sh
+make build-all          # or: cd packages/tts/kokoro-tts && ./build.sh
 
 # 3) verify cubins + smoke on the GPU (waits for free VRAM, never kills co-tenants)
 make verify-all
@@ -230,14 +230,15 @@ upgrade, drop the flag.
 ## Layout
 
 ```
-stt/                  speech-recognition images (wyoming-faster-whisper, nemotron-unified-asr, parakeet-redux-stt, phonon2-stt)
-tts/                  speech-synthesis images (wyoming-piper1-tts, kokoro-tts, phonon31m-tts, paradee-tts)
-llm/                  LLM runtime image (outside the voice stack)
+packages/             the images — packages/<stt|tts|llm>/<name>/
+  stt/                  speech recognition: wyoming-faster-whisper, nemotron-unified-asr, parakeet-redux-stt, phonon2-stt
+  tts/                  speech synthesis: wyoming-piper1-tts, kokoro-tts, phonon31m-tts, paradee-tts
+  llm/                  LLM runtime (outside the voice stack)
 builders/             shared artifact builders (wheels-cu132, parakeet-cpp) — not shipped
 bench/                spec-driven benchmark harness (datasets, engines, probes, metrics)
 benchmarks/           history.jsonl + raw run artifacts (committed) — feeds the charts
 assets/benchmarks/    generated charts + manifest (committed)
-reports/matrix/       generated matrix.csv/md + HTML per task
+manifests/            frozen benchmark manifests (seed 42) — the reproducibility anchor
 scripts/              sweep-build.sh / sweep-smoke.sh
 docs/                 build & benchmark reports
 ```

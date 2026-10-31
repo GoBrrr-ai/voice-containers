@@ -34,6 +34,33 @@ DEFAULT_FAMILY_COLORS = {
 }
 FAMILY_COLORS = {**DEFAULT_FAMILY_COLORS, **BRAND_COLORS}
 
+# Color = identity of the MODEL (the chart label), consistent across every
+# chart — the parakeet.cpp runtime carries several distinct models, so the
+# family hue would collapse them. The same model in two variants keeps ONE
+# hue: variant by marker shape (circle CPU / square GPU) + label.
+MODEL_COLORS = {
+    # STT
+    "nemotron-unified 0.6B q8_0": "#76B900",  # NVIDIA green (brand)
+    "phonon-2.5 q8_0": "#56B4E9",  # Okabe-Ito sky blue
+    "parakeet-redux 178M q8_0": "#D55E00",  # Okabe-Ito vermillion
+    "redux packed (CPU)": "#D55E00",  # same model as above — CPU variant
+    "faster-whisper tiny int8": "#E69F00",  # Okabe-Ito orange
+    # TTS
+    "kokoro 82M int8": "#009E73",  # Okabe-Ito green
+    "paradee 8M int8 (GPU)": "#F0E442",  # Okabe-Ito yellow
+    "paradee 8M int8 (CPU)": "#F0E442",  # same model — backend variant
+    "piper1-tts libritts-r medium": "#41BDF5",  # Home Assistant blue (brand)
+    "phonon-31m (CPU)": "#CC79A7",  # Okabe-Ito pink
+}
+
+
+def color(row: dict) -> str:
+    """Identity color for a benchmark row: per model, fallback to the family
+    hue for configs not in MODEL_COLORS."""
+    return MODEL_COLORS.get(display(row)) or FAMILY_COLORS.get(
+        family(row), "#0072B2"
+    )
+
 EMOJI = {
     "parakeet.cpp": "🦜",
     "faster-whisper": "⚡",
@@ -123,7 +150,7 @@ def display(row: dict) -> str:
     if proj == "kokoro-tts":
         return "kokoro 82M int8"
     if proj == "phonon31m-tts":
-        return "phonon-31m (CPU streaming)"
+        return "phonon-31m (CPU)"
     if proj == "paradee-tts":
         return "paradee 8M int8 (GPU)" if backend == "cuda" else "paradee 8M int8 (CPU)"
     if proj == "wyoming-piper1-tts":

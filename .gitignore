@@ -11,3 +11,5 @@ vendor/
 __pycache__/
 *.pyc
 .venv/
+reports/
+selfcheck.json

@@ -2,7 +2,7 @@
 # Build shared builders + every engine image. Fails fast; layer-cached after first run.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PROJECTS="${PROJECTS:-llm/llama-cpp stt/wyoming-faster-whisper stt/nemotron-unified-asr stt/parakeet-redux-stt stt/phonon2-stt tts/wyoming-piper1-tts tts/kokoro-tts tts/phonon31m-tts tts/paradee-tts}"
+PROJECTS="${PROJECTS:-packages/llm/llama-cpp packages/stt/wyoming-faster-whisper packages/stt/nemotron-unified-asr packages/stt/parakeet-redux-stt packages/stt/phonon2-stt packages/tts/wyoming-piper1-tts packages/tts/kokoro-tts packages/tts/phonon31m-tts packages/tts/paradee-tts}"
 echo "== builders (cached)"
 (cd builders/parakeet-cpp && ./build.sh)
 (cd builders/wheels-cu132 && ./build.sh)

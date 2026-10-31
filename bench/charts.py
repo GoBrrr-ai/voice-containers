@@ -53,6 +53,13 @@ def _label(row: dict, star: bool = False) -> str:
     return ("★ " if star else "") + _names.display(row)
 
 
+def _bold_stars(ax) -> None:
+    """Bold the y-tick label of the starred (best) row."""
+    for t in ax.get_yticklabels():
+        if t.get_text().startswith("★"):
+            t.set_fontweight("bold")
+
+
 def _best_id(rows, key, lower=True):
     """id() of the row with the best (direction-aware) value of ``key``."""
     rows = [r for r in rows if _matrix._metric(r, key) is not None]
@@ -72,18 +79,52 @@ def _backend_marker(row: dict) -> str:
     return theme.BACKEND_MARKERS.get((row.get("requested_backend") or "cuda"), "D")
 
 
+def _pretty_device(label: str) -> str:
+    """jetson-agx-thor-128gb -> Jetson AGX Thor 128GB."""
+    import re as _re
+
+    out = []
+    for tok in label.split("-"):
+        if tok.lower() in ("jetson",):
+            out.append("Jetson")
+        elif tok.lower() in ("agx", "nx"):
+            out.append(tok.upper())
+        elif m := _re.match(r"^(\d+)([a-z]+)$", tok):
+            out.append(m.group(1) + m.group(2).upper())
+        else:
+            out.append(tok.capitalize())
+    return " ".join(out)
+
+
+def _pretty_dataset(row: dict) -> str:
+    """Manifest filename -> 'LibriSpeech test-clean · 500 utts'."""
+    import re as _re
+
+    m = (row.get("manifest") or "").rsplit("/", 1)[-1].removesuffix(".jsonl")
+    m = _re.sub(r"^(stt|tts)_", "", m).rsplit("_seed", 1)[0]
+    parts = m.split("_")  # librispeech, test-clean, en, 500
+    name = {"librispeech": "LibriSpeech", "libritts": "LibriTTS-R"}.get(
+        parts[0], parts[0].capitalize()
+    )
+    split = parts[1] if len(parts) > 1 else ""
+    task = row.get("task") or (
+        "stt" if "wer" in (row.get("metrics") or {}) else "tts"
+    )
+    n = (row.get("metrics") or {}).get("n")
+    unit = "utts" if task == "stt" else "sents"
+    out = f"{name} {split}" if split else name
+    return f"{out} · {n:,} {unit}" if n else out
+
+
 def _footer_common(fig, rows: list[dict], extra: str = "") -> None:
     r0 = rows[0]
-    left = (
-        f"edge-containers bench · {r0.get('device_label', '?')} · "
-        f"{r0.get('power_profile', 'default')} power"
-    )
-    if fig.get_figwidth() >= 9:  # narrow figures: drop the manifest or the strings collide
-        left += f" · …{r0.get('manifest', '?')[-20:]}"
     footer(
         fig,
         DARK,
-        left=left,
+        left=(
+            f"edge-containers bench · {_pretty_device(r0.get('device_label', '?'))} · "
+            f"{_pretty_dataset(r0)}"
+        ),
         right=f"commit {r0.get('git_commit', '?')}{extra}",
     )
 
@@ -105,6 +146,7 @@ def _hbar(
         log = bool(vals) and max(vals) / max(min(vals), 1e-12) >= 10
     ax.barh(names, values, color=colors, edgecolor=mode.grid)
     ax.invert_yaxis()
+    _bold_stars(ax)
     if log:
         ax.set_xscale("log")
         lo = min(v for v in values if v > 0)
@@ -210,6 +252,15 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
                 color=mode.text,
             )
 
+    # p50 -> p90 spread per point
+    def _whisker(axes, wer, rtf, p90):
+        if p90 and p90 > rtf:
+            axes.plot([rtf, p90], [wer, wer], color=mode.text_dim,
+                      linewidth=1.2, alpha=0.7, zorder=2)
+
+    for (r, wer, rtf) in pts:
+        _whisker(ax, wer, rtf, _matrix._metric(r, "rtf_p90"))
+
     for (r, wer, rtf), mem in zip(pts, mems):
         if id(r) in zoomed:
             _dot(ax, r, wer, rtf, mem, label=False)  # labeled in the inset
@@ -218,6 +269,7 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     if axins is not None:
         for (r, wer, rtf), mem in zip(pts, mems):
             if id(r) in zoomed:
+                _whisker(axins, wer, rtf, _matrix._metric(r, "rtf_p90"))
                 _dot(axins, r, wer, rtf, mem, size_scale=1.15)
     # Pareto front (minimize WER then RTF) drawn as a step line
     front = sorted(
@@ -252,7 +304,7 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     ax.set_xscale("log")
     _title(ax, "Speech recognition — accuracy vs speed")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows, extra=" · point size = peak container memory")
+    _footer_common(fig, rows, extra=" · point size = memory · line = p50→p90")
     return fig
 
 
@@ -282,6 +334,11 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     bp = ax.boxplot(
         data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
     )
+    _bold_stars(ax)
+    for i, vals_i in enumerate(data):
+        p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
+        ax.plot([p90, p90], [i + 0.75, i + 1.25],
+                color=mode.green, linewidth=1.8, zorder=4)
     for patch, c in zip(bp["boxes"], colors):
         patch.set_facecolor(c)
         patch.set_alpha(0.75)
@@ -293,7 +350,7 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     ax.set_xlabel("RTF per utterance (lower is better ↓, log)")
     ax.set_xscale("log")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows)
+    _footer_common(fig, rows, extra=" · green tick = p90")
     return fig
 
 
@@ -360,6 +417,7 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
     best = _best_id(rows, "rtf")
     names = [_label(r, star=id(r) == best) for r in rows]
     rtfs = [_matrix._metric(r, "rtf") for r in rows]
+    p90s = [_matrix._metric(r, "rtf_p90") or 0 for r in rows]
     colors = [row_color(r) for r in rows]
     _hbar(
         ax,
@@ -368,8 +426,19 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
         colors,
         mode,
         "{:.3f}",
-        "RTF p50 — s audio per s wall (lower is better ↓)",
+        "RTF p50 — s audio per s wall (lower is better ↓, tick = p90)",
+        label_x=[max(v, p) * 1.08 for v, p in zip(rtfs, p90s)],
     )
+    for i, p90 in enumerate(p90s):
+        if p90:
+            ax.plot([p90, p90], [i - 0.28, i + 0.28],
+                    color=mode.text, linewidth=1.6, alpha=0.85, zorder=4)
+    if any(p90s):
+        ax.plot([], [], color=mode.text, linewidth=1.6, label="p90")
+        ax.legend(loc="lower right", frameon=False, fontsize=8,
+                  labelcolor=mode.text_dim)
+    ax.set_xlim(min(v for v in rtfs if v > 0) * 0.8,
+                max(max(rtfs), max(p90s)) * 1.25)
     _title(ax, "Speech synthesis — real-time factor")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
@@ -450,6 +519,11 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     bp = ax.boxplot(
         data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
     )
+    _bold_stars(ax)
+    for i, vals_i in enumerate(data):
+        p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
+        ax.plot([p90, p90], [i + 0.75, i + 1.25],
+                color=mode.green, linewidth=1.8, zorder=4)
     for patch, c in zip(bp["boxes"], colors):
         patch.set_facecolor(c)
         patch.set_alpha(0.75)
@@ -461,7 +535,7 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     ax.set_xlabel("synthesis latency per sentence (s, lower is better ↓, log)")
     ax.set_xscale("log")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows)
+    _footer_common(fig, rows, extra=" · green tick = p90")
     return fig
 
 
@@ -568,6 +642,7 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
         fontsize=geom["tick"],
     )
     ax.set_yticks(range(len(labels)), labels, fontsize=geom["ylab"])
+    _bold_stars(ax)
     for i in range(len(labels)):
         for j in range(len(metric_keys)):
             raw = raw_vals[i][j]

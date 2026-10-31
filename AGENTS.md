@@ -36,15 +36,16 @@ README, charts and result matrices from raw data.
 
 | Path | Purpose |
 |---|---|
-| `stt/` | speech-recognition images: wyoming-faster-whisper, nemotron-unified-asr, parakeet-redux-stt, phonon2-stt |
-| `tts/` | speech-synthesis images: wyoming-piper1-tts, kokoro-tts, phonon31m-tts, paradee-tts |
-| `llm/` | llama-cpp (outside the voice stack) |
+| `packages/stt/` | speech recognition: wyoming-faster-whisper, nemotron-unified-asr, parakeet-redux-stt, phonon2-stt |
+| `packages/tts/` | speech synthesis: wyoming-piper1-tts, kokoro-tts, phonon31m-tts, paradee-tts |
+| `packages/llm/` | llama-cpp (outside the voice stack) |
 | `builders/` | shared artifact builders (wheels-cu132, parakeet-cpp) — not shipped |
 | `bench/` | harness: datasets, engines, probes, metrics, matrix, charts, readme |
 | `benchmarks/` | `history.jsonl` (append-only) + `raw/<run_id>/` committed artifacts |
 | `assets/benchmarks/` | generated charts (2× dark PNGs) + `manifest.json` |
-| `reports/matrix/` | generated `matrix_<task>.csv/json` + sortable `index_<task>.html` |
+| `manifests/` | frozen benchmark manifests (seed 42) — the reproducibility anchor |
 | `task/` | spec, reviews, research, voice-data (gitignored) |
+| `reports/`, `selfcheck.json` | generated outputs — gitignored |
 
 Each project dir is standalone: `Dockerfile + build.sh + README +
 test/{verify_arch,smoke_*}`. Dockerfiles start with `ARG BASE_IMAGE /
@@ -67,8 +68,9 @@ make bench-plot        # charts + matrix + README.md from history.jsonl (no infe
 ```
 
 `PROJECTS` in the Makefile / `scripts/sweep-*.sh` / `.github/workflows/*.yml`
-lists full paths (`stt/...`, `tts/...`, `llm/...`) — update all four when
-adding a project. Docker image names stay flat (`narandill/<name>`).
+lists full paths (`packages/stt/...`, `packages/tts/...`, `packages/llm/...`) —
+update all four when adding a project. Docker image names stay flat
+(`narandill/<name>`).
 
 ## Benchmark data flow
 
