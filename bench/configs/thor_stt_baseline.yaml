@@ -1,0 +1,52 @@
+# Thor STT baseline — LibriSpeech test-clean 500 utts, seed 42 (PRD 9.2)
+run_name: thor_stt_baseline
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default            # flip to `locked` (sudo jetson_clocks) for comparable best-case
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/librispeech_test-clean_en_500_seed42.jsonl
+  n: 500
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: parakeet_cpp            # nemotron-unified-asr (GPU q8_0)
+    image: narandill/nemotron-unified-asr-thor:0.1.0
+    backends: [cuda]
+    opts:
+      model: /models/nemotron-labs-unified-asr-0.6b-q8_0.gguf
+      lang: en
+  - name: parakeet_cpp            # moondream parakeet-redux (GPU q8_0)
+    image: narandill/parakeet-redux-stt-thor:0.1.0
+    backends: [cuda]
+    opts:
+      model: /models/redux-q8_0.gguf
+  - name: parakeet_cpp            # Phonon-2.5-english (GPU q8_0)
+    image: narandill/phonon2-stt-thor:0.1.0
+    backends: [cuda]
+    opts:
+      model: /models/phonon-2.5-english-q8_0.gguf
+  - name: parakeet_cpp            # redux packed on CPU (the ultra-light tier)
+    image: narandill/parakeet-redux-stt-thor:0.1.0
+    backends: [cpu]
+    opts:
+      model: /models/redux-packed.gguf
+      device: cpu
+  - name: faster_whisper          # the wave-1 baseline (tiny-int8)
+    image: narandill/wyoming-faster-whisper-thor:0.1.0
+    backends: [cuda]
+    opts:
+      model: tiny-int8
+      device: cuda
+      compute_type: default
+streaming: {chunk_ms: 160, realtime_pass: false}   # v1: offline passes; realtime pass fast-follow
+warmup_n: 5
+repeats: 1
+cooldown_s: 60
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+drop_caches: false
+output_dir: results

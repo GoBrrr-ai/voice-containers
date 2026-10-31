@@ -1,0 +1,50 @@
+# Thor TTS baseline — LibriTTS-R test.clean text, 500 sentences, seed 42
+run_name: thor_tts_baseline
+task: tts
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: libritts_r
+  split: test.clean
+  language: en
+  manifest: manifests/libritts_r_test_clean_en_500_seed42.jsonl
+  n: 500
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: kokoro                  # int8 ONNX on our ORT-GPU build
+    image: narandill/kokoro-tts-thor:0.1.0
+    backends: [cuda]
+    opts:
+      model: /opt/kokoro/model_uint8.onnx
+      voices: /opt/kokoro/voices-v1.0.bin
+      voice: af_heart
+  - name: ptts                    # phonon-31m (CPU-only by design; TTFA champ)
+    image: narandill/phonon31m-tts-thor:0.1.0
+    backends: [cpu]
+    opts:
+      model: /models/phonon-31m-en
+      lang: en
+      quant: q8
+  - name: paradee                 # 8.6MB int8 Kokoro distillation
+    image: narandill/paradee-tts-thor:0.1.0
+    backends: [cuda, cpu]
+    opts:
+      version: "1.0"
+      quantized: true
+  - name: piper                   # the wave-1 TTS baseline
+    image: narandill/wyoming-piper1-tts-thor:0.1.0
+    backends: [cuda]
+    opts:
+      model_dir: /data/models/piper
+      voice: en_US-libritts_r-medium
+      device: cuda
+streaming: {chunk_ms: 160, realtime_pass: true}
+warmup_n: 5
+repeats: 1
+cooldown_s: 60
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+drop_caches: false
+output_dir: results
