@@ -11,6 +11,7 @@ Usage: python client.py <job.json>
 
 from __future__ import annotations
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -21,21 +22,25 @@ def _now_ns() -> int:
 
 
 def _sync_cuda() -> None:
-    """Best-effort device sync before stopping a timer (PRD 4.3)."""
-    try:
-        import ctranslate2
+    """Real device sync before stopping a timer (PRD 4.3).
 
-        if ctranslate2.get_cuda_device_count():
-            return  # CT2 waits are synchronous
-    except Exception:
-        pass
+    Every engine API used here is synchronous, but the contract is enforced
+    anyway via cudart so a future async adapter cannot silently under-report.
+    On CPU-only images there is no cudart and this is a no-op.
+    """
     try:
-        import onnxruntime as ort
+        import ctypes
+        import ctypes.util
 
-        # ORT CUDA EP run() is synchronous
-        _ = ort.__version__
+        rt = getattr(_sync_cuda, "_rt", None)
+        if rt is None:
+            name = ctypes.util.find_library("cudart") or "libcudart.so.13"
+            rt = _sync_cuda._rt = ctypes.CDLL(name)
+        rc = rt.cudaDeviceSynchronize()
+        if rc == 0:
+            return
     except Exception:
-        pass
+        pass  # no CUDA runtime in this image — nothing to synchronize
 
 
 # ---------------------------------------------------------------- STT engines
@@ -70,7 +75,7 @@ class FasterWhisper:
 
     def load(self, opts):
         self.opts_backend = opts.get("device", "cuda")
-        self.lang = opts.get("language", "en")
+        self.lang = opts.get("language") or opts.get("lang", "en")
 
 
 class ParakeetCpp:
@@ -85,7 +90,7 @@ class ParakeetCpp:
         self.model = opts["model"]
         self.device = opts.get("device", "")
         self.stream_latency = opts.get("stream_latency", "")
-        self.lang = opts.get("lang", "")
+        self.lang = opts.get("lang") or opts.get("language", "")
         self.vad_model = opts.get("vad_model", "")
 
     def load(self, opts):
@@ -118,8 +123,9 @@ class ParakeetCpp:
         env = {**os.environ}
         if self.device and self.device != "cuda":
             # images default to GPU (ggml CUDA0); "cuda" means "leave default".
-            # Explicit values pass through: cpu, CUDA0, ... — via env, which is
-            # honored even for packed-ternary models that reject --device.
+            # Explicit values pass through as env (honored even by packed-ternary
+            # models, which the --device flag alone does not switch to CPU) and
+            # as the flag for the regular backends.
             cmd += ["--device", self.device]
             env["PARAKEET_DEVICE"] = self.device
         if self.lang:
@@ -248,12 +254,14 @@ class Paradee:
         )
 
     def load(self, opts):
-        pass
+        # honest provider record (PRD 7A): ORT falls back to CPU silently
+        try:
+            self._prov = self.tts.session.get_providers()[0]
+        except Exception:
+            self._prov = "unknown"
 
     def actual_backend(self) -> str:
-        return (
-            "cuda"  # int8 graph on ORT; CPU EP if CUDA unavailable (flagged by probes)
-        )
+        return "cuda" if "CUDA" in getattr(self, "_prov", "") else "cpu"
 
     def synthesize(self, text: str):
         audio = self.tts(text)
@@ -309,8 +317,6 @@ class PiperTts:
         yield self.synthesize(text)
 
 
-import os  # noqa: E402  (used by PiperTts)
-
 STT_ENGINES = {c.name: c for c in (FasterWhisper, ParakeetCpp)}
 TTS_ENGINES = {c.name: c for c in (Kokoro, Ptts, Paradee, PiperTts)}
 
@@ -326,78 +332,115 @@ def main() -> None:
     eng.load(job.get("opts", {}))
     t_load0 = _now_ns()
 
+    requested = job.get("requested_backend") or job.get("opts", {}).get(
+        "device", "cuda"
+    )
     # load time is measured from process start; approximate with first-record
     rec = {
         "load_ns_after_imports": t_load0,
         "actual_backend": eng.actual_backend(),
-        "requested_backend": job.get("opts", {}).get("device", "cuda"),
+        "requested_backend": requested,
     }
 
     utt_path = out_dir / "utterances.jsonl"
-    ev_path = out_dir / "events.jsonl"
+
+    # unsupported (engine, backend) pair: honest skip rows, never a silent no-op
+    if requested not in eng.backends:
+        for i, s in enumerate(job["samples"]):
+            jsonl_append(
+                utt_path,
+                {
+                    "engine": eng.name,
+                    "engine_id": job.get("engine_id", eng.name),
+                    "task": task,
+                    "utt_id": s["utt_id"],
+                    "run_position": i,
+                    "status": "skipped",
+                    "reason": (
+                        f"backend {requested!r} unsupported by {eng.name} "
+                        f"(supports {sorted(eng.backends)})"
+                    ),
+                },
+            )
+        return
+
+    # warmup: the first warmup_n utterances run untimed and are not recorded
+    warm = int(job.get("warmup_n", 0) or 0)
+    for s in job["samples"][:warm]:
+        run_sample(eng, job, s, out_dir, record=False)
+
     for i, s in enumerate(job["samples"]):
-        rec_utt = {
-            "engine": eng.name,
-            "engine_id": job.get("engine_id", eng.name),
-            "task": task,
-            "utt_id": s["utt_id"],
-            "run_position": i,
-            "ref_norm": s.get("text_norm", ""),
-            "audio_s": s.get("duration_s"),
-            "num_words": s.get("num_words"),
-            "num_chars": s.get("num_chars"),
-            "language": s.get("language"),
-        }
-        t0 = _now_ns()
-        try:
-            if task == "stt":
-                import wave
-
-                with wave.open(s["audio_path"], "rb") as w:
-                    pcm = w.readframes(w.getnframes())
-                    sr = w.getframerate()
-                t1 = _now_ns()
-                text = eng.transcribe(pcm, sr, wav_path=s["audio_path"])
-                t2 = _now_ns()
-                rec_utt.update(
-                    hyp_raw=text, proc_ns=t2 - t1, feed_mode="fast", status="ok"
-                )
-            else:
-                import numpy as np  # lazy: parakeet images ship no numpy
-
-                sr_out = None
-                if job.get("streaming") and eng.supports_streaming:
-                    chunks, first, last, n = [], None, None, 0
-                    for pcm, sr in eng.synthesize_stream(s["text_raw"]):
-                        now = _now_ns()
-                        first = first or now
-                        last = now
-                        n += 1
-                        sr_out = sr
-                        chunks.append(np.asarray(pcm))
-                    synth_ns = last - t0
-                    audio = np.concatenate(chunks) if chunks else np.zeros(1)
-                    rec_utt.update(
-                        ttfa_ns=(first - t0) if first else None,
-                        synth_ns=synth_ns,
-                        chunk_count=n,
-                        status="ok",
-                    )
-                else:
-                    audio, sr_out = eng.synthesize(s["text_raw"])
-                    audio = np.asarray(audio)
-                    rec_utt.update(synth_ns=_now_ns() - t0, status="ok")
-                rec_utt["sample_rate"] = int(sr_out or eng.output_sample_rate)
-                # output duration drives TTS RTF (PRD 6.2)
-                rec_utt["out_audio_s"] = len(audio) / rec_utt["sample_rate"]
-                wav_out = out_dir / "audio" / f"{s['utt_id']}.wav"
-                _write_wav(wav_out, audio, rec_utt["sample_rate"])
-        except (
-            Exception
-        ) as e:  # record and continue (PRD: a crash must not kill the suite)
-            rec_utt.update(status="error", error=repr(e)[:500])
+        rec_utt = run_sample(eng, job, s, out_dir, record=True, run_position=i)
         jsonl_append(utt_path, rec_utt)
     jsonl_append(out_dir / "run_meta.jsonl", rec)
+
+
+def run_sample(
+    eng, job: dict, s: dict, out_dir: Path, record: bool = True, run_position: int = 0
+) -> dict | None:
+    """Run one utterance; returns the record row (None for warmup passes)."""
+    task = job["task"]
+    out_dir = Path(out_dir)
+    rec_utt = {
+        "engine": eng.name,
+        "engine_id": job.get("engine_id", eng.name),
+        "task": task,
+        "utt_id": s["utt_id"],
+        "run_position": run_position,
+        "ref_norm": s.get("text_norm", ""),
+        "audio_s": s.get("duration_s"),
+        "num_words": s.get("num_words"),
+        "num_chars": s.get("num_chars"),
+        "language": s.get("language"),
+    }
+    t0 = _now_ns()
+    try:
+        if task == "stt":
+            import wave
+
+            with wave.open(s["audio_path"], "rb") as w:
+                pcm = w.readframes(w.getnframes())
+                sr = w.getframerate()
+            t1 = _now_ns()
+            text = eng.transcribe(pcm, sr, wav_path=s["audio_path"])
+            t2 = _now_ns()
+            rec_utt.update(
+                hyp_raw=text, proc_ns=t2 - t1, feed_mode="fast", status="ok"
+            )
+        else:
+            import numpy as np  # lazy: parakeet images ship no numpy
+
+            sr_out = None
+            if job.get("streaming") and eng.supports_streaming:
+                chunks, first, last, n = [], None, None, 0
+                for pcm, sr in eng.synthesize_stream(s["text_raw"]):
+                    now = _now_ns()
+                    first = first or now
+                    last = now
+                    n += 1
+                    sr_out = sr
+                    chunks.append(np.asarray(pcm))
+                synth_ns = last - t0
+                audio = np.concatenate(chunks) if chunks else np.zeros(1)
+                rec_utt.update(
+                    ttfa_ns=(first - t0) if first else None,
+                    synth_ns=synth_ns,
+                    chunk_count=n,
+                    status="ok",
+                )
+            else:
+                audio, sr_out = eng.synthesize(s["text_raw"])
+                audio = np.asarray(audio)
+                rec_utt.update(synth_ns=_now_ns() - t0, status="ok")
+            rec_utt["sample_rate"] = int(sr_out or eng.output_sample_rate)
+            # output duration drives TTS RTF (PRD 6.2)
+            rec_utt["out_audio_s"] = len(audio) / rec_utt["sample_rate"]
+            if record:
+                _write_wav(out_dir / "audio" / f"{s['utt_id']}.wav",
+                           audio, rec_utt["sample_rate"])
+    except Exception as e:  # record and continue (PRD: a crash must not kill the suite)
+        rec_utt.update(status="error", error=repr(e)[:500])
+    return rec_utt if record else None
 
 
 def _write_wav(path: Path, audio, sr: int) -> None:

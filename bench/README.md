@@ -36,7 +36,6 @@ python -m venv bench/.venv && bench/.venv/bin/pip install -r bench/requirements.
 source bench/.venv/bin/activate
 
 python -m bench.cli prepare --dataset librispeech --split test-clean --lang en --n 500 --seed 42 --task stt
-python -m bench.cli prepare --dataset libritts_r --split test.clean --lang en --n 500 --seed 42 --task tts
 python -m bench.cli selfcheck
 
 python -m bench.cli run --config bench/configs/thor_stt_baseline.yaml

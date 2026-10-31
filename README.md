@@ -61,7 +61,7 @@ overridable ARG (`WHEELS_IMAGE`, `PARAKEET_DIST_IMAGE`) — see `ARCHITECTURE.md
 ## Benchmarks
 
 ```bash
-make bench-prepare      # LibriSpeech test-clean (500 utts) + LibriTTS-R text (500 sent), seed 42
+make bench-prepare      # frozen manifests: 500 STT + 444 TTS sentences (LibriSpeech, seed 42)
 make bench-selfcheck    # device, CUDA arch, probes, engines
 python -m bench.cli run --config bench/configs/thor_stt_baseline.yaml
 python -m bench.cli report results/<run_id>

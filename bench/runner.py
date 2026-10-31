@@ -1,8 +1,9 @@
 """Runner — orchestrates per-(engine, backend, dataset) container jobs (PRD §2, §5, §9).
 
 Each job runs in a FRESH container (process isolation); the parent hosts the
-background probes (tegrastats + docker stats) and writes env.json, run.json,
-probes.parquet and the aggregated summary.
+background probes (tegrastats + docker stats) and writes env.json (device info,
+power profile + the full resolved config), per-engine container metas + logs,
+and the aggregated summary.json / summary.csv.
 """
 
 from __future__ import annotations
@@ -15,18 +16,45 @@ from pathlib import Path
 from .common import jsonl_read
 from .metrics.wer import corpus_wer_cer, dist_stats
 
+# Config keys understood by this runner. Unknown keys are REJECTED loudly so a
+# methodology knob can never be a silent no-op (PRD 9.2); unsupported values
+# are rejected with an explicit message instead of being ignored.
+KNOWN_KEYS = {
+    "run_name",
+    "task",
+    "device_label",
+    "power_profile",
+    "dataset",
+    "normalizer",
+    "cache_dir",
+    "engines",
+    "streaming",
+    "warmup_n",
+    "repeats",
+    "cooldown_s",
+    "soak_minutes",
+    "probes",
+    "drop_caches",
+    "output_dir",
+}
+
+
+def _fail(msg: str) -> None:
+    raise SystemExit(f"config error: {msg}")
+
 
 class TegraStats:
-    """tegrastats --interval 100 parser; on non-Jetson hosts it's just absent."""
+    """tegrastats --interval <ms> sampler; absent on non-Jetson hosts."""
 
-    def __init__(self, out_path: Path):
+    def __init__(self, out_path: Path, interval_ms: int = 100):
         self.out = open(out_path, "w")
         self.proc = None
+        self.interval_ms = interval_ms
 
     def start(self):
         try:
             self.proc = subprocess.Popen(
-                ["tegrastats", "--interval", "100"],
+                ["tegrastats", "--interval", str(self.interval_ms)],
                 stdout=self.out,
                 stderr=subprocess.DEVNULL,
             )
@@ -34,8 +62,13 @@ class TegraStats:
             self.proc = None
 
     def stop(self):
+        """Terminate and reap the sampler (never leaks a child)."""
         if self.proc:
             self.proc.terminate()
+            try:
+                self.proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
         self.out.close()
 
 
@@ -43,11 +76,10 @@ def docker_stats_sampler(
     container: str, out_path: Path, stop_evt: threading.Event, interval: float = 1.0
 ):
     """Sample `docker stats --no-stream` for the child container (RSS, CPU%)."""
-    import csv, io
-
     with open(out_path, "w") as f:
         f.write("t_ns,cpu_perc,mem_usage,mem_limit\n")
         t0 = time.perf_counter_ns()
+        failures = 0
         while not stop_evt.is_set():
             try:
                 r = subprocess.run(
@@ -69,9 +101,38 @@ def docker_stats_sampler(
                     mem_used = mem.split("/")[0].strip()
                     f.write(f"{time.perf_counter_ns() - t0},{cpu},{mem_used},\n")
                     f.flush()
+                    failures = 0
+                else:
+                    failures += 1
             except Exception:
-                pass
+                failures += 1
+            if failures and failures % 30 == 1:
+                print(
+                    f"[runner] docker stats unavailable for {container} "
+                    f"({failures} failed samples so far)"
+                )
             stop_evt.wait(interval)
+
+
+def _container_audio_path(host_path: str, cache_root: Path) -> str:
+    """Map a manifest audio_path to its container mount (/data/bench-cache/...).
+
+    Manifests store cache-relative paths; absolute paths under cache_root are
+    tolerated (legacy manifests) — anything else is a hard error.
+    """
+    p = Path(host_path)
+    if p.is_absolute():
+        try:
+            rel = p.resolve().relative_to(cache_root)
+        except ValueError as e:
+            raise ValueError(
+                f"manifest audio_path {host_path!r} is outside cache_dir "
+                f"{cache_root} — regenerate the manifest (prepare now stores "
+                "cache-relative paths)"
+            ) from e
+    else:
+        rel = p
+    return "/data/bench-cache/" + str(rel)
 
 
 def run_container_job(
@@ -94,9 +155,7 @@ def run_container_job(
     bench_dir = Path(bench_dir).resolve()
     for s in job["samples"]:
         if s.get("audio_path"):
-            s["audio_path"] = "/data/bench-cache/" + str(
-                Path(s["audio_path"]).resolve().relative_to(cache_root)
-            )
+            s["audio_path"] = _container_audio_path(s["audio_path"], cache_root)
     job_path = run_dir / f"job_{eid}.json"
     job_path.write_text(
         json.dumps({**job, "out_dir": "/bench/out"}, ensure_ascii=False)
@@ -142,6 +201,7 @@ def run_container_job(
     meta = {
         "engine": job["engine"],
         "engine_id": eid,
+        "requested_backend": job.get("requested_backend"),
         "container": name,
         "exit": proc.returncode,
         "wall_ns": time.perf_counter_ns() - t0,
@@ -156,53 +216,94 @@ def run_container_job(
 
 
 def run_config(config_path: str) -> str:
-    """Full PRD §9.1 protocol for one config. Returns run_id."""
+    """Execute the PRD §9.1 protocol for one config. Returns run_id."""
     import yaml
 
     cfg = yaml.safe_load(Path(config_path).read_text())
-    root = (
-        Path(config_path).resolve().parents[2]
-    )  # bench/configs/<file>.yaml -> repo root
+    unknown = set(cfg) - KNOWN_KEYS
+    if unknown:
+        _fail(f"unknown keys {sorted(unknown)} (typo or unsupported knob)")
+    if int(cfg.get("repeats", 1)) != 1:
+        _fail("repeats > 1 is not implemented yet — set repeats: 1")
+    root = Path(config_path).resolve().parents[2]  # bench/configs/x.yaml -> repo root
     ts = time.strftime("%Y%m%d_%H%M%S")
     run_id = f"{ts}_{cfg.get('device_label', 'device')}_{cfg['task']}"
     out = Path(root / cfg.get("output_dir", "results")) / run_id
     out.mkdir(parents=True, exist_ok=True)
     Path(out / "audio").mkdir(exist_ok=True)
 
-    # 1) idle baseline is handled by the probes thread (tegrastats runs throughout)
-    teg = TegraStats(out / "tegrastats.log")
+    interval_ms = int((cfg.get("probes", {}) or {}).get("interval_ms", 100))
+    warmup_n = int(cfg.get("warmup_n", 0))
+    cooldown_s = float(cfg.get("cooldown_s", 0))
+    soak_s = float(cfg.get("soak_minutes", 0)) * 60
+    realtime_pass = bool((cfg.get("streaming", {}) or {}).get("realtime_pass", False))
+
+    # 1) idle baseline is covered by the probes running throughout the run
+    teg = TegraStats(out / "tegrastats.log", interval_ms)
     teg.start()
+    try:
+        # 2) environment record per run (PRD 9.1 / 5.4): device info + config
+        from .env import collect
 
-    # 2) environment record per run (PRD 9.1 / 5.4)
-    from .env import collect
+        env_rec = collect()
+        env_rec["power_profile"] = cfg.get("power_profile", "default")
+        env_rec["device_label"] = cfg.get("device_label", "")
+        env_rec["config"] = cfg  # full resolved config, for provenance
+        (out / "env.json").write_text(json.dumps(env_rec, indent=2))
 
-    (out / "env.json").write_text(json.dumps(collect(), indent=2))
+        if cfg.get("drop_caches"):
+            # best-effort page-cache drop (needs root; warn and continue otherwise)
+            rc = subprocess.run(
+                ["sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"],
+                capture_output=True,
+            ).returncode
+            if rc != 0:
+                print("[runner] WARNING: drop_caches requested but failed (need root?)")
 
-    manifest = list(jsonl_read(root / cfg["dataset"]["manifest"]))
-    manifest = manifest[: int(cfg["dataset"].get("n", len(manifest)))]
-    task = cfg["task"]
-    for i, eng in enumerate(cfg["engines"]):
-        # unique id per engine entry (the same adapter may appear with different models)
-        eid = eng.get("id") or f"{eng['name']}_{i}"
-        job = {
-            "task": task,
-            "engine": eng["name"],
-            "engine_id": eid,
-            "opts": eng.get("opts", {}) | {"device": eng.get("backends", ["cuda"])[0]},
-            "samples": manifest,
-            "streaming": bool(cfg.get("streaming", {}).get("realtime_pass", False)),
-            "volumes": eng.get("volumes", []),
-        }
-        img = eng["image"]  # engine image for this adapter
-        meta = run_container_job(
-            img,
-            job,
-            out,
-            Path(__file__).parent / "engines",
-            root / cfg.get("cache_dir", "bench/cache"),
-        )
-        (out / f"container_{eid}.json").write_text(json.dumps(meta))
-    teg.stop()
+        manifest = list(jsonl_read(root / cfg["dataset"]["manifest"]))
+        manifest = manifest[: int(cfg["dataset"].get("n", len(manifest)))]
+        task = cfg["task"]
+        first_job = True
+        for i, eng in enumerate(cfg["engines"]):
+            backends = eng.get("backends", ["cuda"])
+            for bi, backend in enumerate(backends):
+                # H2: one job per (engine, backend); id stays stable for the
+                # single-backend case, gains the backend suffix otherwise
+                if eng.get("id"):
+                    eid = eng["id"] if len(backends) == 1 else f"{eng['id']}_{backend}"
+                else:
+                    eid = (
+                        f"{eng['name']}_{i}"
+                        if len(backends) == 1
+                        else f"{eng['name']}_{i}_{backend}"
+                    )
+                if cooldown_s and not first_job:
+                    time.sleep(cooldown_s)
+                first_job = False
+                job = {
+                    "task": task,
+                    "engine": eng["name"],
+                    "engine_id": eid,
+                    "opts": eng.get("opts", {}) | {"device": backend},
+                    "requested_backend": backend,
+                    "samples": manifest,
+                    "warmup_n": warmup_n,
+                    "streaming": realtime_pass,
+                    "volumes": eng.get("volumes", []),
+                }
+                img = eng["image"]  # engine image for this adapter
+                meta = run_container_job(
+                    img,
+                    job,
+                    out,
+                    Path(__file__).parent / "engines",
+                    root / cfg.get("cache_dir", "bench/cache"),
+                )
+                (out / f"container_{eid}.json").write_text(json.dumps(meta))
+        if soak_s:
+            time.sleep(soak_s)
+    finally:
+        teg.stop()
 
     # aggregate
     write_summary(out, task)
@@ -213,6 +314,9 @@ def _engine_summary(rows: list[dict], task: str) -> dict:
     """Aggregate one engine's utterance rows (PRD 8.3). Mutates rows with hyp_norm."""
     ok = [r for r in rows if r.get("status") == "ok"]
     s: dict = {"n": len(rows), "n_ok": len(ok)}
+    if skipped := [r for r in rows if r.get("status") == "skipped"]:
+        s["n_skipped"] = len(skipped)
+        s["skip_reason"] = skipped[0].get("reason", "")
     if task == "stt" and ok:
         from .metrics.normalize import normalize
 
@@ -221,12 +325,14 @@ def _engine_summary(rows: list[dict], task: str) -> dict:
         s.update(
             corpus_wer_cer((r["ref_norm"] for r in ok), (r["hyp_norm"] for r in ok))
         )
-        s.update(
-            dist_stats(
-                [r["proc_ns"] / 1e9 / max(r.get("audio_s") or 1, 1e-9) for r in ok],
-                "rtf",
+        timed = [r for r in ok if r.get("audio_s")]
+        if timed:
+            s.update(
+                dist_stats(
+                    [r["proc_ns"] / 1e9 / max(r["audio_s"], 1e-9) for r in timed],
+                    "rtf",
+                )
             )
-        )
         s.update(dist_stats([r["proc_ns"] / 1e9 for r in ok], "offline_latency_s"))
     if task == "tts" and ok:
         if all(r.get("ttfa_ns") for r in ok):
@@ -250,7 +356,8 @@ def write_summary(run_dir: Path, task: str) -> dict:
     Headline metrics are computed PER ENGINE (per_engine.engine_id); the top
     level is corpus-wide and only meaningful for single-engine runs.
     """
-    rows = list(jsonl_read(run_dir / "utterances.jsonl"))
+    utt = Path(run_dir) / "utterances.jsonl"
+    rows = list(jsonl_read(utt)) if utt.exists() else []
     ok = [r for r in rows if r.get("status") == "ok"]
     summary: dict = {"task": task, "n": len(rows), "n_ok": len(ok)}
     summary["per_engine"] = {

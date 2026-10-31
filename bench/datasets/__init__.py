@@ -77,6 +77,7 @@ class LibriSpeechAdapter(BaseAdapter):
     def iter_samples(self, split: str, language: str):
         import numpy as np
         import soundfile as sf
+        import soxr
 
         for row in self._ds:
             utt = row["id"]
@@ -87,8 +88,10 @@ class LibriSpeechAdapter(BaseAdapter):
             data = dec.data.numpy()
             mono = data.mean(axis=0) if data.ndim > 1 else data
             if not dst.exists():
-                sf.write(str(dst), mono, dec.sample_rate, subtype="PCM_16")
-            dur = len(mono) / dec.sample_rate
+                if dec.sample_rate != RESAMPLE_RATE:
+                    mono = soxr.resample(mono, dec.sample_rate, RESAMPLE_RATE)
+                sf.write(str(dst), mono, RESAMPLE_RATE, subtype="PCM_16")
+            dur = len(mono) / RESAMPLE_RATE
             yield Sample(
                 dataset=self.name,
                 dataset_version=self.dataset_version(),
@@ -314,8 +317,17 @@ def prepare(
     ad = get_adapter(cache_dir, dataset, **opts)
     ad.download()
     rows = []
+    cache = Path(cache_dir).resolve()
     for s in ad.iter_samples(split, language):
         d = s.to_dict()
+        if d.get("audio_path"):
+            ap = Path(d["audio_path"])
+            if ap.is_absolute():
+                try:
+                    # store cache-relative so manifests are host-portable
+                    d["audio_path"] = str(ap.resolve().relative_to(cache))
+                except ValueError:
+                    pass  # custom_dir etc. — keep absolute
         d["text_norm"] = normalize(d["text_raw"], language)
         d["num_chars"] = len(d["text_raw"])
         d["num_words"] = len(d["text_norm"].split())

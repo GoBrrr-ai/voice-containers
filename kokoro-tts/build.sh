@@ -15,10 +15,8 @@ echo "Building ${REPO}/kokoro-tts:${VERSION}"
 docker build "${TAGS[@]}" .
 
 if [ "${1:-}" = "--push" ]; then
-  for tag in "${REPO}/kokoro-tts:${VERSION}" "${REPO}/kokoro-tts:${VERSION}" \
-             "${REPO}/kokoro-tts:${VERSION}" "${REPO}/kokoro-tts:latest"; do
-    docker push "$tag"
-  done
+  docker push "${REPO}/kokoro-tts:${VERSION}"
+  docker push "${REPO}/kokoro-tts:latest"
 fi
 
 echo "Done. Run e.g.:"

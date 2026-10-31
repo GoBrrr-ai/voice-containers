@@ -15,7 +15,7 @@ echo "[smoke] 2/3 streaming python API (tts.stream) + TTFA"
 docker run --rm -i -v "$OUT":/data --entrypoint /opt/venv/bin/python "$IMAGE" - <<'PY'
 import time
 from ptts import TTS
-tts = TTS("/models/phonon-31m-en", lang="en", quant="q8")
+tts = TTS("/models/phonon-31m-en", lang="en", quant="q8_0")
 t0 = time.perf_counter(); n = 0; first = None; sr = None
 with tts.stream("Streaming check on Jetson.") as audio:
     sr = audio.sample_rate

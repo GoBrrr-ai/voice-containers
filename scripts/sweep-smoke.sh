@@ -17,9 +17,12 @@ for p in $PROJECTS; do
   echo "== verify $p ($img)"
   if [ -x "$p/test/verify_arch.sh" ]; then "$p/test/verify_arch.sh" "$img" || fail=1
   else echo "  (no arch verification — CPU-only or none needed)"; fi
-  if [ "$SMOKE" = "1" ] && ls "$p"/test/smoke_*.sh >/dev/null 2>&1; then
-    echo "== smoke $p"
-    (cd "$p" && ./test/smoke_*.sh "$img") || fail=1
+  if [ "$SMOKE" = "1" ]; then
+    for s in "$p"/test/smoke_*.sh; do
+      [ -e "$s" ] || { echo "  (no smoke scripts)"; break; }
+      echo "== smoke $p ($(basename "$s"))"
+      (cd "$p" && ./test/$(basename "$s") "$img") || fail=1
+    done
   fi
 done
 if [ "$fail" = "0" ]; then echo "SWEEP PASS"; else echo "SWEEP FAIL"; exit 1; fi

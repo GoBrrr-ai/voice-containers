@@ -13,7 +13,7 @@ TAGS=(
 )
 
 echo "Building ${REPO}/${NAME}:${VERSION}"
-docker build "${TAGS[@]}" "$@" .
+docker build "${TAGS[@]}" .
 
 if [ "${1:-}" = "--push" ]; then
   docker push "${REPO}/${NAME}:${VERSION}"

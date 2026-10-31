@@ -54,8 +54,9 @@ def corpus_wer_cer(refs: Iterable[str], hyps: Iterable[str]) -> dict:
             empty += 1
         if len(hw) > 1.5 * max(1, len(rw)) or _repeats(hw):
             hall += 1
-        if hw:
-            ser += 1 if (s + d + i) > 0 else 0
+        # empty hyp on non-empty ref: _edit_counts already yields del=len(ref),
+        # i.e. a sentence error — no special case (PRD 6.1)
+        ser += 1 if (s + d + i) > 0 else 0
         rc = list(ref.replace(" ", ""))
         hc = list(hyp.replace(" ", ""))
         cs, cd, ci = _edit_counts(rc, hc)
