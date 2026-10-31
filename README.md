@@ -40,16 +40,14 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🦜&nbsp;parakeet.cpp</h3>
       <p>one parakeet.cpp runtime, several q8_0 GGUF models</p>
-      <p><a href="packages/stt/nemotron-unified-asr/">nemotron-labs-unified-asr-0.6b-q8_0</a><br><a href="packages/stt/phonon2-stt/">phonon-2.5-english-q8_0</a><br><a href="packages/stt/parakeet-redux-stt/">redux-q8_0</a><br><a href="packages/stt/parakeet-redux-stt/">parakeet-redux packed (redux-packed.gguf)</a><br></p>
-      <p><em>true buffered streaming (0.16–2.08 s chunks)</em></p>
+      <p><a href="packages/stt/nemotron-unified-asr/">nemotron-unified 0.6B q8_0</a><br><a href="packages/stt/phonon2-stt/">phonon-2.5 q8_0</a><br><a href="packages/stt/parakeet-redux-stt/">parakeet-redux 178M q8_0</a><br><a href="packages/stt/parakeet-redux-stt/">redux packed (CPU)</a><br></p>
       <br>
     </td>
     <td width="50%" valign="top" align="center">
       <br>
       <h3>⚡&nbsp;faster-whisper</h3>
       <p>faster-whisper 1.2.1 on our CTranslate2 4.8.4 build</p>
-      <p><a href="packages/stt/wyoming-faster-whisper/">faster-whisper-tiny-int8</a><br></p>
-      <p><em>Wyoming streaming</em></p>
+      <p><a href="packages/stt/wyoming-faster-whisper/">faster-whisper tiny int8</a><br></p>
       <br>
     </td>
   </tr>
@@ -62,32 +60,28 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🗣️&nbsp;kokoro</h3>
       <p>Kokoro-82M v1.0, int8 ONNX on onnxruntime-gpu</p>
-      <p><a href="packages/tts/kokoro-tts/">Kokoro-82M v1.0 int8 (model_uint8.onnx)</a><br></p>
-      <p><em>create_stream()</em></p>
+      <p><a href="packages/tts/kokoro-tts/">kokoro 82M int8</a><br></p>
       <br>
     </td>
     <td width="25%" valign="top" align="center">
       <br>
       <h3>✨&nbsp;paradee</h3>
       <p>Paradee-8M v1.0 int8 ONNX — a Kokoro distillation</p>
-      <p><a href="packages/tts/paradee-tts/">Paradee-8M-v1.0 int8 (baked)</a><br><a href="packages/tts/paradee-tts/">Paradee-8M-v1.0 int8 (baked)</a><br></p>
-      <p><em>sentence-chunked</em></p>
+      <p><a href="packages/tts/paradee-tts/">paradee 8M int8 (CPU)</a><br><a href="packages/tts/paradee-tts/">paradee 8M int8 (GPU)</a><br></p>
       <br>
     </td>
     <td width="25%" valign="top" align="center">
       <br>
       <h3>🎺&nbsp;piper1-tts</h3>
       <p>piper-tts 1.8.0 on our onnxruntime-gpu build</p>
-      <p><a href="packages/tts/wyoming-piper1-tts/">en_US-libritts_r-medium</a><br></p>
-      <p><em>Wyoming streaming</em></p>
+      <p><a href="packages/tts/wyoming-piper1-tts/">piper1-tts libritts-r medium</a><br></p>
       <br>
     </td>
     <td width="25%" valign="top" align="center">
       <br>
       <h3>🌊&nbsp;phonon-31m</h3>
       <p>gradium/phonon-31m-en via the ptts runtime — CPU-only by design</p>
-      <p><a href="packages/tts/phonon31m-tts/">phonon-31m-en</a><br></p>
-      <p><em>true streaming on CPU (307 MB)</em></p>
+      <p><a href="packages/tts/phonon31m-tts/">phonon-31m (CPU)</a><br></p>
       <br>
     </td>
   </tr>
