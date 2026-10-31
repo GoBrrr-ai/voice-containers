@@ -249,6 +249,7 @@ def run_container_job(
     meta = {
         "engine": job["engine"],
         "engine_id": eid,
+        "image": engine_img,
         "requested_backend": job.get("requested_backend"),
         "container": name,
         "exit": proc.returncode,
@@ -374,6 +375,14 @@ def run_config(config_path: str) -> str:
 
     # aggregate
     write_summary(out, task)
+
+    # benchmarks/history.jsonl (+ committed raws for baseline-class runs)
+    from . import history as _history
+
+    _history.append_run(out, root)
+    if cfg.get("publish_raw", str(cfg.get("run_name", "")).find("baseline") >= 0):
+        raw = _history.publish_raw(out, root)
+        print(f"[runner] raw artifacts -> {raw}")
     return run_id
 
 
@@ -402,6 +411,7 @@ def _engine_summary(rows: list[dict], task: str) -> dict:
             )
         s.update(dist_stats([r["proc_ns"] / 1e9 for r in ok], "offline_latency_s"))
     if task == "tts" and ok:
+        s.update(dist_stats([r["synth_ns"] / 1e9 for r in ok], "synth_latency_s"))
         if all(r.get("ttfa_ns") for r in ok):
             s.update(dist_stats([r["ttfa_ns"] / 1e9 for r in ok], "ttfa_s"))
         # RTF against the produced audio's duration (PRD 6.2)

@@ -1,0 +1,32 @@
+{
+ "tts-heatmap": [
+  {
+   "dark": "assets/benchmarks/tts/tts-heatmap.png",
+   "task": "tts"
+  }
+ ],
+ "tts-memory": [
+  {
+   "dark": "assets/benchmarks/tts/tts-memory.png",
+   "task": "tts"
+  }
+ ],
+ "tts-ranking": [
+  {
+   "dark": "assets/benchmarks/tts/tts-ranking.png",
+   "task": "tts"
+  }
+ ],
+ "tts-synth-box": [
+  {
+   "dark": "assets/benchmarks/tts/tts-synth-box.png",
+   "task": "tts"
+  }
+ ],
+ "tts-ttfa": [
+  {
+   "dark": "assets/benchmarks/tts/tts-ttfa.png",
+   "task": "tts"
+  }
+ ]
+}

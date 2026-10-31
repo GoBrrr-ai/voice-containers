@@ -1,13 +1,59 @@
 # edge-containers
 
-Production container images for **NVIDIA Jetson AGX Thor (sm_110)** and **AGX Orin (sm_87)** —
-an LLM runtime, a full streaming voice stack (STT + TTS), and a PRD-driven benchmark harness.
-One fat image per package serves **both boards** (native cubins for sm_87 + sm_110a plus
-forward-compat PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1 userspace with the GPU driver
-injected from the host.
+<p align="center">
+  <img src="https://img.shields.io/badge/platforms-Jetson%20AGX%20Thor%20%C2%B7%20AGX%20Orin%20%28sm_110%20%C2%B7%20sm_87%29-76b900" alt="Platforms: Jetson AGX Thor, AGX Orin">
+  <img src="https://img.shields.io/badge/CUDA-13.2%20SBSA%20%C2%B7%20JetPack%207.2.1-76b900" alt="CUDA 13.2 SBSA on JetPack 7.2.1">
+  <img src="https://img.shields.io/docker/v/narandill/llama-cpp?label=llama-cpp&sort=semver&color=1baf7a" alt="llama-cpp on Docker Hub">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
+</p>
+
+<p align="center">
+  <b>Production container images for NVIDIA Jetson edge GPUs</b> — an LLM runtime, a full
+  streaming voice stack (STT + TTS), and a PRD-driven benchmark harness. One fat image per
+  package serves <b>both boards</b> (native cubins for sm_87 + sm_110a plus forward-compat
+  PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1 userspace with the GPU driver injected
+  from the host.
+</p>
 
 > Status: **local only** — nothing is on Docker Hub or GitHub yet. The publish workflow
 > activates when this repo is pushed and tagged.
+
+
+## 📊 Benchmarks
+
+Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
+by `bench plot --readme` — regenerate with `make bench-plot`. Cohort:
+**jetson-agx-thor-128gb · default power · commit 4dd4272 · 2026-10-31**.
+
+
+
+### Speech synthesis (TTS) — 444 sentences (LibriSpeech text)
+
+| engine | model | backend | rank | RTF p50 | synth p50 (s) | TTFA p50 (s) | mem MiB | W | gates |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| kokoro_0 | model_uint8.onnx | cuda | 1 | 0.0850 | 0.5781 | $\color{#f85149}{\text{0.5773}}$ | 1,526 | 34 | ✓ |
+| paradee_2_cpu | baked | cpu | 2 | $\color{#f85149}{\text{0.1503}}$ | $\color{#f85149}{\text{1.1309}}$ | — | 604 | 5 | ✓ |
+| paradee_2_cuda | baked | cuda | 3 | $\color{#3fb950}{\text{0.0188}}$ | $\color{#3fb950}{\text{0.1414}}$ | — | 1,508 | 16 | ✓ |
+| piper_3 | en_US-libritts_r-medium | cuda | 4 | 0.0334 | 0.1587 | — | 1,149 | 12 | ✓ |
+| ptts_1 | phonon-31m-en | cpu | 5 | 0.1237 | 0.7679 | $\color{#3fb950}{\text{0.0757}}$ | 516 | 23 | ✓ |
+
+*444 sentences · 5 configurations · fastest RTF p50
+**0.019**; best TTFA p50 **76 ms**
+(gate 300 ms).*
+
+
+
+<p align="center">
+<img src="assets/benchmarks/tts/tts-ranking.png" alt="TTS RTF ranking" width="100%">
+</p>
+
+<p align="center">
+<img src="assets/benchmarks/tts/tts-ttfa.png" alt="TTS time-to-first-audio" width="100%">
+</p>
+
+
+Full per-utterance data, probes and gate details: `reports/matrix/`, `docs/REPORT-benchmark.md`.
+
 
 ## Projects
 
@@ -20,7 +66,7 @@ injected from the host.
 | `parakeet-redux-stt` | `parakeet-redux-stt:0.1.0` | moondream/parakeet-redux (ternary 178M) q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
 | `phonon2-stt` | `phonon2-stt:0.1.0` | Fermion Phonon-2.5-english q8_0 GPU + packed CPU | VAD-chunked (opt-in) |
 | `kokoro-tts` | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a) | `create_stream()` |
-| `phonon31m-tts` | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~28 ms p95) |
+| `phonon31m-tts` | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~76 ms p95) |
 | `paradee-tts` | `paradee-tts:0.1.0` | Paradee-8M-v1.0 int8 ONNX (Kokoro distillation) | sentence-chunked |
 
 ## Quick start
@@ -51,8 +97,11 @@ upgrade, drop the flag.
 <project>/            each is standalone: Dockerfile + build.sh + README + test/{verify_arch,smoke_*}
 builders/             shared artifact builders (wheels-cu132, parakeet-cpp) — not shipped
 bench/                PRD-driven benchmark harness (datasets, engines, probes, metrics)
+benchmarks/           history.jsonl + raw run artifacts (committed) — feeds the charts
+assets/benchmarks/    generated charts + manifest (committed)
+reports/matrix/       generated matrix.csv/md + HTML per task
 scripts/              sweep-build.sh / sweep-smoke.sh
-docs/                 build reports (wave 1: llama.cpp + wyoming; wave 2: the 6 voice engines)
+docs/                 build & benchmark reports
 ```
 
 **Decoupling contract:** an engine references shared artifacts only through a single
@@ -63,12 +112,17 @@ overridable ARG (`WHEELS_IMAGE`, `PARAKEET_DIST_IMAGE`) — see `ARCHITECTURE.md
 ```bash
 make bench-prepare      # frozen manifests: 500 STT + 444 TTS sentences (LibriSpeech, seed 42)
 make bench-selfcheck    # device, CUDA arch, probes, engines
-python -m bench.cli run --config bench/configs/thor_stt_baseline.yaml
-python -m bench.cli report results/<run_id>
+bench/.venv/bin/python -m bench.cli run bench/configs/thor_stt_baseline.yaml
+bench/.venv/bin/python -m bench.cli run bench/configs/thor_tts_baseline.yaml
+
+# matrix + charts + README (reads benchmarks/history.jsonl — never re-runs inference)
+make bench-plot
 ```
 
-See `bench/README.md` and the PRD for the full metric list (WER/CER, RTFx, TTFA,
-finalization latency, memory, energy via tegrastats, gate checks, Pareto front).
+The runner **gates every GPU run on co-tenancy**: if other compute apps hold the GPU,
+it waits for a clean window and defers rather than measure contaminated. Every run
+appends to `benchmarks/history.jsonl`; baseline-class runs also publish their raw
+artifacts to `benchmarks/raw/<run_id>/`.
 
 ## CI
 
@@ -76,7 +130,7 @@ finalization latency, memory, energy via tegrastats, gate checks, Pareto front).
 |---|---|---|---|
 | `lint.yml` | push/PR | `ubuntu-latest` | pre-commit (shellcheck, hadolint, ruff, yaml/json checks) |
 | `build-smoke.yml` | `workflow_dispatch` | `[self-hosted, jetson]` | build matrix + arch verification (+ optional GPU smoke) |
-| `publish.yml` | tag `v*` | `[self-hosted, jetson]` | build + push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
+| `publish.yml` | tag `v*` | `[self-hosted, jetson]` | build → arch gate → push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
 
 ## Licenses
 

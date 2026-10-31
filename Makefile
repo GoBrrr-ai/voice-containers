@@ -2,7 +2,7 @@
 PROJECTS := llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr \
             parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts
 
-.PHONY: builders build-all verify-all smoke-all lint bench-prepare bench-selfcheck
+.PHONY: builders build-all verify-all smoke-all lint bench-prepare bench-selfcheck bench-plot
 
 builders: ## shared artifact builders (cached; instant on replay)
 	cd builders/parakeet-cpp && ./build.sh
@@ -26,3 +26,6 @@ bench-prepare: ## download datasets + build frozen manifests (PRD 3.4)
 
 bench-selfcheck: ## device/CUDA/probe/engine availability report (PRD 9.3)
 	bench/.venv/bin/python -m bench.cli selfcheck
+
+bench-plot: ## charts + matrix + README.md from benchmarks/history.jsonl (no inference)
+	bench/.venv/bin/python -m bench.cli plot --readme
