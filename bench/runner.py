@@ -36,11 +36,59 @@ KNOWN_KEYS = {
     "probes",
     "drop_caches",
     "output_dir",
+    "gpu_free_threshold_mib",
+    "gpu_wait_minutes",
 }
 
 
 def _fail(msg: str) -> None:
     raise SystemExit(f"config error: {msg}")
+
+
+def _gpu_used_mib() -> int:
+    """Total memory held by compute apps (0 when nvidia-smi is absent)."""
+    try:
+        out = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-compute-apps=used_memory",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        ).stdout
+        return sum(int(x) for x in out.split() if x.strip().isdigit())
+    except Exception:
+        return 0
+
+
+def _wait_for_free_gpu(threshold_mib: int, wait_minutes: float) -> None:
+    """Co-tenancy policy: never measure on a busy GPU.
+
+    If other compute apps hold >= threshold MiB, wait for a clean window and
+    DEFER (hard error) rather than produce contaminated timings. Other
+    processes are never killed.
+    """
+    used = _gpu_used_mib()
+    if used < threshold_mib:
+        print(f"[runner] GPU clean ({used} MiB in use, threshold {threshold_mib})")
+        return
+    print(
+        f"[runner] GPU busy ({used} MiB in use) — waiting up to "
+        f"{wait_minutes:.0f} min for a clean window"
+    )
+    deadline = time.monotonic() + wait_minutes * 60
+    while time.monotonic() < deadline:
+        time.sleep(20)
+        used = _gpu_used_mib()
+        if used < threshold_mib:
+            print(f"[runner] GPU clean again ({used} MiB) — proceeding")
+            return
+    _fail(
+        f"GPU still busy ({used} MiB >= {threshold_mib} MiB threshold) after "
+        f"{wait_minutes:.0f} min — deferred. Re-run when the GPU is free."
+    )
 
 
 class TegraStats:
@@ -223,8 +271,27 @@ def run_config(config_path: str) -> str:
     unknown = set(cfg) - KNOWN_KEYS
     if unknown:
         _fail(f"unknown keys {sorted(unknown)} (typo or unsupported knob)")
+    # value-level validation for keys that exist but are easy to get wrong
+    if (norm := cfg.get("normalizer")) and norm != "whisper_english":
+        _fail(
+            f"normalizer {norm!r} unsupported (only the fixed whisper_english "
+            "normalizer exists — PRD 3.5 forbids per-engine normalizers)"
+        )
+    teg_cfg = cfg.get("probes", {}) or {}
+    if teg_cfg.get("tegrastats") not in (None, "auto", True, False):
+        _fail("probes.tegrastats must be auto/true/false")
     if int(cfg.get("repeats", 1)) != 1:
         _fail("repeats > 1 is not implemented yet — set repeats: 1")
+    # co-tenancy gate BEFORE touching anything: if the GPU is busy, wait for a
+    # clean window or defer (never measure contaminated, never kill tenants)
+    gpu_backends = [
+        b for eng in cfg["engines"] for b in eng.get("backends", ["cuda"]) if b != "cpu"
+    ]
+    if gpu_backends:
+        _wait_for_free_gpu(
+            int(cfg.get("gpu_free_threshold_mib", 100000)),
+            float(cfg.get("gpu_wait_minutes", 30)),
+        )
     root = Path(config_path).resolve().parents[2]  # bench/configs/x.yaml -> repo root
     ts = time.strftime("%Y%m%d_%H%M%S")
     run_id = f"{ts}_{cfg.get('device_label', 'device')}_{cfg['task']}"

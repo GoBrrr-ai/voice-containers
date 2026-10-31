@@ -82,16 +82,20 @@ class LibriSpeechAdapter(BaseAdapter):
         for row in self._ds:
             utt = row["id"]
             dst = wav_cache_path(self.cache_dir, self.name, utt)
-            # Always decode via the embedded audio (torchcodec) — extraction
-            # paths recorded in the datasets cache can be stale on other hosts.
-            dec = row["audio"].get_all_samples()
-            data = dec.data.numpy()
-            mono = data.mean(axis=0) if data.ndim > 1 else data
-            if not dst.exists():
+            if dst.exists():
+                # honest duration from the cached file (it may predate a
+                # resample-policy change)
+                dur = float(sf.info(str(dst)).duration)
+            else:
+                # Decode via the embedded audio (torchcodec) — extraction
+                # paths recorded in the datasets cache can be stale elsewhere.
+                dec = row["audio"].get_all_samples()
+                data = dec.data.numpy()
+                mono = data.mean(axis=0) if data.ndim > 1 else data
                 if dec.sample_rate != RESAMPLE_RATE:
                     mono = soxr.resample(mono, dec.sample_rate, RESAMPLE_RATE)
                 sf.write(str(dst), mono, RESAMPLE_RATE, subtype="PCM_16")
-            dur = len(mono) / RESAMPLE_RATE
+                dur = len(mono) / RESAMPLE_RATE
             yield Sample(
                 dataset=self.name,
                 dataset_version=self.dataset_version(),
