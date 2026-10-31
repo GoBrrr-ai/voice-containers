@@ -4,10 +4,10 @@ task: tts
 device_label: jetson-agx-thor-128gb
 power_profile: default
 dataset:
-  name: libritts_r
-  split: test.clean
+  name: librispeech  # v1 deviation: TTS text from librispeech transcripts (libritts-r fast-follow)
+  split: test-clean
   language: en
-  manifest: manifests/libritts_r_test_clean_en_500_seed42.jsonl
+  manifest: manifests/tts_librispeech_test-clean_en_500_seed42.jsonl
   n: 500
   seed: 42
 normalizer: whisper_english

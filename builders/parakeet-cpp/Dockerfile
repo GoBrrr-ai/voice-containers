@@ -28,8 +28,8 @@ RUN if [ -f /usr/local/cuda/lib64/stubs/libcuda.so ]; then \
         ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/libcuda.so.1; \
     fi
 
-RUN git clone --recursive --depth 1 --branch "${PARAKEET_CPP_REF}" \
-        https://github.com/mudler/parakeet.cpp /src/parakeet.cpp
+RUN git clone --recursive https://github.com/mudler/parakeet.cpp /src/parakeet.cpp \
+    && git -C /src/parakeet.cpp checkout "${PARAKEET_CPP_REF}"
 
 # Fix: MelKernel ctor derefs the `w` tensor AFTER weight_to_host_f32() has (on
 # first use) realized the weights — which mutates tensor buffers and can leave
