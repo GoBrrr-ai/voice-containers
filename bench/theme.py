@@ -53,14 +53,11 @@ def engine_color(engine: str) -> str:
 
 
 def row_color(row: dict) -> str:
-    """Consistent identity color: per engine FAMILY (brand-aware), same in
-    every chart; variant distinguished by marker shape + label."""
+    """Consistent identity color: per MODEL (brand-aware), same in every
+    chart; the same model in two variants keeps one hue (marker + label)."""
     from . import names as _names
 
-    fam = _names.family(row)
-    return _names.FAMILY_COLORS.get(fam) or ENGINE_COLORS.get(
-        row.get("engine", ""), FALLBACK_COLOR
-    )
+    return _names.color(row)
 
 
 def _plt():

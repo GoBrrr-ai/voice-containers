@@ -5,7 +5,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 REPO="${DOCKER_REPO:-narandill}"
 SMOKE="${SMOKE:-1}"   # SMOKE=0 → arch verification only
-PROJECTS="${PROJECTS:-llm/llama-cpp stt/wyoming-faster-whisper stt/nemotron-unified-asr stt/parakeet-redux-stt stt/phonon2-stt tts/wyoming-piper1-tts tts/kokoro-tts tts/phonon31m-tts tts/paradee-tts}"
+PROJECTS="${PROJECTS:-packages/llm/llama-cpp packages/stt/wyoming-faster-whisper packages/stt/nemotron-unified-asr packages/stt/parakeet-redux-stt packages/stt/phonon2-stt packages/tts/wyoming-piper1-tts packages/tts/kokoro-tts packages/tts/phonon31m-tts packages/tts/paradee-tts}"
 fail=0
 declare -A VER=(
   [llama-cpp]=0.8.0 [wyoming-faster-whisper]=0.1.0 [wyoming-piper1-tts]=0.1.0

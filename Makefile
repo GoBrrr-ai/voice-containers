@@ -1,7 +1,9 @@
 # edge-containers — build, verify, smoke and benchmark all projects.
-PROJECTS := llm/llama-cpp \
-            stt/wyoming-faster-whisper stt/nemotron-unified-asr stt/parakeet-redux-stt stt/phonon2-stt \
-            tts/wyoming-piper1-tts tts/kokoro-tts tts/phonon31m-tts tts/paradee-tts
+PROJECTS := packages/llm/llama-cpp \
+            packages/stt/wyoming-faster-whisper packages/stt/nemotron-unified-asr \
+            packages/stt/parakeet-redux-stt packages/stt/phonon2-stt \
+            packages/tts/wyoming-piper1-tts packages/tts/kokoro-tts \
+            packages/tts/phonon31m-tts packages/tts/paradee-tts
 
 .PHONY: builders build-all verify-all smoke-all lint bench-prepare bench-selfcheck bench-plot
 

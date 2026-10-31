@@ -71,9 +71,7 @@ def report(run_dir: str):
 
 
 @app.command()
-def plot(
-    readme: bool = True, include: str = "baseline", matrix_out: str = "reports/matrix"
-):
+def plot(readme: bool = True, include: str = "baseline"):
     """Render all charts (+ README.md with --readme) from benchmarks/history.jsonl.
 
     Mirrors mjolnir's `plot --readme`: charts render dark-theme 2x PNGs into
@@ -81,25 +79,9 @@ def plot(
     README.md.j2 (StrictUndefined). Never re-runs inference.
     """
     from . import charts
-    from . import matrix as _matrix
     from . import readme as _readme
 
     charts.render_all(BENCH, include)
-    for task in ("stt", "tts"):
-        rows = _matrix.select_rows(BENCH, include)
-        task_rows = [
-            r
-            for r in rows
-            if (
-                r.get("task") or ("stt" if "wer" in (r.get("metrics") or {}) else "tts")
-            )
-            == task
-        ]
-        if not task_rows:
-            continue
-        coh = _matrix.cohorts(task_rows)
-        tables = _matrix.write_outputs(coh, task, Path(matrix_out))
-        _write_html(Path(matrix_out) / f"index_{task}.html", tables, task)
     if readme:
         p = _readme.render_readme(BENCH, include=include)
         typer.echo(f"README rendered: {p}")
