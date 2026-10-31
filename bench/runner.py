@@ -85,7 +85,10 @@ def run_container_job(
 ) -> dict:
     """Spawn the engine container with the client mounted; wait; return meta."""
     name = f"bench-{job['task']}-{job['engine']}-{int(time.time())}"
-    # rewrite host cache paths to their container mount (/data/bench-cache)
+    # rewrite host cache paths to their container mount (/data/bench-cache);
+    # work on a copy — run_config reuses the same job dict for every engine
+    import copy as _copy
+    job = _copy.deepcopy(job)
     cache_root = Path(cache_dir).resolve()
     for s in job["samples"]:
         if s.get("audio_path"):

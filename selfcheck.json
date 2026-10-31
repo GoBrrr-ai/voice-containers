@@ -1,0 +1,18 @@
+{
+  "python": "3.14.6",
+  "platform": "Linux-6.8.12-tegra-aarch64-with-glibc2.39",
+  "machine": "aarch64",
+  "hostname": "jetsonthor",
+  "nvidia_smi": "NVIDIA Thor, 11.0, 580.00",
+  "cuda_version": "release 13.0",
+  "jetpack_l4t": "# R38 (release), REVISION: 4.0, GCID: 43443517, BOARD: generic, EABI: aarch64, DATE: Wed Dec 31 00:15:19 UTC 2025",
+  "nvpmodel": "NV Power Mode: MAXN\n0",
+  "jetson_clocks": "SOC family:tegra264  Machine:NVIDIA Jetson AGX Thor Developer Kit\nError: Run this script(/bin/jetson_clocks) as a root user",
+  "tegrastats_available": true,
+  "docker_images_gpu": "narandill/edge-builder\nnarandill/edge-wheels\nnarandill/kokoro-tts\nnarandill/kokoro-tts-orin\nnarandill/kokoro-tts-thor\nnarandill/llama-cpp\nnarandill/llama-cpp-orin\nnarandill/llama-cpp-thor\nnarandill/nemotron-unified-asr\nnarandill/nemotron-unified-asr-orin\nnarandill/nemotron-unified-asr-thor\nnarandill/voice\nnarandill/benchmark\nnarandill/wyoming\nnarandill/paradee-tts\nnarandill/paradee-tts-orin\nnarandill/paradee-tts-thor\nnarandill/parakeet-redux-stt\nnarandill/parakeet-redux-stt-orin\nnarandill/parakeet-redux-stt-thor\nnarandill/phonon2-stt\nnarandill/phonon2-stt-orin\nnarandill/phonon2-stt-thor\nnarandill/phonon31m-tts\nnarandill/phonon31m-tts-orin\nnarandill/phonon31m-tts-thor\nnarandill/wyoming-faster-whisper\nnarandill/wyoming-faster-whisper-orin\nnarandill/wyoming-faster-whisper-thor\nnarandill/wyoming-piper1-tts\nnarandill/wyoming-piper1-tts-orin\nnarandill/wyoming-piper1-tts-thor",
+  "git_commit": "",
+  "utc_ts": "2026-10-31T14:26:20Z",
+  "compute_cap_ok": true,
+  "onnxruntime_import": "missing: No module named 'onnxruntime'",
+  "docker_gpu_runtime": ""
+}
