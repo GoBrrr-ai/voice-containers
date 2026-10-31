@@ -20,7 +20,7 @@
 
 ```
 projects/
-├── parakeet-cpp-builder/   → narandill/jetson-builder:parakeet-cpp
+├── parakeet-cpp-builder/   → narandill/edge-builder:parakeet-cpp
 │     (parakeet.cpp GGML dist: parakeet-cli/-server + libggml*,
 │      sm_87+sm_110a SASS + compute_110 PTX; pinned ref 2eac2e77)
 │        ↑ ARG PARAKEET_DIST_IMAGE
@@ -28,7 +28,7 @@ projects/
 │        ├── parakeet-redux-stt    (bakes redux-q8_0 + redux-packed)
 │        └── phonon2-stt           (bakes phonon-2.5-english q8_0 + packed)
 │
-├── wyoming builder target → narandill/jetson-builder:cu132
+├── wyoming builder target → narandill/edge-wheels:cu132
 │     (onnxruntime-gpu 1.31.1 wheel: sm_87+sm_90a+sm_110a SASS, sm_110a PTX
 │      + ctranslate2 4.8.4 — 75-min source build, do NOT rebuild casually)
 │        ↑ ARG ORT_WHEEL_IMAGE
