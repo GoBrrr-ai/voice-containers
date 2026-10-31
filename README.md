@@ -25,6 +25,21 @@ Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/histor
 by `bench plot --readme` — regenerate with `make bench-plot`. Cohort:
 **jetson-agx-thor-128gb · default power · commit 4dd4272 · 2026-10-31**.
 
+### Speech recognition (STT) — LibriSpeech test-clean
+
+| engine | model | backend | rank | WER | CER | SER | halluc. | RTF p50 | lat p50 (s) | mem MiB | W | gates |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| parakeet_cpp_0 | ron-labs-unified-asr-0.6b-q8_0 | cuda | 1 | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.1113}}$ | $\color{#f85149}{\text{0.6912}}$ | 2,119 | 11 | ✓ |
+| parakeet_cpp_2 | phonon-2.5-english-q8_0 | cuda | 2 | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.0900 | 0.5754 | 2,070 | 8 | ✓ |
+| parakeet_cpp_1 | redux-q8_0 | cuda | 3 | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0984 | 0.5806 | 2,102 | 18 | ✓ |
+| parakeet_cpp_3 | redux-packed | cpu | 4 | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0707 | 0.4580 | 1,006 | — | ✓ |
+| faster_whisper_4 | faster-whisper-tiny-int8 | cuda | 5 | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0130}}$ | $\color{#3fb950}{\text{0.0857}}$ | 613 | 14 | ✓ |
+
+*500 utterances · 5 configurations · winner:
+**parakeet_cpp_0** (ron-labs-unified-asr-0.6b-q8_0) at **1.77% WER**;
+fastest RTF p50 **0.013**. Green = best in column, red = worst.*
+
+
 
 
 ### Speech synthesis (TTS) — 444 sentences (LibriSpeech text)
@@ -41,6 +56,14 @@ by `bench plot --readme` — regenerate with `make bench-plot`. Cohort:
 **0.019**; best TTFA p50 **76 ms**
 (gate 300 ms).*
 
+
+<p align="center">
+<img src="assets/benchmarks/stt/stt-wer-vs-rtf.png" alt="STT accuracy vs speed — WER against RTF, Pareto front" width="100%">
+</p>
+
+<p align="center">
+<img src="assets/benchmarks/stt/stt-heatmap.png" alt="STT normalized metric heatmap" width="100%">
+</p>
 
 
 <p align="center">
