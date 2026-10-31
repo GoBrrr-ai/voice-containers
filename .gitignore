@@ -1,0 +1,12 @@
+# local build/test scratch
+**/results/
+bench/results/
+bench/datasets/*/cache/
+artifacts/
+vendor/
+*.gguf
+*.wav
+!**/test/**/*.wav
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,38 @@
+#!/opt/venv/bin/python3
+"""Streaming demo: create_stream() async generator + time-to-first-audio.
+Usage: kokoro-stream-demo "text" [-o out.wav] [--voice V]"""
+import argparse, asyncio, os, time, wave
+
+import onnxruntime as rt
+from kokoro_onnx import Kokoro
+
+
+async def run() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("text")
+    ap.add_argument("-o", "--out", default="kokoro_stream.wav")
+    ap.add_argument("--voice", default=os.environ.get("KOKORO_VOICE", "af_heart"))
+    a = ap.parse_args()
+
+    providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    sess = rt.InferenceSession(os.environ["KOKORO_MODEL"], providers=providers)
+    kokoro = Kokoro.from_session(sess, os.environ["KOKORO_VOICES"])
+    t0 = time.perf_counter()
+    sr, first = None, None
+    frames = bytearray()
+    async for samples, rate in kokoro.create_stream(a.text, voice=a.voice, lang="en-us"):
+        if first is None:
+            first = time.perf_counter() - t0
+            print(f"TTFA: {first * 1000:.0f} ms")
+        sr = rate
+        frames += (samples * 32767).astype("<i2").tobytes()
+    assert first is not None and sr, "stream produced no audio"
+    with wave.open(a.out, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(bytes(frames))
+    print(f"kokoro stream: {len(frames) / 2 / sr:.1f}s @ {sr} Hz -> {a.out}")
+
+
+asyncio.run(run())

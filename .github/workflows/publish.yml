@@ -1,0 +1,30 @@
+name: publish
+
+# Push all images to Docker Hub under futureproofhomes/<project>.
+# Requires repo secrets: DOCKERHUB_USER, DOCKERHUB_TOKEN.
+# Runs ONLY on version tags, on the Jetson runner (the images are aarch64).
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: [self-hosted, jetson]
+    env:
+      DOCKER_REPO: futureproofhomes
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+      - name: Build shared builders (cached)
+        run: |
+          (cd builders/parakeet-cpp && ./build.sh)
+          (cd builders/wheels-cu132 && ./build.sh)
+      - name: Build + push engine images
+        run: |
+          for p in llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts; do
+            echo "== publish $p"
+            (cd "$p" && ./build.sh --push)
+          done
+      - name: Arch verification gate (fail the release on missing cubins)
+        run: SMOKE=0 ./scripts/sweep-smoke.sh

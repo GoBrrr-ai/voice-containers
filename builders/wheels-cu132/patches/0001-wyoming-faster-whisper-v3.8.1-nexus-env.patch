@@ -1,0 +1,50 @@
+diff --git a/wyoming_faster_whisper/__main__.py b/wyoming_faster_whisper/__main__.py
+index 3907fa1..1d24462 100755
+--- a/wyoming_faster_whisper/__main__.py
++++ b/wyoming_faster_whisper/__main__.py
+@@ -24,6 +24,8 @@ from .env_args import ENV_PREFIX
+ from .env_args import parse_args as parse_args_with_env
+ from .models import ModelLoader, is_distil_whisper
+ from .vocabulary import DEFAULT_PROMPT_MAX_TOKENS
++import os
++import socket
+ 
+ if TYPE_CHECKING:
+     # Imported for typing only: aiohttp is an optional extra.
+@@ -232,6 +234,18 @@ def get_parser() -> argparse.ArgumentParser:
+     return parser
+ 
+ 
++def _detect_host():
++    """Detect local LAN IP by opening a dummy UDP socket."""
++    try:
++        _s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
++        _s.connect(("1.1.1.1", 1))
++        _ip = _s.getsockname()[0]
++        _s.close()
++        return _ip
++    except (OSError, TimeoutError):
++        return "0.0.0.0"
++
++
+ async def main() -> None:
+     """Main entry point."""
+     args = parse_args_with_env(get_parser())
+@@ -328,7 +342,7 @@ async def main() -> None:
+ 
+         tcp_server: AsyncTcpServer = server
+         hass_zeroconf = HomeAssistantZeroconf(
+-            name=args.zeroconf, port=tcp_server.port, host=tcp_server.host
++            name=args.zeroconf, port=tcp_server.port, host=os.environ.get("WHISPER_ADVERTISE_HOST") or _detect_host()
+         )
+         await hass_zeroconf.register_server()
+         _LOGGER.debug("Zeroconf discovery enabled")
+@@ -350,7 +364,7 @@ def build_info(model_name: str, *, requires_external_vad: bool = True) -> Info:
+     return Info(
+         asr=[
+             AsrProgram(
+-                name="faster-whisper",
++                name=os.environ.get("WHISPER_PROGRAM_NAME", "faster-whisper"),
+                 description="Faster Whisper transcription with CTranslate2",
+                 attribution=Attribution(
+                     name="Guillaume Klein",

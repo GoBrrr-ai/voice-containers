@@ -1,0 +1,33 @@
+#!/opt/venv/bin/python3
+"""Synthesize text to a WAV file. Usage: kokoro-say "text" [-o out.wav] [--voice V] [--speed F] [--lang L]"""
+import argparse, os, wave
+
+import onnxruntime as rt
+from kokoro_onnx import Kokoro
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Kokoro-82M TTS to WAV")
+    ap.add_argument("text")
+    ap.add_argument("-o", "--out", default="kokoro.wav")
+    ap.add_argument("--voice", default=os.environ.get("KOKORO_VOICE", "af_heart"))
+    ap.add_argument("--lang", default=os.environ.get("KOKORO_LANG", "en-us"))
+    ap.add_argument("--speed", type=float, default=float(os.environ.get("KOKORO_SPEED", "1.0")))
+    a = ap.parse_args()
+
+    providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    sess = rt.InferenceSession(os.environ["KOKORO_MODEL"], providers=providers)
+    print("providers:", sess.get_providers())
+    kokoro = Kokoro.from_session(sess, os.environ["KOKORO_VOICES"])
+    audio, sr = kokoro.create(a.text, voice=a.voice, speed=a.speed, lang=a.lang)
+    pcm = (audio * 32767).astype("<i2")
+    with wave.open(a.out, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(pcm.tobytes())
+    print(f"kokoro: wrote {a.out} ({len(audio) / sr:.1f}s @ {sr} Hz)")
+
+
+if __name__ == "__main__":
+    main()

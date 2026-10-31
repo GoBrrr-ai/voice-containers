@@ -1,0 +1,23 @@
+#!/bin/sh
+# Transcription helper: injects the baked model (+ streaming/VAD policy).
+#   stt-transcribe /audio/file.wav [extra parakeet-cli args...]
+#   cat file.wav | stt-transcribe - [extra args...]   (--input - reads stdin WAV)
+# Env: PARAKEET_MODEL, PARAKEET_LANG, PARAKEET_STREAM=1, PARAKEET_STREAM_LATENCY,
+#      PARAKEET_VAD_MODEL, PARAKEET_DEVICE (cpu|CUDA0|...).
+set -eu
+INPUT="${1:?usage: stt-transcribe <wav|-> [extra parakeet-cli args...]}"
+shift
+[ -n "${PARAKEET_DEVICE:-}" ] && set -- "$@" --device "$PARAKEET_DEVICE"
+# --stream (Nemotron/EOU buffered presets) and --vad (offline chunking) are
+# mutually exclusive modes in parakeet-cli; streaming wins when both are set.
+if [ -n "${PARAKEET_STREAM:-}" ]; then
+    set -- "$@" --stream --stream-latency "${PARAKEET_STREAM_LATENCY:-0.56}"
+elif [ -n "${PARAKEET_VAD_MODEL:-}" ]; then
+    set -- "$@" --vad --vad-model "$PARAKEET_VAD_MODEL"
+fi
+set -- /opt/parakeet-dist/bin/parakeet-cli transcribe \
+    --model "${PARAKEET_MODEL:?PARAKEET_MODEL is required}" \
+    --input "$INPUT" \
+    ${PARAKEET_LANG:+--lang "$PARAKEET_LANG"} \
+    "$@"
+exec "$@"
