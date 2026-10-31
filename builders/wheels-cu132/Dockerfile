@@ -19,8 +19,8 @@
 #   - wyoming-piper (TTS)           port 10200
 #
 # Targets:
-#   narandill/nexus-wyoming-thor:<ver>  and  narandill/nexus-wyoming-orin:<ver>
-#   (identical image, two tags) + narandill/nexus-wyoming:<ver>
+#   futureproofhomes/nexus-wyoming-thor:<ver>  and  futureproofhomes/nexus-wyoming-orin:<ver>
+#   (identical image, two tags) + futureproofhomes/nexus-wyoming:<ver>
 # =============================================================================
 
 ARG BUILDER_BASE=nvidia/cuda:13.2.1-devel-ubuntu24.04

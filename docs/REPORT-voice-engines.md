@@ -8,12 +8,12 @@
 
 | Image | Tags | Size | Engine / runtime | Streaming |
 |---|---|---|---|---|
-| `narandill/nemotron-unified-asr` | `0.1.0`,`latest` + `-thor`/`-orin` | **3.99 GB** | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF (895 MB) on parakeet.cpp | **true buffered streaming** 0.16–2.08 s presets (token-identical to NeMo per upstream parity) |
-| `narandill/parakeet-redux-stt` | same | **4.21 GB** | moondream/parakeet-redux q8_0 (GPU) + packed (CPU dotprod) + silero-vad | VAD-chunked (offline TDT) |
-| `narandill/phonon2-stt` | same | **4.24 GB** | Fermion Phonon-2.5-english q8_0 + packed + silero-vad | VAD-chunked (offline TDT) |
-| `narandill/kokoro-tts` | same | **4.87 GB** | Kokoro-82M v1.0 **int8 ONNX** (169 MB) on our ORT-GPU 1.31.1 | `create_stream()` phoneme-chunked async gen (TTFA 0.7–1.1 s measured) |
-| `narandill/phonon31m-tts` | same | **307 MB** | gradium/phonon-31m-en q8 (61.5 MB) via `ptts` 0.6.0 — **CPU-only, no CUDA** | **true token streaming**, TTFA 172 ms measured (LB #1: 28 ms p95) |
-| `narandill/paradee-tts` | same | **5.03 GB** | Paradee-8M-v1.0 int8 ONNX (8.6 MB) on our ORT-GPU | sentence-chunked wrapper (graph is whole-utterance) |
+| `futureproofhomes/nemotron-unified-asr` | `0.1.0`,`latest` + `-thor`/`-orin` | **3.99 GB** | nvidia/nemotron-labs-unified-asr-0.6b q8_0 GGUF (895 MB) on parakeet.cpp | **true buffered streaming** 0.16–2.08 s presets (token-identical to NeMo per upstream parity) |
+| `futureproofhomes/parakeet-redux-stt` | same | **4.21 GB** | moondream/parakeet-redux q8_0 (GPU) + packed (CPU dotprod) + silero-vad | VAD-chunked (offline TDT) |
+| `futureproofhomes/phonon2-stt` | same | **4.24 GB** | Fermion Phonon-2.5-english q8_0 + packed + silero-vad | VAD-chunked (offline TDT) |
+| `futureproofhomes/kokoro-tts` | same | **4.87 GB** | Kokoro-82M v1.0 **int8 ONNX** (169 MB) on our ORT-GPU 1.31.1 | `create_stream()` phoneme-chunked async gen (TTFA 0.7–1.1 s measured) |
+| `futureproofhomes/phonon31m-tts` | same | **307 MB** | gradium/phonon-31m-en q8 (61.5 MB) via `ptts` 0.6.0 — **CPU-only, no CUDA** | **true token streaming**, TTFA 172 ms measured (LB #1: 28 ms p95) |
+| `futureproofhomes/paradee-tts` | same | **5.03 GB** | Paradee-8M-v1.0 int8 ONNX (8.6 MB) on our ORT-GPU | sentence-chunked wrapper (graph is whole-utterance) |
 
 All: `test/verify_arch.sh` + `test/smoke_*.sh` per project; entrypoint wrapper (OpenAI-compatible `POST /v1/audio/transcriptions` for STT; HTTP chunked-stream `/say` for phonon31m) + CLI helpers (`stt-transcribe`, `kokoro-say`, `ptts-say`, `paradee-say`, `paradee-stream`).
 

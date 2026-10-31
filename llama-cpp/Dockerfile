@@ -9,8 +9,8 @@
 # (libcuda.so.1) is injected from the host by nvidia-container-toolkit.
 #
 # Targets:
-#   narandill/llama-cpp-thor:<ver>  and  narandill/llama-cpp-orin:<ver>
-#   (identical image, two tags) + narandill/llama-cpp:<ver>
+#   futureproofhomes/llama-cpp-thor:<ver>  and  futureproofhomes/llama-cpp-orin:<ver>
+#   (identical image, two tags) + futureproofhomes/llama-cpp:<ver>
 # =============================================================================
 
 ARG BUILDER_BASE=nvidia/cuda:13.2.1-devel-ubuntu24.04

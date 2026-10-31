@@ -50,11 +50,11 @@
 ## cuobjdump verification (required check) — PASS
 
 ```
-narandill/llama-cpp-thor:0.8.0
+futureproofhomes/llama-cpp-thor:0.8.0
   libggml-cuda.so.0.28.0   SASS: sm_87, sm_110a     PTX: sm_110
   libggml.so / llama-server: host-only (no device code embedded — expected)
 
-narandill/nexus-wyoming-thor:0.1.0
+futureproofhomes/nexus-wyoming-thor:0.1.0
   libctranslate2.so.4.8.4  SASS: sm_87, sm_110      PTX: sm_87, sm_110
   libonnxruntime_providers_cuda.so  SASS: sm_87, sm_90a, sm_110a   PTX: sm_110a
   libonnxruntime.so.1.31.1: host-only (core; kernels live in the provider .so)
@@ -77,8 +77,8 @@ Multi-stage layout: final images contain no compilers, headers, source trees, pi
 
 ## Tags
 
-`narandill/llama-cpp:{0.8.0,latest}` + `narandill/llama-cpp-thor:0.8.0` + `narandill/llama-cpp-orin:0.8.0`
-`narandill/nexus-wyoming:{0.1.0,latest}` + `narandill/nexus-wyoming-thor:0.1.0` + `narandill/nexus-wyoming-orin:0.1.0`
+`futureproofhomes/llama-cpp:{0.8.0,latest}` + `futureproofhomes/llama-cpp-thor:0.8.0` + `futureproofhomes/llama-cpp-orin:0.8.0`
+`futureproofhomes/nexus-wyoming:{0.1.0,latest}` + `futureproofhomes/nexus-wyoming-thor:0.1.0` + `futureproofhomes/nexus-wyoming-orin:0.1.0`
 (not pushed to Docker Hub — say the word)
 
 ## Known issues / caveats
