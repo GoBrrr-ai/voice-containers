@@ -15,7 +15,7 @@ from pathlib import Path
 from . import matrix as _matrix
 from . import names as _names
 from . import theme
-from .theme import DARK, Mode, apply, engine_color, footer, log_y_if_spanning
+from .theme import DARK, Mode, apply, footer, log_y_if_spanning, row_color
 
 DPI = 200  # 2x PNG per spec 10.3 (vs matplotlib's default 100)
 
@@ -47,8 +47,15 @@ def _load_utterances(bench_root: Path, run_id: str, engine_id: str) -> list[dict
 
 
 def _label(row: dict) -> str:
-    """Short series label from the original engine + model (never the config id)."""
-    return _names.display(row)
+    """Short series label from the original engine + model (never the config id);
+    the cohort winner carries a star."""
+    return _names.star(row) + _names.display(row)
+
+
+def _title(ax, text: str, mode: Mode = DARK) -> None:
+    """Consistent chart title: big, bold, left-aligned, light on dark."""
+    ax.set_title(text, loc="left", fontsize=15, fontweight="bold",
+                 color=mode.text, pad=22)
 
 
 def _labels(rows: list[dict]) -> list[str]:
@@ -132,10 +139,10 @@ def stt_ranking(rows: list[dict], mode: Mode = DARK):
     apply(fig, ax)
     names = _labels(rows)
     wers = [(_matrix._metric(r, "wer") or 0) * 100 for r in rows]
-    colors = [engine_color(r.get("engine", "")) for r in rows]
+    colors = [row_color(r) for r in rows]
     _hbar(ax, names, wers, colors, mode, "{:.2f}%", "corpus WER % (lower is better ↓)")
-    ax.set_title("Speech recognition — corpus WER", loc="left", fontsize=13)
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _title(ax, "Speech recognition — corpus WER")
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
     return fig
 
@@ -170,6 +177,7 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
         if c_hi / c_lo < 3 and (x_hi / x_lo) > 3:  # tight cluster, wide span
             axins = ax.inset_axes([0.07, 0.10, 0.42, 0.52])
             apply(fig, axins)
+            axins.set_facecolor("#202a36")  # lighter than the panel behind it
             axins.set_xlim(c_lo * 0.9, c_hi * 1.1)
             axins.set_ylim(
                 w_lo - (w_hi - w_lo) * 0.35 - 0.05, w_hi + (w_hi - w_lo) * 0.35 + 0.05
@@ -186,7 +194,7 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
             rtf,
             wer,
             s=(60 + 240 * (mem / mmax)) * size_scale,
-            color=engine_color(r.get("engine", "")),
+            color=row_color(r),
             marker=_backend_marker(r),
             edgecolor=mode.text_dim,
             linewidth=0.6,
@@ -242,8 +250,8 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     ax.set_xlabel("RTF p50 — audio-s per s (lower is better ↓, log)")
     ax.set_ylabel("corpus WER % (lower is better ↓)")
     ax.set_xscale("log")
-    ax.set_title("Speech recognition — accuracy vs speed", loc="left", fontsize=13)
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _title(ax, "Speech recognition — accuracy vs speed")
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows, extra=" · point size = peak container memory")
     return fig
 
@@ -264,7 +272,7 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
             continue
         data.append(rtfs)
         labels.append(_label(r))
-        colors.append(engine_color(r.get("engine", "")))
+        colors.append(row_color(r))
     if not data:
         return None
     bp = ax.boxplot(
@@ -277,12 +285,10 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         for line in bp[el]:
             line.set_color(mode.text_dim)
     ax.invert_yaxis()
-    ax.set_title(
-        "Speech recognition — per-utterance RTF distribution", loc="left", fontsize=13
-    )
+    _title(ax, "Speech recognition — per-utterance RTF distribution")
     ax.set_xlabel("RTF per utterance (lower is better ↓, log)")
     ax.set_xscale("log")
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
     return fig
 
@@ -314,9 +320,9 @@ def stt_power(rows: list[dict], mode: Mode = DARK):
             w,
             (wer or 0) * 100,
             s=90,
-            facecolor="none" if is_cpu else engine_color(r.get("engine", "")),
+            facecolor="none" if is_cpu else row_color(r),
             marker=_backend_marker(r),
-            edgecolor=engine_color(r.get("engine", "")),
+            edgecolor=row_color(r),
             linewidth=1.6,
             zorder=3,
         )
@@ -335,8 +341,8 @@ def stt_power(rows: list[dict], mode: Mode = DARK):
         "mean GPU power over the engine window (W) — hollow = CPU engine (idle draw)"
     )
     ax.set_ylabel("corpus WER % (lower is better ↓)")
-    ax.set_title("Speech recognition — GPU power vs accuracy", loc="left", fontsize=13)
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _title(ax, "Speech recognition — GPU power vs accuracy")
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows, extra=" · power from tegrastats job windows")
     return fig
 
@@ -349,7 +355,7 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
     apply(fig, ax)
     names = _labels(rows)
     rtfs = [_matrix._metric(r, "rtf") for r in rows]
-    colors = [engine_color(r.get("engine", "")) for r in rows]
+    colors = [row_color(r) for r in rows]
     _hbar(
         ax,
         names,
@@ -359,8 +365,8 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
         "{:.3f}",
         "RTF p50 — s audio per s wall (lower is better ↓)",
     )
-    ax.set_title("Speech synthesis — real-time factor", loc="left", fontsize=13)
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _title(ax, "Speech synthesis — real-time factor")
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
     return fig
 
@@ -377,7 +383,7 @@ def tts_ttfa(rows: list[dict], mode: Mode = DARK):
     pts.sort(key=lambda x: x[1])
     names = [_label(r) for r, _ in pts]
     vals = [v * 1000 for _, v in pts]
-    colors = [engine_color(r.get("engine", "")) for r, _ in pts]
+    colors = [row_color(r) for r, _ in pts]
     p90s = [(_matrix._metric(r, "ttfa_s_p90") or 0) * 1000 for r, _ in pts]
     label_x = [max(v, p) * 1.12 for v, p in zip(vals, p90s)]
     _hbar(
@@ -410,8 +416,8 @@ def tts_ttfa(rows: list[dict], mode: Mode = DARK):
         )
     ax.axvline(300, color=mode.red, linestyle=":", linewidth=1.2)
     ax.annotate("300 ms gate", (300 * 1.03, -0.45), fontsize=8, color=mode.red)
-    ax.set_title("Speech synthesis — time to first audio", loc="left", fontsize=13)
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _title(ax, "Speech synthesis — time to first audio")
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
     return fig
 
@@ -428,7 +434,7 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
             continue
         data.append(vals)
         labels.append(_label(r))
-        colors.append(engine_color(r.get("engine", "")))
+        colors.append(row_color(r))
     if not data:
         return None
     bp = ax.boxplot(
@@ -441,12 +447,10 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         for line in bp[el]:
             line.set_color(mode.text_dim)
     ax.invert_yaxis()
-    ax.set_title(
-        "Speech synthesis — synthesis latency distribution", loc="left", fontsize=13
-    )
+    _title(ax, "Speech synthesis — synthesis latency distribution")
     ax.set_xlabel("synthesis latency per sentence (s, lower is better ↓, log)")
     ax.set_xscale("log")
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
     return fig
 
@@ -474,7 +478,7 @@ def _memory_bars(rows: list[dict], mode: Mode):
     pts.sort(key=lambda x: -x[1])
     names = _labels([r for r, _ in pts])
     vals = [v for _, v in pts]
-    colors = [engine_color(r.get("engine", "")) for r, _ in pts]
+    colors = [row_color(r) for r, _ in pts]
     _hbar(
         ax,
         names,
@@ -484,8 +488,8 @@ def _memory_bars(rows: list[dict], mode: Mode):
         "{:,.0f} MiB",
         "peak container memory (MiB, lower is better ↓)",
     )
-    ax.set_title("Peak container memory", loc="left", fontsize=13)
-    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _title(ax, "Peak container memory")
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
     return fig
 
@@ -555,8 +559,11 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
     cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
     cb.ax.tick_params(colors=mode.text_dim, labelsize=7)
     cb.set_label("normalized score (1 = best)", color=mode.text_dim, fontsize=8)
+    _title(ax, "Speech "
+           + ("recognition" if task == "stt" else "synthesis")
+           + " — normalized metric heatmap", mode)
     _footer_common(fig, rows, extra=" · green = better (direction-aware)")
-    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     return fig
 
 
@@ -595,7 +602,8 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
         d = out_dir / task
         d.mkdir(parents=True, exist_ok=True)
         p = d / f"{name}.png"
-        fig.savefig(p, dpi=DPI, facecolor=fig.get_facecolor(), bbox_inches="tight")
+        fig.savefig(p, dpi=DPI, facecolor=fig.get_facecolor(),
+                    bbox_inches="tight", pad_inches=0.2)
         plt.close(fig)
         manifest.setdefault(name, []).append(
             {"task": task, "dark": str(p.relative_to(bench_root))}

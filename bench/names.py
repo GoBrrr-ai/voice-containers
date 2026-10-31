@@ -19,6 +19,21 @@ FAMILY_OF_PROJECT = {
     "paradee-tts": "paradee",
 }
 
+# Color = identity, per engine FAMILY, consistent across every chart.
+# Real brand colors where they exist; the rest stay on the Okabe-Ito palette.
+BRAND_COLORS = {
+    "parakeet.cpp": "#76B900",  # NVIDIA green — the runtime carries NVIDIA parakeet models
+    "piper1-tts": "#41BDF5",  # Home Assistant blue — Piper is HA's official TTS
+}
+# Okabe-Ito identity hues for families without a brand color
+DEFAULT_FAMILY_COLORS = {
+    "faster-whisper": "#E69F00",  # orange
+    "kokoro": "#009E73",  # green
+    "phonon-31m": "#CC79A7",  # pink
+    "paradee": "#F0E442",  # yellow
+}
+FAMILY_COLORS = {**DEFAULT_FAMILY_COLORS, **BRAND_COLORS}
+
 EMOJI = {
     "parakeet.cpp": "🦜",
     "faster-whisper": "⚡",
@@ -26,6 +41,16 @@ EMOJI = {
     "piper1-tts": "🎺",
     "phonon-31m": "🌊",
     "paradee": "✨",
+}
+
+# short identity description per family (cards show no benchmark numbers)
+FAMILY_DESC = {
+    "parakeet.cpp": "one parakeet.cpp runtime, several q8_0 GGUF models",
+    "faster-whisper": "faster-whisper 1.2.1 on our CTranslate2 4.8.4 build",
+    "kokoro": "Kokoro-82M v1.0, int8 ONNX on onnxruntime-gpu",
+    "piper1-tts": "piper-tts 1.8.0 on our onnxruntime-gpu build",
+    "phonon-31m": "gradium/phonon-31m-en via the ptts runtime — CPU-only by design",
+    "paradee": "Paradee-8M v1.0 int8 ONNX — a Kokoro distillation",
 }
 
 # streaming behavior (from the project registry; shown in the family cards)
@@ -48,6 +73,19 @@ def project(row: dict) -> str:
 
 def family(row: dict) -> str:
     return FAMILY_OF_PROJECT.get(project(row), project(row))
+
+
+def star(row: dict) -> str:
+    """Star marker for the cohort winner (rank 1) — used in charts (font-safe)."""
+    return "★ " if row.get("rank") == 1 else ""
+
+
+MEDALS = {1: "🥇\u00a0", 2: "🥈\u00a0", 3: "🥉\u00a0"}
+
+
+def medal(row: dict) -> str:
+    """Medal emoji for the composite top 3 — used in tables (GitHub renders them)."""
+    return MEDALS.get(row.get("rank"), "")
 
 
 def _model_base(row: dict) -> str:

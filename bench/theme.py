@@ -52,6 +52,17 @@ def engine_color(engine: str) -> str:
     return ENGINE_COLORS.get(engine, FALLBACK_COLOR)
 
 
+def row_color(row: dict) -> str:
+    """Consistent identity color: per engine FAMILY (brand-aware), same in
+    every chart; variant distinguished by marker shape + label."""
+    from . import names as _names
+
+    fam = _names.family(row)
+    return _names.FAMILY_COLORS.get(fam) or ENGINE_COLORS.get(
+        row.get("engine", ""), FALLBACK_COLOR
+    )
+
+
 def _plt():
     try:
         import matplotlib as mpl
@@ -78,9 +89,10 @@ def apply(fig, ax, mode: Mode = DARK) -> None:
     ax.tick_params(colors=mode.text_dim, labelcolor=mode.text)
     ax.xaxis.label.set_color(mode.text)
     ax.yaxis.label.set_color(mode.text)
-    if ax.get_title():
-        ax.title.set_color(mode.text)
-    ax.grid(True, color=mode.grid, linewidth=0.6, alpha=0.6)
+    # titles are usually set AFTER apply() — color the Text artist unconditionally
+    # (set_title() changes text/position but not color, so this persists)
+    ax.title.set_color(mode.text)
+    ax.grid(False)
 
 
 def footer(fig, mode: Mode = DARK, left: str = "", right: str = "") -> None:

@@ -74,7 +74,7 @@ def _colored_table(rows: list[dict], task: str) -> str:
     """Markdown matrix: original engine + model names, p50/p90 columns,
     direction-aware coloring (best-in-column green, worst red)."""
     heads = (
-        ["engine", "model", "backend", "rank"]
+        ["engine", "model", "backend"]
         + [h for _, h in COLS[task]]
         + ["mem MiB", "GPU W"]
     )
@@ -90,10 +90,9 @@ def _colored_table(rows: list[dict], task: str) -> str:
     for r in sorted(rows, key=lambda x: x.get("rank", 999)):
         is_cpu = (r.get("requested_backend") or "").lower() == "cpu"
         cells = [
-            _names.project(r),
+            _names.medal(r) + _names.project(r),  # 🥇🥈🥉 + NBSP
             _names.model_pretty(r),
             r.get("requested_backend", "?"),
-            str(r.get("rank", "")),
         ]
         for k, _ in COLS[task]:
             v = _metric_v(r, k)
@@ -129,28 +128,16 @@ def _cards(rows: list[dict], task: str) -> list[dict]:
         fams.setdefault(_names.family(r), []).append(r)
     out = []
     for fam, fam_rows in fams.items():
-        lines = []
-        for r in sorted(fam_rows, key=lambda x: x.get("rank", 999)):
-            d = _names.display(r)
-            if task == "stt":
-                lines.append(
-                    f"{d} — <b>{_metric_v(r, 'wer') * 100:.2f}% WER</b>"
-                    f" · RTF {_metric_v(r, 'rtf'):.3f}"
-                )
-            else:
-                ttfa = _metric_v(r, "ttfa_s")
-                t = ""
-                if ttfa is not None:
-                    t = (
-                        f" · TTFA {ttfa * 1000:.0f} ms"
-                        if ttfa < 0.5
-                        else f" · TTFA {ttfa:.2f} s"
-                    )
-                lines.append(f"{d} — RTF <b>{_metric_v(r, 'rtf'):.3f}</b>{t}")
+        # identity only: model list (winner first); benchmark data lives in the tables
+        lines = [
+            _names.model_pretty(r)
+            for r in sorted(fam_rows, key=lambda x: x.get("rank", 999))
+        ]
         out.append(
             {
                 "emoji": _names.EMOJI.get(fam, "🔧"),
                 "title": fam,
+                "desc": _names.FAMILY_DESC.get(fam, ""),
                 "lines": lines,
                 "note": _names.STREAMING.get(fam, ""),
             }
