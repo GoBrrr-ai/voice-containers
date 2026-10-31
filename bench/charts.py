@@ -74,13 +74,16 @@ def _backend_marker(row: dict) -> str:
 
 def _footer_common(fig, rows: list[dict], extra: str = "") -> None:
     r0 = rows[0]
+    left = (
+        f"edge-containers bench · {r0.get('device_label', '?')} · "
+        f"{r0.get('power_profile', 'default')} power"
+    )
+    if fig.get_figwidth() >= 9:  # narrow figures: drop the manifest or the strings collide
+        left += f" · …{r0.get('manifest', '?')[-20:]}"
     footer(
         fig,
         DARK,
-        left=(
-            f"edge-containers bench · {r0.get('device_label', '?')} · "
-            f"{r0.get('power_profile', 'default')} power · …{r0.get('manifest', '?')[-20:]}"
-        ),
+        left=left,
         right=f"commit {r0.get('git_commit', '?')}{extra}",
     )
 
@@ -529,8 +532,10 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
             col = [__import__("math").log10(v) for v in col]
         grid.append(_matrix._norm(col, lower))
     g = np.array(grid).T  # rows=configs, cols=metrics
+    # narrow cells + bigger fonts: the README displays the PNG at ~1/2 scale,
+    # so an over-wide figure renders the labels unreadably small
     fig, ax = plt.subplots(
-        figsize=(1.9 + 1.55 * len(metric_keys), 1.2 + 0.55 * len(labels))
+        figsize=(1.5 + 0.95 * len(metric_keys), 1.1 + 0.62 * len(labels))
     )
     apply(fig, ax)
     im = ax.imshow(g, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
@@ -551,19 +556,19 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
         [pretty.get(k, k) for k in metric_keys],
         rotation=30,
         ha="right",
-        fontsize=8.5,
+        fontsize=10,
     )
-    ax.set_yticks(range(len(labels)), labels, fontsize=8.5)
+    ax.set_yticks(range(len(labels)), labels, fontsize=10.5)
     for i in range(len(labels)):
         for j in range(len(metric_keys)):
             raw = raw_vals[i][j]
             txt = (
                 f"{raw:.3f}" if (isinstance(raw, float) and raw < 10) else f"{raw:,.0f}"
             )
-            ax.text(j, i, txt, ha="center", va="center", fontsize=7.5, color=mode.text)
+            ax.text(j, i, txt, ha="center", va="center", fontsize=9.5, color=mode.text)
     ax.grid(False)
     cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
-    cb.ax.tick_params(colors=mode.text_dim, labelsize=7)
+    cb.ax.tick_params(colors=mode.text_dim, labelsize=8)
     cb.set_label("normalized score (1 = best)", color=mode.text_dim, fontsize=8)
     _title(ax, "Speech "
            + ("recognition" if task == "stt" else "synthesis")
