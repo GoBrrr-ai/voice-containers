@@ -158,8 +158,8 @@ def run_config(config_path: str) -> str:
 
     cfg = yaml.safe_load(Path(config_path).read_text())
     root = (
-        Path(config_path).resolve().parent.parent
-    )  # bench/configs/*.yaml -> repo root
+        Path(config_path).resolve().parents[2]
+    )  # bench/configs/<file>.yaml -> repo root
     ts = time.strftime("%Y%m%d_%H%M%S")
     run_id = f"{ts}_{cfg.get('device_label', 'device')}_{cfg['task']}"
     out = Path(root / cfg.get("output_dir", "results")) / run_id
