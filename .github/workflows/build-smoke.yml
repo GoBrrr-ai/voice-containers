@@ -1,0 +1,37 @@
+name: build-smoke
+
+# Build + verify the images on the Jetson self-hosted runner.
+# GPU smoke tests are opt-in (they touch the device; the runner may be shared).
+on:
+  workflow_dispatch:
+    inputs:
+      projects:
+        description: "Space-separated project names (empty = all)"
+        required: false
+        default: ""
+      smoke:
+        description: "Run GPU smoke tests after build"
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: [self-hosted, jetson]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build shared builders (cached)
+        run: |
+          (cd builders/parakeet-cpp && ./build.sh)
+          (cd builders/wheels-cu132 && ./build.sh)
+      - name: Build engine images
+        run: |
+          projects="${{ inputs.projects }}"
+          for p in ${projects:-llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts}; do
+            echo "== build $p"
+            (cd "$p" && ./build.sh)
+          done
+      - name: Arch verification (cuobjdump)
+        run: SMOKE=0 ./scripts/sweep-smoke.sh
+      - name: GPU smoke suite
+        if: ${{ inputs.smoke }}
+        run: SMOKE=1 ./scripts/sweep-smoke.sh

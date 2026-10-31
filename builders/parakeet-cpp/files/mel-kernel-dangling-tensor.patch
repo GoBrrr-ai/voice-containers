@@ -1,0 +1,15 @@
+--- a/src/mel.cpp	2026-10-31 12:46:05.411214787 +0100
++++ b/src/mel.cpp	2026-10-31 12:46:05.447214618 +0100
+@@ -36,7 +36,11 @@
+     if (w) {
+         std::vector<float> wbuf;
+         pk::weight_to_host_f32(ml, "preprocessor.featurizer.window", wbuf);
+-        const int wlen = (int)w->ne[0];
++        // weight_to_host_f32() may realize the weights (one-time setup that
++        // mutates tensor buffers, see ensure_weights_realized) -- the `w`
++        // pointer captured above can dangle by now, so do not deref it. The
++        // window tensor is 1-D: its length is exactly the fetched element count.
++        const int wlen = (int)wbuf.size();
+         const float* wd = wbuf.data();
+         if (wlen == n_fft_) {
+             std::memcpy(window_.data(), wd, sizeof(float) * n_fft_);

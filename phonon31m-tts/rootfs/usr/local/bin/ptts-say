@@ -1,0 +1,8 @@
+#!/bin/sh
+# CLI TTS: ptts-say "text" [-o out.wav] [--voice V] [--speed ...]
+# Extra ptts args pass through. Env: PTTS_MODEL, PTTS_LANG, PTTS_QUANT, PTTS_VOICE.
+set -eu
+TEXT="${1:?usage: ptts-say \"text\" [-o out.wav] [extra ptts args]}"
+shift
+exec ptts --model "$PTTS_MODEL" --lang "$PTTS_LANG" --quant "$PTTS_QUANT" \
+    ${PTTS_VOICE:+--voice "$PTTS_VOICE"} "$@" "$TEXT"
