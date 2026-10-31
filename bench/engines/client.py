@@ -295,10 +295,13 @@ class PiperTts:
         os.close(fd)
         with wave.open(path, "wb") as w:
             self.v.synthesize_wav(text, w)
-        import soundfile as sf
-
-        data, sr = sf.read(path, dtype="float32")
+        with wave.open(path, "rb") as w:
+            sr = w.getframerate()
+            data = w.readframes(w.getnframes())
         os.unlink(path)
+        import numpy as np
+
+        data = np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
         _sync_cuda()
         return data, sr
 
@@ -388,15 +391,31 @@ def main() -> None:
                 # output duration drives TTS RTF (PRD 6.2)
                 rec_utt["out_audio_s"] = len(audio) / rec_utt["sample_rate"]
                 wav_out = out_dir / "audio" / f"{s['utt_id']}.wav"
-                import soundfile as sf
-
-                sf.write(wav_out, audio, rec_utt["sample_rate"])
+                _write_wav(wav_out, audio, rec_utt["sample_rate"])
         except (
             Exception
         ) as e:  # record and continue (PRD: a crash must not kill the suite)
             rec_utt.update(status="error", error=repr(e)[:500])
         jsonl_append(utt_path, rec_utt)
     jsonl_append(out_dir / "run_meta.jsonl", rec)
+
+
+def _write_wav(path: Path, audio, sr: int) -> None:
+    """stdlib-only WAV writer (no soundfile needed in engine images)."""
+    import wave
+
+    import numpy as np
+
+    a = np.asarray(audio)
+    if a.dtype != np.int16:
+        peak = np.max(np.abs(a)) or 1.0
+        a = np.clip(a / (peak if peak > 1.0 else 1.0), -1.0, 1.0)
+        a = (a * 32767).astype(np.int16)
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1 if a.ndim == 1 else a.shape[1])
+        w.setsampwidth(2)
+        w.setframerate(int(sr))
+        w.writeframes(a.tobytes())
 
 
 def jsonl_append(path: Path, row: dict) -> None:
