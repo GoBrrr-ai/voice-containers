@@ -58,7 +58,7 @@ class LibriSpeechAdapter(BaseAdapter):
 
     name = "librispeech"
     supports = {"stt"}
-    _rev = "default"
+    _rev = "main"
 
     def download(self) -> None:
         import datasets  # noqa: F401  (downloads into HF cache)
@@ -103,7 +103,7 @@ class LibriTTSRAdapter(BaseAdapter):
 
     name = "libritts_r"
     supports = {"tts"}
-    _rev = "default"
+    _rev = "main"
 
     def download(self) -> None:
         import datasets
@@ -117,7 +117,7 @@ class LibriTTSRAdapter(BaseAdapter):
 
     def iter_samples(self, split: str, language: str):
         for i, row in enumerate(self._ds):
-            utt = row["audio"] and f"lttsr-{row['speaker_ID']}-{i:05d}"
+            utt = f"lttsr-{row['speaker_ID']}-{i:05d}"  # text-only: never touch the audio column
             text = " ".join((row["text_normalized"] or "").split())
             if not text:
                 continue
@@ -302,7 +302,7 @@ def prepare(
     **opts,
 ) -> str:
     """Download → resample cache → normalized manifest. Returns manifest path."""
-    from .metrics.normalize import normalize
+    from ..metrics.normalize import normalize
 
     ad = get_adapter(cache_dir, dataset, **opts)
     ad.download()
