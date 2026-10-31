@@ -36,6 +36,8 @@ engines:
   - name: piper                   # the wave-1 TTS baseline
     image: narandill/wyoming-piper1-tts-thor:0.1.0
     backends: [cuda]
+    volumes:
+      - /home/narandill/jetson-containers/task/voice-data:/data
     opts:
       model_dir: /data/models/piper
       voice: en_US-libritts_r-medium

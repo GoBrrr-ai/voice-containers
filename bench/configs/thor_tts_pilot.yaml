@@ -1,0 +1,52 @@
+# TTS pilot — 3 sentences x 4 engines; validates adapters end to end before the 444-sent baseline.
+run_name: thor_tts_pilot
+task: tts
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/tts_librispeech_test-clean_en_500_seed42.jsonl
+  n: 3
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: kokoro
+    image: narandill/kokoro-tts-thor:0.1.0
+    backends: [cuda]
+    opts:
+      model: /opt/kokoro/model_uint8.onnx
+      voices: /opt/kokoro/voices-v1.0.bin
+      voice: af_heart
+  - name: ptts
+    image: narandill/phonon31m-tts-thor:0.1.0
+    backends: [cpu]
+    opts:
+      model: /models/phonon-31m-en
+      lang: en
+      quant: q8_0
+  - name: paradee
+    image: narandill/paradee-tts-thor:0.1.0
+    backends: [cuda]
+    opts:
+      version: "1.0"
+      quantized: true
+  - name: piper
+    image: narandill/wyoming-piper1-tts-thor:0.1.0
+    backends: [cuda]
+    volumes:
+      - /home/narandill/jetson-containers/task/voice-data:/data
+    opts:
+      model_dir: /data/models/piper
+      voice: en_US-libritts_r-medium
+      device: cuda
+streaming: {chunk_ms: 160, realtime_pass: true}
+warmup_n: 1
+repeats: 1
+cooldown_s: 0
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+drop_caches: false
+output_dir: results
