@@ -39,7 +39,7 @@ engines:
     image: narandill/wyoming-faster-whisper-thor:0.1.0
     backends: [cuda]
     opts:
-      model: Systran/faster-whisper-tiny-int8  # wyoming "tiny-int8" alias resolved
+      model: rhasspy/faster-whisper-tiny-int8  # wyoming "tiny-int8" alias resolved
       device: cuda
       compute_type: default
 streaming: {chunk_ms: 160, realtime_pass: false}   # v1: offline passes; realtime pass fast-follow
