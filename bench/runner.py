@@ -104,6 +104,9 @@ def run_container_job(
     cmd = ["docker", "run", "--rm", "--name", name]
     if gpu:
         cmd += ["--runtime", "nvidia", "-e", "NVIDIA_DISABLE_REQUIRE=1"]
+    # per-engine extra mounts (e.g. host model volumes not baked in the image)
+    for vol in job.pop("volumes", []):
+        cmd += ["-v", vol]
     cmd += [
         "-v",
         f"{run_dir}:/bench/out",
@@ -183,6 +186,7 @@ def run_config(config_path: str) -> str:
             "opts": eng.get("opts", {}) | {"device": eng.get("backends", ["cuda"])[0]},
             "samples": manifest,
             "streaming": bool(cfg.get("streaming", {}).get("realtime_pass", False)),
+            "volumes": eng.get("volumes", []),
         }
         img = eng["image"]  # engine image for this adapter
         meta = run_container_job(
