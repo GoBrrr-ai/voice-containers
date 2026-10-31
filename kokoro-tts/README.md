@@ -16,11 +16,11 @@ sm_110a PTX). CUDA EP first, CPU EP fallback.
 ```sh
 # batch to wav
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -v /data:/data \
-  futureproofhomes/kokoro-tts-thor:0.1.0 kokoro-say "Hello from Jetson Thor." -o /data/kokoro.wav
+  narandill/kokoro-tts:0.1.0 kokoro-say "Hello from Jetson Thor." -o /data/kokoro.wav
 
 # true streaming (prints TTFA)
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -v /data:/data \
-  futureproofhomes/kokoro-tts-thor:0.1.0 kokoro-stream-demo "Streaming is native here." -o /data/stream.wav
+  narandill/kokoro-tts:0.1.0 kokoro-stream-demo "Streaming is native here." -o /data/stream.wav
 ```
 
 ## Library use (recommended for the assistant)
@@ -44,4 +44,4 @@ async for samples, sr in kokoro.create_stream(text, voice="af_heart", lang="en-u
 
 **Note:** kokoro-onnx is installed `--no-deps` and our GPU ort wheel is
 force-installed LAST — the `[gpu]` extra can never clobber the sm_87/sm_110
-build (same pattern as piper in nexus-wyoming).
+build (same pattern as piper in the former combined wyoming image).

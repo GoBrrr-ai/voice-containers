@@ -3,7 +3,7 @@
 # Waits for free VRAM when co-tenants run; NEVER kills other processes.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-REPO="${DOCKER_REPO:-futureproofhomes}"
+REPO="${DOCKER_REPO:-narandill}"
 SMOKE="${SMOKE:-1}"   # SMOKE=0 → arch verification only
 PROJECTS="${PROJECTS:-llama-cpp wyoming-faster-whisper wyoming-piper1-tts nemotron-unified-asr parakeet-redux-stt phonon2-stt kokoro-tts phonon31m-tts paradee-tts}"
 fail=0
@@ -13,7 +13,7 @@ declare -A VER=(
   [kokoro-tts]=0.1.0 [phonon31m-tts]=0.1.0 [paradee-tts]=0.1.0
 )
 for p in $PROJECTS; do
-  v="${VER[$p]:-0.1.0}"; img="$REPO/$p-thor:$v"
+  v="${VER[$p]:-0.1.0}"; img="$REPO/$p:$v"
   echo "== verify $p ($img)"
   if [ -x "$p/test/verify_arch.sh" ]; then "$p/test/verify_arch.sh" "$img" || fail=1
   else echo "  (no arch verification — CPU-only or none needed)"; fi

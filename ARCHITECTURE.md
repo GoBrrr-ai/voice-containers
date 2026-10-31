@@ -20,7 +20,7 @@
 
 ```
 projects/
-├── parakeet-cpp-builder/   → futureproofhomes/edge-builder:parakeet-cpp
+├── parakeet-cpp-builder/   → narandill/edge-builder:parakeet-cpp
 │     (parakeet.cpp GGML dist: parakeet-cli/-server + libggml*,
 │      sm_87+sm_110a SASS + compute_110 PTX; pinned ref 2eac2e77)
 │        ↑ ARG PARAKEET_DIST_IMAGE
@@ -28,7 +28,7 @@ projects/
 │        ├── parakeet-redux-stt    (bakes redux-q8_0 + redux-packed)
 │        └── phonon2-stt           (bakes phonon-2.5-english q8_0 + packed)
 │
-├── nexus-wyoming builder target → futureproofhomes/edge-wheels:cu132
+├── wheels builder (ex combined wyoming) → narandill/edge-wheels:cu132
 │     (onnxruntime-gpu 1.31.1 wheel: sm_87+sm_90a+sm_110a SASS, sm_110a PTX
 │      + ctranslate2 4.8.4 — 75-min source build, do NOT rebuild casually)
 │        ↑ ARG ORT_WHEEL_IMAGE
@@ -38,15 +38,15 @@ projects/
 └── phonon31m-tts   (NO shared deps: plain ubuntu:24.04 + ptts aarch64 wheel)
 ```
 
-All six engine images tag `{name,-thor,-orin}:0.1.0` + `:latest`; `-thor`/`-orin`
-are the same image (both cubin sets are baked).
+Every engine image carries one version tag + `latest` (both boards are served
+by the same image — sm_87 and sm_110 cubins are baked side by side).
 
 ## Decoupling recipes (standalone-repo migration)
 
 | Today | At migration |
 |---|---|
-| `ARG PARAKEET_DIST_IMAGE=futureproofhomes/edge-builder:parakeet-cpp` | DONE — `builders/parakeet-cpp/` (pinned ref, carries the MelKernel GPU-stream fix). To fully vendor: `COPY --from=builder /opt/parakeet-dist …` inline builder stage (identical stages across the 3 STT Dockerfiles share BuildKit cache). |
-| `ARG WHEELS_IMAGE=futureproofhomes/edge-wheels:cu132` | DONE — `builders/wheels-cu132/` replicates the original instruction stream byte-identically (BuildKit cache hit, no recompile). To fully vendor: copy the wheels out of the built image and `COPY` them. |
+| `ARG PARAKEET_DIST_IMAGE=narandill/edge-builder:parakeet-cpp` | DONE — `builders/parakeet-cpp/` (pinned ref, carries the MelKernel GPU-stream fix). To fully vendor: `COPY --from=builder /opt/parakeet-dist …` inline builder stage (identical stages across the 3 STT Dockerfiles share BuildKit cache). |
+| `ARG WHEELS_IMAGE=narandill/edge-wheels:cu132` | DONE — `builders/wheels-cu132/` replicates the original instruction stream byte-identically (BuildKit cache hit, no recompile). To fully vendor: copy the wheels out of the built image and `COPY` them. |
 | `nvidia/cuda:13.2.1-{devel,runtime}-ubuntu24.04` bases | Keep (upstream images, not JC) |
 
 ## Verification gates (every CUDA image)

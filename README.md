@@ -11,7 +11,7 @@ injected from the host.
 
 ## Projects
 
-| Project | Image (`futureproofhomes/<name>`) | What it is | Streaming |
+| Project | Image (`narandill/<name>`) | What it is | Streaming |
 |---|---|---|---|
 | `llama-cpp` | `llama-cpp:0.8.0` | llama.cpp v0.8.0 + llama-cpp-python 0.3.36, CUDA graphs, Orin MMVQ patch | — (LLM) |
 | `wyoming-faster-whisper` | `wyoming-faster-whisper:0.1.0` | Wyoming STT: faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
@@ -22,8 +22,6 @@ injected from the host.
 | `kokoro-tts` | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a) | `create_stream()` |
 | `phonon31m-tts` | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~28 ms p95) |
 | `paradee-tts` | `paradee-tts:0.1.0` | Paradee-8M-v1.0 int8 ONNX (Kokoro distillation) | sentence-chunked |
-
-`-thor` / `-orin` tags point at the same image as the version tag (both cubin sets are baked).
 
 ## Quick start
 
@@ -39,8 +37,8 @@ make verify-all
 make smoke-all
 
 # 4) run something
-docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data futureproofhomes/wyoming-faster-whisper-thor:0.1.0
-docker run --runtime nvidia --rm --entrypoint stt-transcribe futureproofhomes/nemotron-unified-asr-thor:0.1.0 /audio/x.wav
+docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.0
+docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
 ```
 
 On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
@@ -78,7 +76,7 @@ finalization latency, memory, energy via tegrastats, gate checks, Pareto front).
 |---|---|---|---|
 | `lint.yml` | push/PR | `ubuntu-latest` | pre-commit (shellcheck, hadolint, ruff, yaml/json checks) |
 | `build-smoke.yml` | `workflow_dispatch` | `[self-hosted, jetson]` | build matrix + arch verification (+ optional GPU smoke) |
-| `publish.yml` | tag `v*` | `[self-hosted, jetson]` | build + push all `futureproofhomes/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
+| `publish.yml` | tag `v*` | `[self-hosted, jetson]` | build + push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
 
 ## Licenses
 

@@ -3,7 +3,7 @@
 # Waits (never kills) if the GPU is busy. Usage: ./smoke_stt.sh <image>
 set -euo pipefail
 IMAGE="${1:?usage: smoke_stt.sh <image>}"
-AUDIO="/home/narandill/jetson-containers/task/nexus-data/smoke_tts_16k.wav"
+AUDIO="/home/narandill/jetson-containers/task/voice-data/smoke_tts_16k.wav"
 [ -f "$AUDIO" ] || { echo "missing $AUDIO"; exit 1; }
 RUNTIME=(--runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1)   # env only needed pre-JP7.2.1-upgrade
 

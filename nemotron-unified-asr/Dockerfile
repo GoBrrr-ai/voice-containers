@@ -13,7 +13,7 @@ ARG BASE_IMAGE=nvidia/cuda:13.2.1-runtime-ubuntu24.04
 # Shared parakeet.cpp runtime dist (GGML, sm_87+sm_110a native cubins + PTX).
 # DECOUPLING CONTRACT: this ARG is the only external artifact reference in this
 # file — override it (own registry build / vendored dist) and nothing else changes.
-ARG PARAKEET_DIST_IMAGE=futureproofhomes/edge-builder:parakeet-cpp
+ARG PARAKEET_DIST_IMAGE=narandill/edge-builder:parakeet-cpp
 
 # --- model fetch stage (keeps curl out of the final image) -------------------
 FROM ${BASE_IMAGE} AS models

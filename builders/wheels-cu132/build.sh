@@ -3,7 +3,7 @@
 # the original build -> replays from BuildKit cache in seconds when available.
 set -euo pipefail
 cd "$(dirname "$0")"
-TAG="${TAG:-futureproofhomes/edge-wheels:cu132}"
+TAG="${TAG:-narandill/edge-wheels:cu132}"
 docker build --target builder -t "$TAG" .
 echo "Done: $TAG"
 echo "Wheels:"

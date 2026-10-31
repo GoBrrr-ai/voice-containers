@@ -1,6 +1,6 @@
 name: publish
 
-# Push all images to Docker Hub under futureproofhomes/<project>.
+# Push all images to Docker Hub under narandill/<project>.
 # Requires repo secrets: DOCKERHUB_USER, DOCKERHUB_TOKEN.
 # Runs ONLY on version tags, on the Jetson runner (the images are aarch64).
 on:
@@ -11,7 +11,7 @@ jobs:
   publish:
     runs-on: [self-hosted, jetson]
     env:
-      DOCKER_REPO: futureproofhomes
+      DOCKER_REPO: narandill
     steps:
       - uses: actions/checkout@v4
       - name: Login to Docker Hub

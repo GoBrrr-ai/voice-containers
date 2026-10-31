@@ -107,8 +107,8 @@ not harness-level. The harness itself is deterministic.
 
 ## 6. Infrastructure
 
-- **38 `futureproofhomes/*` tags** built locally by `scripts/sweep-build.sh`
-  (2 shared builders + 9 engine projects, `-thor`/`-orin`/version/latest).
+- **38 `narandill/*` tags** built locally by `scripts/sweep-build.sh`
+  (2 shared builders + 9 engine projects, version + latest).
 - Shared builders replay from BuildKit cache; the parakeet builder now pins
   upstream SHA `2eac2e77…` (reproducible; carries the MelKernel GPU-stream fix).
 - Bench venv: `bench/.venv` (py3.14) — `datasets[audio]` + torchcodec for the

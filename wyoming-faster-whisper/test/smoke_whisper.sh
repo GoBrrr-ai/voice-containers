@@ -3,7 +3,7 @@
 # ready — first boot downloads the model into the /data volume).
 set -euo pipefail
 IMAGE="${1:?usage: smoke_whisper.sh <image>}"
-AUDIO="/home/narandill/jetson-containers/task/nexus-data/smoke_tts_16k.wav"
+AUDIO="/home/narandill/jetson-containers/task/voice-data/smoke_tts_16k.wav"
 [ -f "$AUDIO" ] || { echo "missing $AUDIO"; exit 1; }
 NAME_SUFFIX="$$"
 NAME="wyoming-faster-whisper-smoke-$$"
@@ -19,7 +19,7 @@ echo "[smoke] GPU check: ${USED:-0} MiB in use by co-tenants (proceeding)"
 docker ps -aq --filter "name=wyoming-faster-whisper-smoke" | xargs -r docker rm -f >/dev/null 2>&1 || true
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 docker run -d --name "$NAME" "${RUNTIME[@]}" -e WHISPER_ZEROCONF_NAME=wfws-$NAME_SUFFIX \
-  -v /home/narandill/jetson-containers/task/nexus-data:/data "$IMAGE" >/dev/null
+  -v /home/narandill/jetson-containers/task/voice-data:/data "$IMAGE" >/dev/null
 trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
 
 echo "[smoke] stt round trip (retries until ready; first boot downloads the model)"

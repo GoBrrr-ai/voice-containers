@@ -3,7 +3,7 @@
 **nvidia/nemotron-labs-unified-asr-0.6b** (OpenMDW-1.1, 25 EU languages) as an
 official **q8_0 GGUF** (895 MB) running on [mudler/parakeet.cpp](https://github.com/mudler/parakeet.cpp)
 (GGML) with **native sm_87 + sm_110a cubins and compute_110 PTX** baked by our
-shared builder (`futureproofhomes/edge-builder:parakeet-cpp`).
+shared builder (`narandill/edge-builder:parakeet-cpp`).
 
 Why GGUF and not ONNX: the RNNT/TDT architecture has **no ONNX export path**
 (optimum can't export it; vLLM/SGLang/TensorRT-LLM don't do RNNT), but the
@@ -30,12 +30,12 @@ Presets: 0.16/0.24/0.32/0.56/1.12/2.08 s (`--stream-latency` takes seconds). Off
 ```sh
 # OpenAI-compatible server (POST /v1/audio/transcriptions, WAV only)
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -p 8080:8080 \
-  futureproofhomes/nemotron-unified-asr-thor:0.1.0
+  narandill/nemotron-unified-asr:0.1.0
 
 # CLI batch/streaming
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm \
   -v /audio:/audio:ro --entrypoint stt-transcribe \
-  futureproofhomes/nemotron-unified-asr-thor:0.1.0 /audio/x.wav --json
+  narandill/nemotron-unified-asr:0.1.0 /audio/x.wav --json
 ```
 
 After the JP 7.2.1 upgrade drop `-e NVIDIA_DISABLE_REQUIRE=1`.

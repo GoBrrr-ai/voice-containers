@@ -3,7 +3,7 @@
 # Usage: ./smoke_llama.sh [image] [port]
 set -euo pipefail
 
-IMAGE="${1:-futureproofhomes/llama-cpp-thor:0.8.0}"
+IMAGE="${1:-narandill/llama-cpp:0.8.0}"
 PORT="${2:-18080}"
 NAME="llama-cpp-smoke"
 MODEL_DIR="${MODEL_DIR:-/home/narandill/jetson-containers/task/models}"

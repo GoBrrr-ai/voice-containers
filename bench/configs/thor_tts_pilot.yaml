@@ -1,7 +1,7 @@
 # TTS pilot — 3 sentences x 4 engines; validates adapters end to end before the 444-sent baseline.
 run_name: thor_tts_pilot
 task: tts
-device_label: jetson-agx-thor-128gb
+device_label: jetson-agx-128gb
 power_profile: default
 dataset:
   name: librispeech
@@ -14,30 +14,30 @@ normalizer: whisper_english
 cache_dir: datasets/cache
 engines:
   - name: kokoro
-    image: futureproofhomes/kokoro-tts-thor:0.1.0
+    image: narandill/kokoro-tts:0.1.0
     backends: [cuda]
     opts:
       model: /opt/kokoro/model_uint8.onnx
       voices: /opt/kokoro/voices-v1.0.bin
       voice: af_heart
   - name: ptts
-    image: futureproofhomes/phonon31m-tts-thor:0.1.0
+    image: narandill/phonon31m-tts:0.1.0
     backends: [cpu]
     opts:
       model: /models/phonon-31m-en
       lang: en
       quant: q8_0
   - name: paradee
-    image: futureproofhomes/paradee-tts-thor:0.1.0
+    image: narandill/paradee-tts:0.1.0
     backends: [cuda]
     opts:
       version: "1.0"
       quantized: true
   - name: piper
-    image: futureproofhomes/wyoming-piper1-tts-thor:0.1.0
+    image: narandill/wyoming-piper1-tts:0.1.0
     backends: [cuda]
     volumes:
-      - /home/narandill/jetson-containers/task/nexus-data:/data
+      - /home/narandill/jetson-containers/task/voice-data:/data
     opts:
       model_dir: /data/models/piper
       voice: en_US-libritts_r-medium

@@ -15,7 +15,7 @@ ARG BASE_IMAGE=nvidia/cuda:13.2.1-runtime-ubuntu24.04
 # sm_110a PTX; 75-minute source build, do NOT rebuild casually).
 # DECOUPLING CONTRACT: this ARG is the only external artifact reference in this
 # file — override it, or vendor the wheel and replace the COPY, to go standalone.
-ARG ORT_WHEEL_IMAGE=futureproofhomes/edge-wheels:cu132
+ARG ORT_WHEEL_IMAGE=narandill/edge-wheels:cu132
 
 # --- model fetch stage --------------------------------------------------------
 FROM ${BASE_IMAGE} AS models

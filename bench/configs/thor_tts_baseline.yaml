@@ -1,7 +1,7 @@
 # Thor TTS baseline — LibriTTS-R test.clean text, 500 sentences, seed 42
 run_name: thor_tts_baseline
 task: tts
-device_label: jetson-agx-thor-128gb
+device_label: jetson-agx-128gb
 power_profile: default
 dataset:
   name: librispeech  # v1 deviation: TTS text from librispeech transcripts (libritts-r fast-follow)
@@ -14,30 +14,30 @@ normalizer: whisper_english
 cache_dir: datasets/cache
 engines:
   - name: kokoro                  # int8 ONNX on our ORT-GPU build
-    image: futureproofhomes/kokoro-tts-thor:0.1.0
+    image: narandill/kokoro-tts:0.1.0
     backends: [cuda]
     opts:
       model: /opt/kokoro/model_uint8.onnx
       voices: /opt/kokoro/voices-v1.0.bin
       voice: af_heart
   - name: ptts                    # phonon-31m (CPU-only by design; TTFA champ)
-    image: futureproofhomes/phonon31m-tts-thor:0.1.0
+    image: narandill/phonon31m-tts:0.1.0
     backends: [cpu]
     opts:
       model: /models/phonon-31m-en
       lang: en
       quant: q8_0
   - name: paradee                 # 8.6MB int8 Kokoro distillation
-    image: futureproofhomes/paradee-tts-thor:0.1.0
+    image: narandill/paradee-tts:0.1.0
     backends: [cuda, cpu]
     opts:
       version: "1.0"
       quantized: true
   - name: piper                   # the wave-1 TTS baseline
-    image: futureproofhomes/wyoming-piper1-tts-thor:0.1.0
+    image: narandill/wyoming-piper1-tts:0.1.0
     backends: [cuda]
     volumes:
-      - /home/narandill/jetson-containers/task/nexus-data:/data
+      - /home/narandill/jetson-containers/task/voice-data:/data
     opts:
       model_dir: /data/models/piper
       voice: en_US-libritts_r-medium

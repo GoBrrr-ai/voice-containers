@@ -16,11 +16,11 @@ FLEURS-25 WER 10.56 — *beats* the full parakeet-v3 it was distilled from.
 
 ```sh
 # GPU q8 (default)
-docker run ... futureproofhomes/parakeet-redux-stt-thor:0.1.0
+docker run ... narandill/parakeet-redux-stt:0.1.0
 
 # Ultra-light CPU packed (~0.35 GB RSS, frees the GPU for the LLM)
 docker run ... -e PARAKEET_DEVICE=cpu -e PARAKEET_MODEL=/models/redux-packed.gguf \
-  futureproofhomes/parakeet-redux-stt-thor:0.1.0
+  narandill/parakeet-redux-stt:0.1.0
 ```
 
 ## Streaming
@@ -35,10 +35,10 @@ streaming use the sibling `nemotron-unified-asr` image (same binary).
 ```sh
 # OpenAI-compatible server
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -p 8080:8080 \
-  futureproofhomes/parakeet-redux-stt-thor:0.1.0
+  narandill/parakeet-redux-stt:0.1.0
 
 # CLI
-docker run ... --entrypoint stt-transcribe futureproofhomes/parakeet-redux-stt-thor:0.1.0 /audio/x.wav --json
+docker run ... --entrypoint stt-transcribe narandill/parakeet-redux-stt:0.1.0 /audio/x.wav --json
 ```
 
 ## Env

@@ -15,12 +15,12 @@ plain `ubuntu:24.04` base; the GPU stays free for the LLM.
 
 ```sh
 # HTTP streaming server (chunked WAV; frames written as generated)
-docker run --rm -p 8880:8880 futureproofhomes/phonon31m-tts-thor:0.1.0
+docker run --rm -p 8880:8880 narandill/phonon31m-tts:0.1.0
 curl "http://localhost:8880/say?text=Hello%20from%20Thor." -o speech.wav   # streams
 
 # CLI
 docker run --rm -v /data:/data --entrypoint ptts-say \
-  futureproofhomes/phonon31m-tts-thor:0.1.0 "Hello from Jetson Thor." -o /data/x.wav
+  narandill/phonon31m-tts:0.1.0 "Hello from Jetson Thor." -o /data/x.wav
 ```
 
 ## Library use (recommended for the assistant)

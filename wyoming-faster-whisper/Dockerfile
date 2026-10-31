@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# wyoming-faster-whisper (standalone) — the STT half of nexus-wyoming.
+# wyoming-faster-whisper (standalone) — the STT half of the former combined wyoming image.
 # wyoming 1.10.2 + wyoming-faster-whisper 3.8.1 + faster-whisper 1.2.1 on OUR
 # CTranslate2 4.8.4 build (sm_87 + sm_110 SASS/PTX, CUDA 13.2 SBSA).
 # Same WHISPER_* env contract as the combined image -> HA config drop-in.
 # =============================================================================
 ARG BASE_IMAGE=nvidia/cuda:13.2.1-runtime-ubuntu24.04
 # DECOUPLING CONTRACT: only external artifact reference (shared wheels builder).
-ARG WHEELS_IMAGE=futureproofhomes/edge-wheels:cu132
+ARG WHEELS_IMAGE=narandill/edge-wheels:cu132
 
 # Shared wheels enter as a stage (BuildKit does not expand vars in --from).
 FROM ${WHEELS_IMAGE} AS wheels

@@ -9,7 +9,7 @@ One binary serves three engine images (only the baked GGUF differs):
 `nemotron-unified-asr`, `parakeet-redux-stt`, `phonon2-stt`.
 
 ```sh
-docker build -t futureproofhomes/edge-builder:parakeet-cpp .
+docker build -t narandill/edge-builder:parakeet-cpp .
 ```
 
 Toolchain mirrors the proven llama.cpp build: gcc-11 CUDA host compiler,
