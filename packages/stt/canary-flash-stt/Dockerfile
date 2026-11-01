@@ -17,7 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
         "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8.tar.bz2" \
     && tar -xjf canary.tar.bz2 \
     && mkdir -p /models/canary-flash \
-    && cp sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8/{encoder.int8.onnx,decoder.int8.onnx,tokens.txt} /models/canary-flash/ \
+    && for F in encoder.int8.onnx decoder.int8.onnx tokens.txt; do \
+        cp "sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8/$F" /models/canary-flash/; \
+    done \
     && rm -rf /tmp/canary
 
 FROM ubuntu:24.04

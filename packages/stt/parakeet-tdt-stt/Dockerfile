@@ -18,7 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
         "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2" \
     && tar -xjf tdt.tar.bz2 \
     && mkdir -p /models/parakeet-tdt-v3 \
-    && cp sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/{encoder.int8.onnx,decoder.int8.onnx,joiner.int8.onnx,tokens.txt} /models/parakeet-tdt-v3/ \
+    && for F in encoder.int8.onnx decoder.int8.onnx joiner.int8.onnx tokens.txt; do \
+        cp "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/$F" /models/parakeet-tdt-v3/; \
+    done \
     && rm -rf /tmp/tdt
 
 FROM ubuntu:24.04

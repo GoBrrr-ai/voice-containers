@@ -26,12 +26,33 @@ RUN python3 -m venv /opt/venv \
     # PyPI aarch64: pure-python wheel; torch is pulled as a CPU wheel.
     && /opt/venv/bin/pip install --no-cache-dir pocket-tts==4.0.1
 
+# oneDNN's aarch64 JIT (Xbyak_aarch64) aborts on the Thor CPU with
+# "label is redefined" (torch 2.15.0) — disable the oneDNN path globally.
+# Re-test with a newer torch before removing (E9). NOTE: must go to the
+# STDLIB dir — a venv site-packages sitecustomize.py is shadowed by
+# Ubuntu's apport hook in /usr/lib/python3.12.
+RUN printf '%s\n' \
+    '# apport hook (Ubuntu default) + oneDNN aarch64 JIT workaround' \
+    'try:' \
+    '    import apport_python_hook' \
+    'except ImportError:' \
+    '    pass' \
+    'else:' \
+    '    apport_python_hook.install()' \
+    '' \
+    'try:' \
+    '    import torch' \
+    '    torch.backends.mkldnn.enabled = False' \
+    'except Exception:' \
+    '    pass' \
+    > /usr/lib/python3.12/sitecustomize.py
+
 # Bake the model: a real generation downloads + caches weights and voices
 # under HF_HOME (offline OK afterwards). Default language bundle: english.
 ENV HF_HOME=/opt/hf-cache \
     XDG_CACHE_HOME=/opt/hf-cache/xdg
 RUN /opt/venv/bin/pocket-tts generate --text "Warm up the Pocket TTS cache." \
-        --output /tmp/warm.wav --language english \
+        --output-path /tmp/warm.wav --language english \
     && du -sh /opt/hf-cache && rm -f /tmp/warm.wav
 
 ENV PATH="/opt/venv/bin:${PATH}"

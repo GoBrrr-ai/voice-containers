@@ -1,16 +1,18 @@
 #!/opt/venv/bin/python3
 """Nemotron Speech Streaming EN 0.6B — streaming transcription.
 
-Usage: nemotron-stream-transcribe <wav> [-o out.txt] [--chunk-ms 160]
+Usage: nemotron-stream-transcribe <wav> [-o out.txt]
 
-The 160 ms latency profile is baked into the graph: audio MUST be fed in
-160 ms chunks (2560 samples @ 16 kHz) — other chunking silently drops
-audio. This helper simulates the live feed from a file; for a real-time
-source, keep the same chunking and decode whenever recognizer.is_ready().
+Canonical feed: the whole utterance + 0.2 s tail padding; the graph does
+its own cache-aware chunking per the baked 160 ms latency profile (never
+pre-chunk the audio yourself — wrong boundaries silently drop audio).
+For a live source, feed audio as it arrives and decode whenever
+recognizer.is_ready(stream) — same pipeline, no manual chunking.
 """
 import argparse
 import os
 
+import numpy as np
 import sherpa_onnx
 import soundfile as sf
 
@@ -18,7 +20,6 @@ import soundfile as sf
 def main() -> None:
     ap = argparse.ArgumentParser(description="Nemotron Speech Streaming EN 0.6B STT (int8)")
     ap.add_argument("wav")
-    ap.add_argument("--chunk-ms", type=int, default=160)
     ap.add_argument("-o", "--out", default="")
     args = ap.parse_args()
 
@@ -39,21 +40,15 @@ def main() -> None:
         pcm = soxr.resample(pcm, sr, 16000)
         sr = 16000
 
-    chunk = int(os.environ.get("NEMOSTREAM_CHUNK_SAMPLES", 2560))
-    if args.chunk_ms != 160:  # other profiles need their own baked graphs
-        raise SystemExit("only the baked 160 ms profile is supported; rebuild with that tar")
-
     stream = recognizer.create_stream()
-    step = chunk
-    for i in range(0, len(pcm), step):
-        stream.accept_waveform(sr, pcm[i : i + step])
-        while recognizer.is_ready(stream):
-            recognizer.decode_stream(stream)
+    stream.accept_waveform(sr, pcm)
+    stream.accept_waveform(sr, np.zeros(int(0.2 * sr), dtype=np.float32))
     stream.input_finished()
     while recognizer.is_ready(stream):
         recognizer.decode_stream(stream)
 
-    text = recognizer.get_result(stream).text.strip()
+    result = recognizer.get_result(stream)
+    text = (result if isinstance(result, str) else result.text).strip()
     print(text)
     if args.out:
         with open(args.out, "w") as f:

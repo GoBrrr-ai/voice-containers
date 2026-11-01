@@ -4,8 +4,9 @@
 #
 # Cache-aware streaming FastConformer RNNT (English), the best streaming ASR
 # design in its class. INT8 sherpa-onnx export, 160 ms lookahead latency
-# profile BAKED into the graph — feed exactly 160 ms chunks (2560 samples
-# @ 16 kHz); other chunking silently drops audio. Encoder 653 MB int8.
+# profile BAKED into the graph — sherpa's stream API does the internal
+# chunking; never pre-chunk the audio yourself (wrong boundaries silently
+# drop audio). Encoder 653 MB int8.
 # NVIDIA Open Model License. CPU-only (no aarch64 CUDA-13 sherpa build).
 #
 # NOTE: we also ship nemotron-unified-asr (parakeet.cpp GGUF) — this is the
@@ -49,8 +50,6 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     NEMOSTREAM_ENCODER=/models/nemotron-streaming-160ms/encoder.int8.onnx \
     NEMOSTREAM_DECODER=/models/nemotron-streaming-160ms/decoder.int8.onnx \
     NEMOSTREAM_JOINER=/models/nemotron-streaming-160ms/joiner.int8.onnx \
-    NEMOSTREAM_VOCAB=/models/nemotron-streaming-160ms/tokens.txt \
-    # 160 ms chunks @ 16 kHz — must match the baked latency profile.
-    NEMOSTREAM_CHUNK_SAMPLES=2560
+    NEMOSTREAM_VOCAB=/models/nemotron-streaming-160ms/tokens.txt
 
 CMD ["nemotron-stream-transcribe", "--help"]

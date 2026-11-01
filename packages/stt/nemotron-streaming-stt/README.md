@@ -5,10 +5,10 @@ cache-aware streaming FastConformer RNNT, the best streaming ASR design in
 the report. INT8 encoder 653 MB + decoder 7.3 + joiner 1.7 MB.
 
 - **True native streaming** with a baked latency profile: this image ships
-  the **160 ms lookahead** export — feed exactly 160 ms chunks (2560
-  samples @ 16 kHz) or audio is silently dropped. 80/560/1120 ms profiles
-  are separate tars (rebuild with one if a different latency/accuracy
-  trade-off is wanted).
+  the **160 ms lookahead** export — the graph does its own cache-aware
+  chunking; feed audio via sherpa's stream API and decode when ready (never
+  pre-chunk the audio yourself). 80/560/1120 ms profiles are separate tars
+  (rebuild with one if a different latency/accuracy trade-off is wanted).
 - Not related to our `nemotron-unified-asr` package (that is the
   non-streaming 0.6B unified model on parakeet.cpp GGUF; this is the
   streaming RNNT on sherpa-onnx).
