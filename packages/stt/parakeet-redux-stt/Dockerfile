@@ -18,7 +18,8 @@ ARG BASE_IMAGE=nvidia/cuda:13.2.1-runtime-ubuntu24.04
 ARG PARAKEET_DIST_IMAGE=narandill/edge-builder:parakeet-cpp
 
 FROM ${BASE_IMAGE} AS models
-ARG GGUF_BASE_URL=https://huggingface.co/mudler/parakeet-cpp-gguf/resolve/main
+# Pinned GGUF repo revision — resolve/main would silently pick up new quants.
+ARG GGUF_BASE_URL=https://huggingface.co/mudler/parakeet-cpp-gguf/resolve/07a08a3a405d20c5434b9a1442f6e6cf571f57ad
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /models \

@@ -28,10 +28,10 @@ engines:
       lang: en
       quant: q8_0
   - name: paradee
-    image: narandill/paradee-tts:0.1.0
+    image: narandill/paradee-tts:0.2.0
     backends: [cuda]
     opts:
-      version: "1.0"
+      version: "1.2"
       quantized: true
   - name: piper
     image: narandill/wyoming-piper1-tts:0.1.0

@@ -123,7 +123,7 @@ pre-commit run --all-files
 `task/` (gitignored) is the workspace — **start at `task/README.md`** (30-second
 map) whose index is `task/wiki/README.md`: benchmarking, engines, platform,
 memory/VRAM, Orin Nano deployment, experiment log, decision log, archive map.
-Read it before re-researching anything: the deferred experiment queue (E1–E8)
+Read it before re-researching anything: the deferred experiment queue (E1–E9)
 lives in `task/orin-nano-8gb-plan.md`, the TRT report in
 `task/research-trt-vram.md`, and topic research (each with a `summary.md`)
 under `task/research/`. Quick search:

@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# paradee-tts 0.1.0 — sahilmahendrakar/Paradee-8M-v1.0 (Apache-2.0, 8.07M)
+# paradee-tts 0.2.0 — sahilmahendrakar/Paradee-8M-v1.2 (Apache-2.0, 7.88M)
 #
-# 8.6 MB int8 ONNX distillation of Kokoro-82M (UTMOS 4.41, EN WER 0.71).
+# 8.5 MB int8 ONNX distillation of Kokoro-82M — FOUR voices: af_heart,
+# bf_isabella, am_puck, bm_fable (af_heart: UTMOS 4.40, WER 5.8%).
 # Runs on OUR onnxruntime-gpu 1.31.1 (sm_87 + sm_110a); CPU fallback is the
-# safe default (int8 graph = 18x realtime on one thread).
+# safe default (int8 graph ≈ 62x realtime on one thread, upstream card).
 #
 # No native streaming in the graph (whole-utterance synthesis, TTFA ~1 s) —
 # the paradee-stream helper implements sentence-chunked streaming. Model is
@@ -22,14 +23,15 @@ ARG ORT_WHEEL_IMAGE=narandill/edge-wheels:cu132
 FROM ${ORT_WHEEL_IMAGE} AS ort-wheels
 
 # --- paradee source (git stays out of the final image) ------------------------
+# Pinned: not on PyPI; tag v1.2 == main HEAD == aae3cc4 (2026-10-25).
 FROM ${BASE_IMAGE} AS paradee-src
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && git clone --depth 1 https://github.com/sahilmahendrakar/paradee /src/paradee
+    && git clone --depth 1 --branch v1.2 https://github.com/sahilmahendrakar/paradee /src/paradee
 
 FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.title="paradee-tts" \
-      org.opencontainers.image.description="Paradee-8M-v1.0 int8 ONNX (Kokoro distillation) on onnxruntime-gpu 1.31.1 (sm_87+sm_110); JP 7.2.1 CUDA 13.2 SBSA" \
+      org.opencontainers.image.description="Paradee-8M-v1.2 int8 ONNX (Kokoro distillation, 4 voices) on onnxruntime-gpu 1.31.1 (sm_87+sm_110); JP 7.2.1 CUDA 13.2 SBSA" \
       org.opencontainers.image.source="https://github.com/sahilmahendrakar/paradee"
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -56,14 +58,18 @@ RUN python3 -m venv /opt/venv \
     && rm -rf /tmp/onnxruntime* /tmp/paradee \
     && chmod +x /usr/local/bin/paradee-say /usr/local/bin/paradee-stream
 
-# Bake the model: warm-run a real synthesis for Paradee-8M-v1.0 (int8) so the
-# onnx weights AND misaki's G2P dictionary data land in the caches (offline OK).
+# Bake the model: warm-run real syntheses for Paradee-8M-v1.2 (int8) so the
+# onnx weights AND misaki's G2P dictionary data land in the caches (offline
+# OK). Two voices on purpose — af_heart (American) + bf_isabella (British):
+# misaki's G2P dictionaries load lazily PER ACCENT, and the bf_/bm_ voices
+# need the British one.
 # Runs on the CPU EP (build stage has no GPU need).
 ENV HF_HOME=/opt/hf-cache \
     XDG_CACHE_HOME=/opt/hf-cache/xdg \
-    PARADEE_MODEL_VERSION=1.0
-RUN /opt/venv/bin/paradee "Warm up the Paradee cache." -o /tmp/warm.wav --model-version 1.0 \
-    && du -sh /opt/hf-cache && rm -f /tmp/warm.wav
+    PARADEE_MODEL_VERSION=1.2
+RUN /opt/venv/bin/paradee "Warm up the Paradee cache." -o /tmp/warm1.wav --model-version 1.2 --voice af_heart \
+    && /opt/venv/bin/paradee "Warm up the Paradee cache." -o /tmp/warm2.wav --model-version 1.2 --voice bf_isabella \
+    && du -sh /opt/hf-cache && rm -f /tmp/warm1.wav /tmp/warm2.wav
 
 ENV PATH="/opt/venv/bin:${PATH}"
 
