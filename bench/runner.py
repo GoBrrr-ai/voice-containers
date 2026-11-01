@@ -38,6 +38,8 @@ KNOWN_KEYS = {
     "output_dir",
     "gpu_free_threshold_mib",
     "gpu_wait_minutes",
+    "gpu_util_threshold_pct",
+    "gpu_confirm_samples",
 }
 
 
@@ -63,26 +65,58 @@ def _gpu_used_mib() -> int:
         return 0
 
 
+def _gpu_busy_pct() -> int:
+    """GPU utilization percent (0 when nvidia-smi is absent).
+
+    Memory alone is not enough: a co-tenant holding GBs of KV cache but
+    idling passes a memory-only gate, then bursts with continuous batching
+    and corrupts RTF/TTFA mid-run. Utilization catches the bursts.
+    """
+    try:
+        out = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=utilization.gpu",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        ).stdout
+        return max(int(x) for x in out.split() if x.strip().isdigit())
+    except Exception:
+        return 0
+
+
 def _wait_for_free_gpu(
     threshold_mib: int,
     wait_minutes: float,
     confirm: int = 6,
     poll_s: float = 2.0,
+    util_threshold_pct: int = 10,
 ) -> None:
     """Co-tenancy policy (mjolnir-style clean window): never measure on a busy GPU.
 
-    The window counts as clean only after ``confirm`` CONSECUTIVE samples
-    below the threshold (a single lucky sample between co-tenant bursts
-    doesn't). If it never opens within ``wait_minutes``, DEFER (hard error)
-    rather than produce contaminated timings. Other processes are never
-    killed.
+    A sample is clean only when BOTH the GPU memory held by compute apps is
+    below ``threshold_mib`` AND utilization is below ``util_threshold_pct``.
+    The window counts as clean only after ``confirm`` CONSECUTIVE clean
+    samples (a single lucky sample between co-tenant bursts doesn't). If it
+    never opens within ``wait_minutes``, DEFER (hard error) rather than
+    produce contaminated timings. Other processes are never killed.
     """
-    used = _gpu_used_mib()
-    if used < threshold_mib:
-        print(f"[runner] GPU clean ({used} MiB in use, threshold {threshold_mib})")
+
+    def _sample() -> tuple[int, int]:
+        return _gpu_used_mib(), _gpu_busy_pct()
+
+    used, util = _sample()
+    if used < threshold_mib and util < util_threshold_pct:
+        print(
+            f"[runner] GPU clean ({used} MiB held, {util}% util — thresholds "
+            f"{threshold_mib} MiB / {util_threshold_pct}%)"
+        )
         return
     print(
-        f"[runner] GPU busy ({used} MiB in use) — waiting up to "
+        f"[runner] GPU busy ({used} MiB held, {util}% util) — waiting up to "
         f"{wait_minutes:.0f} min for a clean window "
         f"({confirm} consecutive samples @ {poll_s:.0f}s)"
     )
@@ -90,19 +124,19 @@ def _wait_for_free_gpu(
     streak = 0
     while time.monotonic() < deadline:
         time.sleep(poll_s)
-        used = _gpu_used_mib()
-        if used < threshold_mib:
+        used, util = _sample()
+        if used < threshold_mib and util < util_threshold_pct:
             streak += 1
             if streak >= confirm:
                 print(
-                    f"[runner] clean window confirmed ({used} MiB, "
+                    f"[runner] clean window confirmed ({used} MiB, {util}% util, "
                     f"{streak} consecutive samples) — proceeding"
                 )
                 return
         else:
             streak = 0
     _fail(
-        f"GPU still busy ({used} MiB >= {threshold_mib} MiB threshold) after "
+        f"GPU still busy ({used} MiB held, {util}% util) after "
         f"{wait_minutes:.0f} min — deferred. Re-run when the GPU is free."
     )
 
@@ -194,9 +228,7 @@ def docker_stats_sampler(
                     # container's ACTIVE file cache (the model just read),
                     # which is exactly the ~1 GB of noise we're excluding
                     anon = _container_anon_mib(container)
-                    f.write(
-                        f"{time.perf_counter_ns() - t0},{cpu},{mem_used},,{anon}\n"
-                    )
+                    f.write(f"{time.perf_counter_ns() - t0},{cpu},{mem_used},,{anon}\n")
                     f.flush()
                     failures = 0
                 else:
@@ -342,6 +374,7 @@ def run_config(config_path: str) -> str:
             int(cfg.get("gpu_free_threshold_mib", 100000)),
             float(cfg.get("gpu_wait_minutes", 30)),
             confirm=int(cfg.get("gpu_confirm_samples", 6)),
+            util_threshold_pct=int(cfg.get("gpu_util_threshold_pct", 10)),
         )
     root = Path(config_path).resolve().parents[2]  # bench/configs/x.yaml -> repo root
     ts = time.strftime("%Y%m%d_%H%M%S")
