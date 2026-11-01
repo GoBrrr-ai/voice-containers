@@ -29,9 +29,7 @@ JSONL schema already carries their fields.
 | `paradee` | `narandill/paradee-tts` | cuda, cpu | int8 graph |
 | `piper` | `narandill/wyoming-piper1-tts` | cuda, cpu | `PiperVoice.synthesize_wav` |
 
-## Usage
-
-## Matrix, charts and README (spec §10 — mjolnir methodology)
+## Matrix, charts and README (spec §10)
 
 Every run appends one line per engine config to `benchmarks/history.jsonl`;
 baseline-class runs also publish their raw artifacts (no audio) to

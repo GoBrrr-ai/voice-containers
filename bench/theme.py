@@ -1,4 +1,4 @@
-"""Chart design system — one visual language, dark mode (mirrors mjolnir's).
+"""Chart design system — one visual language, dark mode.
 
 Static charts render the dark palette into ``assets/benchmarks/`` as 2x PNG.
 Color = identity, assigned per ENGINE FAMILY (never by rank): all parakeet.cpp

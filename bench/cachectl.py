@@ -1,14 +1,14 @@
 """Host page-cache management + the one-time, targeted NOPASSWD sudo grant
 that lets the benchmark runner clear it without a password prompt.
 
-Ported from mjolnir's ``cachectl``: the runner clears the host page cache
+The runner clears the host page cache
 (``sysctl -w vm.drop_caches=3``) right before each engine measurement so a
 warm file cache can't skew the memory numbers. That call needs root, so
 ``bench grant-permissions`` installs a *targeted* NOPASSWD grant — drop-caches
 only, **never full sudo** — as a single sudoers drop-in
 (``/etc/sudoers.d/edge-containers-drop-caches``). After that one install (one
 sudo password prompt) the cache clear runs passwordless on every run. A grant
-installed by another checkout under a different name (e.g. mjolnir's) is
+installed by another checkout is
 detected via ``sudo -n -l`` and reused.
 
 ``prepare_bench()`` is the "always-before" hook the runner calls before each
@@ -36,7 +36,7 @@ DROP_CACHES_CMD = f"{SYSCTL} -w {DROP_CACHES}"
 SUDOERS_DROPIN = "/etc/sudoers.d/edge-containers-drop-caches"
 
 # The rule is recognized in a `sudo -l` listing by the sysctl command + the
-# property name — so a grant installed under another name (mjolnir's) counts.
+# property name — so a grant installed under any drop-in name counts.
 _GRANTED_RE = re.compile(r"sysctl.*vm\.drop_caches")
 
 
