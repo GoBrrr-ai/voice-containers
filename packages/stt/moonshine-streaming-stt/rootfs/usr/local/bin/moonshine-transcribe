@@ -1,0 +1,45 @@
+#!/opt/venv/bin/python3
+"""Moonshine Streaming transcription. Usage: moonshine-transcribe <wav> [-o out.txt]
+
+Offline per-file path (transcribe_without_streaming). For live partials use
+the streaming API — Transcriber.create_stream() + stream.add_audio() (see
+the image README). Model: medium-streaming-en quantized .ort bundle.
+"""
+import argparse
+import os
+
+import soundfile as sf
+
+from moonshine_voice import Transcriber
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Moonshine Streaming STT (medium, en)")
+    ap.add_argument("wav")
+    ap.add_argument("-o", "--out", default="")
+    args = ap.parse_args()
+
+    pcm, sr = sf.read(args.wav, dtype="float32")
+    if pcm.ndim > 1:
+        pcm = pcm.mean(axis=1)
+    if sr != 16000:
+        import soxr
+
+        pcm = soxr.resample(pcm, sr, 16000)
+        sr = 16000
+
+    t = Transcriber(
+        model_path=os.environ.get("MOONSHINE_MODEL_DIR", "/models/moonshine-streaming-en"),
+        model_arch=int(os.environ.get("MOONSHINE_MODEL_ARCH", "5")),
+    )
+    text = t.transcribe_without_streaming(pcm, sr)
+    if not isinstance(text, str):  # segment list -> join
+        text = " ".join(getattr(s, "text", str(s)) for s in text)
+    print(text.strip())
+    if args.out:
+        with open(args.out, "w") as f:
+            f.write(text.strip() + "\n")
+
+
+if __name__ == "__main__":
+    main()

@@ -17,6 +17,11 @@ FAMILY_OF_PROJECT = {
     "wyoming-piper1-tts": "piper1-tts",
     "phonon31m-tts": "phonon-31m",
     "paradee-tts": "paradee",
+    "moonshine-streaming-stt": "moonshine",
+    "canary-flash-stt": "canary",
+    "parakeet-tdt-stt": "parakeet-tdt",
+    "nemotron-streaming-stt": "nemotron-streaming",
+    "pocket-tts": "pocket-tts",
 }
 
 # Color = identity, per engine FAMILY, consistent across every chart.
@@ -31,6 +36,11 @@ DEFAULT_FAMILY_COLORS = {
     "kokoro": "#009E73",  # green
     "phonon-31m": "#CC79A7",  # pink
     "paradee": "#F0E442",  # yellow
+    "moonshine": "#56B4E9",  # sky blue
+    "canary": "#8a7f2f",  # dark yellow (F0E442 is taken by paradee)
+    "parakeet-tdt": "#D55E00",  # vermillion
+    "nemotron-streaming": "#0072B2",  # blue
+    "pocket-tts": "#9467bd",  # purple
 }
 FAMILY_COLORS = {**DEFAULT_FAMILY_COLORS, **BRAND_COLORS}
 
@@ -51,6 +61,12 @@ MODEL_COLORS = {
     "paradee 8M int8 (CPU)": "#F0E442",  # same model — backend variant
     "piper1-tts libritts-r medium": "#41BDF5",  # Home Assistant blue (brand)
     "phonon-31m (CPU)": "#CC79A7",  # Okabe-Ito pink
+    "pocket-tts 100M": "#9467bd",  # purple
+    # new STT
+    "moonshine-streaming medium int8": "#56B4E9",  # sky blue
+    "canary-180m-flash int8": "#8a7f2f",  # dark yellow
+    "parakeet-tdt 0.6B v3 int8": "#D55E00",  # vermillion
+    "nemotron-streaming 0.6B int8 (160 ms)": "#0072B2",  # blue
 }
 
 
@@ -67,6 +83,11 @@ EMOJI = {
     "piper1-tts": "🎺",
     "phonon-31m": "🌊",
     "paradee": "✨",
+    "moonshine": "🌙",
+    "canary": "🐤",
+    "parakeet-tdt": "🦜",
+    "nemotron-streaming": "🔊",
+    "pocket-tts": "🎒",
 }
 
 # Packages registry for the root README "Packages" tables (bench/readme.py
@@ -105,6 +126,26 @@ PACKAGES = {
     "paradee-tts": {
         "what": "Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices)",
         "streaming": "sentence-chunked",
+    },
+    "moonshine-streaming-stt": {
+        "what": "Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime)",
+        "streaming": "**native incremental** (live partials)",
+    },
+    "canary-flash-stt": {
+        "what": "NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X→EN) via sherpa-onnx",
+        "streaming": "VAD-chunked (opt-in)",
+    },
+    "parakeet-tdt-stt": {
+        "what": "NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx",
+        "streaming": "VAD-chunked (opt-in)",
+    },
+    "nemotron-streaming-stt": {
+        "what": "NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx",
+        "streaming": "**true native** (cache-aware, 160 ms chunks)",
+    },
+    "pocket-tts": {
+        "what": "Kyutai Pocket TTS 100M (official pkg) — streaming + voice cloning, 7 languages",
+        "streaming": "**true streaming** (~200 ms TTFA)",
     },
 }
 
@@ -160,5 +201,15 @@ def display(row: dict) -> str:
         return "paradee 8M int8 (GPU)" if backend == "cuda" else "paradee 8M int8 (CPU)"
     if proj == "wyoming-piper1-tts":
         return "piper1-tts libritts-r medium"
+    if proj == "moonshine-streaming-stt":
+        return "moonshine-streaming medium int8"
+    if proj == "canary-flash-stt":
+        return "canary-180m-flash int8"
+    if proj == "parakeet-tdt-stt":
+        return "parakeet-tdt 0.6B v3 int8"
+    if proj == "nemotron-streaming-stt":
+        return "nemotron-streaming 0.6B int8 (160 ms)"
+    if proj == "pocket-tts":
+        return "pocket-tts 100M"
     base = _model_base(row) or proj
     return f"{proj} · {base}"

@@ -1,0 +1,64 @@
+#!/opt/venv/bin/python3
+"""Nemotron Speech Streaming EN 0.6B — streaming transcription.
+
+Usage: nemotron-stream-transcribe <wav> [-o out.txt] [--chunk-ms 160]
+
+The 160 ms latency profile is baked into the graph: audio MUST be fed in
+160 ms chunks (2560 samples @ 16 kHz) — other chunking silently drops
+audio. This helper simulates the live feed from a file; for a real-time
+source, keep the same chunking and decode whenever recognizer.is_ready().
+"""
+import argparse
+import os
+
+import sherpa_onnx
+import soundfile as sf
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Nemotron Speech Streaming EN 0.6B STT (int8)")
+    ap.add_argument("wav")
+    ap.add_argument("--chunk-ms", type=int, default=160)
+    ap.add_argument("-o", "--out", default="")
+    args = ap.parse_args()
+
+    recognizer = sherpa_onnx.OnlineRecognizer.from_transducer(
+        encoder=os.environ["NEMOSTREAM_ENCODER"],
+        decoder=os.environ["NEMOSTREAM_DECODER"],
+        joiner=os.environ["NEMOSTREAM_JOINER"],
+        tokens=os.environ["NEMOSTREAM_VOCAB"],
+        num_threads=1,
+        provider="cpu",
+    )
+    pcm, sr = sf.read(args.wav, dtype="float32")
+    if pcm.ndim > 1:
+        pcm = pcm.mean(axis=1)
+    if sr != 16000:
+        import soxr
+
+        pcm = soxr.resample(pcm, sr, 16000)
+        sr = 16000
+
+    chunk = int(os.environ.get("NEMOSTREAM_CHUNK_SAMPLES", 2560))
+    if args.chunk_ms != 160:  # other profiles need their own baked graphs
+        raise SystemExit("only the baked 160 ms profile is supported; rebuild with that tar")
+
+    stream = recognizer.create_stream()
+    step = chunk
+    for i in range(0, len(pcm), step):
+        stream.accept_waveform(sr, pcm[i : i + step])
+        while recognizer.is_ready(stream):
+            recognizer.decode_stream(stream)
+    stream.input_finished()
+    while recognizer.is_ready(stream):
+        recognizer.decode_stream(stream)
+
+    text = recognizer.get_result(stream).text.strip()
+    print(text)
+    if args.out:
+        with open(args.out, "w") as f:
+            f.write(text + "\n")
+
+
+if __name__ == "__main__":
+    main()
