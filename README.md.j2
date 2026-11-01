@@ -1,7 +1,7 @@
 # edge-containers
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Jetson%20Orin-8A2BE2" alt="Platform: Jetson AGX Orin (sm_87)">
+  <img src="https://img.shields.io/badge/platform-Jetson%20Orin-eb6834" alt="Platform: Jetson AGX Orin (sm_87)">
   <img src="https://img.shields.io/badge/platform-Jetson%20Thor-8A2BE2" alt="Platform: Jetson AGX Thor (sm_110)">
   <img src="https://img.shields.io/badge/CUDA-13.2-76b900" alt="CUDA 13.2 SBSA">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
@@ -10,13 +10,10 @@
 <p align="center">
   <b>Production container images for NVIDIA Jetson edge GPUs</b> — a full streaming
   voice stack (speech recognition + synthesis) and a spec-driven benchmark harness.
-  One fat image per package serves <b>both boards</b> (native cubins for sm_87 +
-  sm_110a plus forward-compat PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1
+  One docker image per package serves <b>both boards</b> (native cubins for <code>sm_87</code> +
+  <code>sm_110a</code> plus forward-compat PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1
   userspace with the GPU driver injected from the host.
 </p>
-
-> Status: **local only** — nothing is on Docker Hub or GitHub yet. The publish
-> workflow activates when this repo is pushed and tagged.
 
 <p align="center">
   <a href="#engine-families">Families</a> •
@@ -33,6 +30,8 @@
 > Measured on **{{ ctx.device }}** ({{ ctx.power }} power) — every number below comes from
 the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks).
 
+### Speech-to-text
+
 {% if ctx.stt %}
 <table width="100%">
   <tr>
@@ -41,13 +40,15 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>{{ c.emoji }}&nbsp;{{ c.title }}</h3>
       <p>{{ c.desc }}</p>
-      <p>{%- for l in c.lines %}{{ l }}<br>{%- endfor %}</p>
       <br>
     </td>
   {%- endfor %}
   </tr>
 </table>
 {% endif %}
+
+### Text-to-speech
+
 {% if ctx.tts %}
 <table width="100%">
   <tr>
@@ -56,7 +57,6 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>{{ c.emoji }}&nbsp;{{ c.title }}</h3>
       <p>{{ c.desc }}</p>
-      <p>{%- for l in c.lines %}{{ l }}<br>{%- endfor %}</p>
       <br>
     </td>
   {%- endfor %}
@@ -78,7 +78,7 @@ disk); **anon MiB** is true process memory.
 
 {{ ctx.stt.table }}
 
-*{{ ctx.stt.n_utt }} utterances · {{ ctx.stt.n_configs }} configurations · 🥇 **{{ ctx.stt.winner }}** at **{{ ctx.stt.best_wer }} WER**
+> *{{ ctx.stt.n_utt }} utterances · {{ ctx.stt.n_configs }} configurations · 🥇 **{{ ctx.stt.winner }}** at **{{ ctx.stt.best_wer }} WER**
 (🥇🥈🥉 = composite top 3); fastest RTF p50
 **{{ ctx.stt.best_rtf }}**. Green = best in column, red = worst. GPU W is the
 tegrastats module draw over each engine's window; the packed-CPU engine has none
@@ -114,7 +114,7 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 
 {{ ctx.tts.table }}
 
-*{{ ctx.tts.n_sent }} sentences · {{ ctx.tts.n_configs }} configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
+> *{{ ctx.tts.n_sent }} sentences · {{ ctx.tts.n_configs }} configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
 **{{ ctx.tts.best_rtf }}**{% if ctx.tts.best_ttfa_ms %}; best TTFA p50 **{{ ctx.tts.best_ttfa_ms }} ms**
 (300 ms gate){% endif %}. TTFA = time to first audio: streaming engines report the first
 chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so
@@ -142,7 +142,7 @@ their TTFA equals the synth p50/p90.*
 </p>
 {% endif %}
 
-Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
+> Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
 {% endif %}
 
 ## Supported Hardware
@@ -201,7 +201,7 @@ docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyo
 docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
 ```
 
-On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
+> On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
 580.00 vs the baked 13.2 userspace — minor-version compatibility). After the host
 upgrade, drop the flag.
 
