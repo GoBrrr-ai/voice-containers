@@ -114,3 +114,16 @@ grep -ci "PRD\|narandill" README.md     # must be 0
 bash -n scripts/sweep-build.sh                 # after touching scripts
 pre-commit run --all-files
 ```
+
+## Task workspace & wiki
+
+`task/` (gitignored) is the workspace — **start at `task/README.md`** (30-second
+map) whose index is `task/wiki/README.md`: benchmarking, engines, platform,
+memory/VRAM, Orin Nano deployment, experiment log, decision log, archive map.
+Read it before re-researching anything: the deferred experiment queue (E1–E8)
+lives in `task/orin-nano-8gb-plan.md`, the TRT report in
+`task/research-trt-vram.md`, and topic research (each with a `summary.md`)
+under `task/research/`. Quick search:
+`grep -ril "<term>" task/ --include="*.md" | head`.
+`task/src/` contains upstream `.git` checkouts — never commit or COPY them
+into images.
