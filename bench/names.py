@@ -57,9 +57,8 @@ MODEL_COLORS = {
 def color(row: dict) -> str:
     """Identity color for a benchmark row: per model, fallback to the family
     hue for configs not in MODEL_COLORS."""
-    return MODEL_COLORS.get(display(row)) or FAMILY_COLORS.get(
-        family(row), "#0072B2"
-    )
+    return MODEL_COLORS.get(display(row)) or FAMILY_COLORS.get(family(row), "#0072B2")
+
 
 EMOJI = {
     "parakeet.cpp": "🦜",
@@ -70,24 +69,43 @@ EMOJI = {
     "paradee": "✨",
 }
 
-# short identity description per family (cards show no benchmark numbers)
-FAMILY_DESC = {
-    "parakeet.cpp": "one parakeet.cpp runtime, several q8_0 GGUF models",
-    "faster-whisper": "faster-whisper 1.2.1 on our CTranslate2 4.8.4 build",
-    "kokoro": "Kokoro-82M v1.0, int8 ONNX on onnxruntime-gpu",
-    "piper1-tts": "piper-tts 1.8.0 on our onnxruntime-gpu build",
-    "phonon-31m": "gradium/phonon-31m-en via the ptts runtime — CPU-only by design",
-    "paradee": "Paradee-8M v1.0 int8 ONNX — a Kokoro distillation",
-}
-
-# streaming behavior (from the project registry; shown in the family cards)
-STREAMING = {
-    "parakeet.cpp": "true buffered streaming (0.16–2.08 s chunks)",
-    "faster-whisper": "Wyoming streaming",
-    "kokoro": "create_stream()",
-    "piper1-tts": "Wyoming streaming",
-    "phonon-31m": "true streaming on CPU (307 MB)",
-    "paradee": "sentence-chunked",
+# Packages registry for the root README "Packages" tables (bench/readme.py
+# fills in image name + version from each package's build.sh, so versions can
+# never drift). Key = directory/image name under packages/<task>/; table rows
+# sort by (family, name). Golden rule: register every new package here.
+PACKAGES = {
+    "wyoming-faster-whisper": {
+        "what": "faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110)",
+        "streaming": "wyoming streaming",
+    },
+    "nemotron-unified-asr": {
+        "what": "nvidia nemotron-unified-asr 0.6B (q8_0) on parakeet.cpp",
+        "streaming": "**true buffered** (0.16–2.08 s)",
+    },
+    "parakeet-redux-stt": {
+        "what": "moondream parakeet-redux 178M (q8_0) GPU + packed CPU",
+        "streaming": "VAD-chunked (opt-in)",
+    },
+    "phonon2-stt": {
+        "what": "fermion phonon-2.5 (q8_0) GPU + packed CPU",
+        "streaming": "VAD-chunked (opt-in)",
+    },
+    "wyoming-piper1-tts": {
+        "what": "piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1",
+        "streaming": "wyoming streaming",
+    },
+    "kokoro-tts": {
+        "what": "Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a)",
+        "streaming": "`create_stream()`",
+    },
+    "phonon31m-tts": {
+        "what": "gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB)",
+        "streaming": "**true streaming** (TTFA ~76 ms p95)",
+    },
+    "paradee-tts": {
+        "what": "Paradee-8M-v1.0 int8 ONNX (Kokoro distillation)",
+        "streaming": "sentence-chunked",
+    },
 }
 
 
