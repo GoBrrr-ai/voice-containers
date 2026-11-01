@@ -16,58 +16,46 @@
 </p>
 
 <p align="center">
-  <a href="#engine-families">Families</a> •
-  <a href="#-benchmarks">Benchmarks</a> •
   <a href="#packages">Packages</a> •
+  <a href="#-benchmarks">Benchmarks</a> •
   <a href="#quick-start">Quick start</a> •
   <a href="#benchmarking">Benchmarking</a> •
   <a href="#ci">CI</a>
 </p>
 
+## Packages
+
+### Speech recognition (`packages/stt/`)
+
+{{ ctx.packages.stt }}
+
+### Speech synthesis (`packages/tts/`)
+
+{{ ctx.packages.tts }}
+
+## Supported Hardware
+
+One image per package serves **both boards** — native cubins for sm_87 and
+sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
+
+<table width="100%">
+  <thead>
+    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
+  </thead>
+  <tbody>
+    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
+    <tr><td align="center"><strong>compute capability</strong></td><td align="center">sm_110a + sm_110 PTX</td><td align="center">sm_87 + sm_87 PTX</td></tr>
+    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
+    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
+    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
+  </tbody>
+</table>
+
 {% if ctx.stt or ctx.tts %}
-## Engine families
-
-> Measured on **{{ ctx.device }}** ({{ ctx.power }} power) — every number below comes from
-the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks).
-
-### Speech-to-text
-
-{% if ctx.stt %}
-<table width="100%">
-  <tr>
-  {%- for c in ctx.stt.cards %}
-    <td width="{{ 100 // (ctx.stt.cards|length) }}%" valign="top" align="center">
-      <br>
-      <h3>{{ c.emoji }}&nbsp;{{ c.title }}</h3>
-      <p>{{ c.desc }}</p>
-      <br>
-    </td>
-  {%- endfor %}
-  </tr>
-</table>
-{% endif %}
-
-### Text-to-speech
-
-{% if ctx.tts %}
-<table width="100%">
-  <tr>
-  {%- for c in ctx.tts.cards %}
-    <td width="{{ 100 // (ctx.tts.cards|length) }}%" valign="top" align="center">
-      <br>
-      <h3>{{ c.emoji }}&nbsp;{{ c.title }}</h3>
-      <p>{{ c.desc }}</p>
-      <br>
-    </td>
-  {%- endfor %}
-  </tr>
-</table>
-{% endif %}
-
 ## 📊 Benchmarks
 
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
-by `bench plot --readme` — regenerate with `make bench-plot`. 
+by `bench plot --readme` — regenerate with `make bench-plot`.
 > Cohort: **{{ ctx.device }} · {{ ctx.power }} power · commit {{ ctx.commit }} · {{ ctx.date }}**.
 Charts: ★ marks the best engine for that chart's metric. Memory: **cgroup MiB**
 counts the container's active file cache too (the model was just read from
@@ -144,44 +132,6 @@ their TTFA equals the synth p50/p90.*
 
 > Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
 {% endif %}
-
-## Supported Hardware
-
-One image per package serves **both boards** — native cubins for sm_87 and
-sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
-
-<table width="100%">
-  <thead>
-    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
-  </thead>
-  <tbody>
-    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
-    <tr><td align="center"><strong>compute capability</strong></td><td align="center">sm_110a + sm_110 PTX</td><td align="center">sm_87 + sm_87 PTX</td></tr>
-    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
-    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
-    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
-  </tbody>
-</table>
-
-## Packages
-
-### Speech recognition (`packages/stt/`)
-
-| Package | Image (`narandill/<name>`) | What it is | Streaming |
-|---|---|---|---|
-| `packages/stt/wyoming-faster-whisper` | `wyoming-faster-whisper:0.1.0` | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
-| `packages/stt/nemotron-unified-asr` | `nemotron-unified-asr:0.1.0` | nvidia nemotron-unified-asr 0.6B (q8_0) on parakeet.cpp | **true buffered** (0.16–2.08 s) |
-| `packages/stt/parakeet-redux-stt` | `parakeet-redux-stt:0.1.0` | moondream parakeet-redux 178M (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
-| `packages/stt/phonon2-stt` | `phonon2-stt:0.1.0` | fermion phonon-2.5 (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
-
-### Speech synthesis (`packages/tts/`)
-
-| Package | Image (`narandill/<name>`) | What it is | Streaming |
-|---|---|---|---|
-| `packages/tts/wyoming-piper1-tts` | `wyoming-piper1-tts:0.1.0` | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1 | wyoming streaming |
-| `packages/tts/kokoro-tts` | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a) | `create_stream()` |
-| `packages/tts/phonon31m-tts` | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~76 ms p95) |
-| `packages/tts/paradee-tts` | `paradee-tts:0.1.0` | Paradee-8M-v1.0 int8 ONNX (Kokoro distillation) | sentence-chunked |
 
 ## Quick start
 

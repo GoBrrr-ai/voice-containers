@@ -1,9 +1,9 @@
-"""README rendering from raw benchmark data (mirrors mjolnir's readme.py).
+"""README rendering from raw benchmark data.
 
 ``render_readme`` renders ``README.md`` from ``README.md.j2`` with:
-- ``ctx``          — headline numbers + per-task colored tables from history
+- ``ctx``          — headline numbers + per-task colored tables from history,
+                     plus the Packages tables (versions parsed from build.sh)
 - ``chart(name)``  — ``<img>`` resolved from assets/benchmarks/manifest.json
-- ``color(text, c)`` / ``good()`` / ``bad()`` — LaTeX colored table cells
 - ``root``         — relative asset prefix
 
 StrictUndefined: a missing key is a hard error, never a silent blank.
@@ -11,6 +11,7 @@ StrictUndefined: a missing key is a hard error, never a silent blank.
 
 from __future__ import annotations
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -26,7 +27,7 @@ GREY = "grey"
 
 
 def color(text: str, c: str = GREY) -> str:
-    """GitHub-renderable colored text (LaTeX math mode, as in mjolnir)."""
+    """GitHub-renderable colored text (LaTeX math mode)."""
     return rf"$\color{{{c}}}{{\text{{{text}}}}}$"
 
 
@@ -38,10 +39,11 @@ def bad(text: str) -> str:
     return color(text, RED)
 
 
-def _table(header: list[str], rows: list[list[str]]) -> str:
+def _table(header: list[str], rows: list[list[str]], align: str = "right") -> str:
+    sep = "--:" if align == "right" else "---"
     out = [
         "| " + " | ".join(header) + " |",
-        "|" + "|".join(["---"] + ["--:"] * (len(header) - 1)) + "|",
+        "|" + "|".join(["---"] + [sep] * (len(header) - 1)) + "|",
     ]
     out += ["| " + " | ".join(str(c) for c in r) + " |" for r in rows]
     return "\n".join(out)
@@ -123,28 +125,71 @@ def _metric_v(r: dict, k: str):
     return _matrix._metric(r, k)
 
 
-def _cards(rows: list[dict], task: str) -> list[dict]:
-    """Engine-family cards for the README showcase (one card per family)."""
-    fams: dict[str, list[dict]] = {}
-    for r in rows:
-        fams.setdefault(_names.family(r), []).append(r)
-    out = []
-    for fam, fam_rows in fams.items():
-        # identity only: model list (winner first); benchmark data lives in the tables.
-        # each model links to its project README (raw <a> — markdown links don't
-        # render inside the cards' HTML block)
-        lines = [
-            f'<a href="packages/{task}/{_names.project(r)}/">{_names.display(r)}</a>'
-            for r in sorted(fam_rows, key=lambda x: x.get("rank", 999))
+def _package_version(build_sh: Path) -> str:
+    """Image version from a package's build.sh — the single source of truth."""
+    m = re.search(r'VERSION="\$\{VERSION:-(?P<v>[^"}]+)\}"', build_sh.read_text())
+    if not m:
+        raise ValueError(f"cannot parse VERSION from {build_sh}")
+    return m.group("v")
+
+
+def _packages_table(rows: list[dict], task: str) -> str:
+    heads = [
+        "Package",
+        "Image (`narandill/<name>`)",
+        "Family",
+        "What it is",
+        "Streaming",
+    ]
+    body = [
+        [
+            f"[`{r['dir']}`](packages/{task}/{r['dir']}/)",
+            f"`{r['dir']}:{r['version']}`",
+            f"{r['emoji']} {r['family']}",
+            r["what"],
+            r["streaming"],
         ]
-        out.append(
-            {
-                "emoji": _names.EMOJI.get(fam, "🔧"),
-                "title": fam,
-                "desc": _names.FAMILY_DESC.get(fam, ""),
-                "lines": lines,
-            }
+        for r in rows
+    ]
+    return _table(heads, body, align="left")
+
+
+def collect_packages(bench_root: Path) -> dict[str, str]:
+    """Markdown Packages tables per task.
+
+    Image name + version are parsed from each package's ``build.sh`` (the
+    README can never drift from the build); descriptions and streaming notes
+    come from ``names.PACKAGES`` — every new package must be registered there.
+    ``packages/llm`` is outside the voice stack and not listed."""
+    root = Path(bench_root) / "packages"
+    dirs = {
+        task: sorted(
+            (d for d in (root / task).iterdir() if (d / "build.sh").exists()),
+            key=lambda d: (_names.family({"image": d.name}), d.name),
         )
+        for task in ("stt", "tts")
+    }
+    stale = set(_names.PACKAGES) - {d.name for ds in dirs.values() for d in ds}
+    if stale:
+        raise KeyError(f"names.PACKAGES entries with no package dir: {sorted(stale)}")
+    out: dict[str, str] = {}
+    for task, pkgs in dirs.items():
+        rows = []
+        for d in pkgs:
+            name = d.name
+            if name not in _names.PACKAGES:
+                raise KeyError(f"packages/{task}/{name} missing from names.PACKAGES")
+            fam = _names.family({"image": name})
+            rows.append(
+                {
+                    "dir": name,
+                    "version": _package_version(d / "build.sh"),
+                    "emoji": _names.EMOJI.get(fam, "🔧"),
+                    "family": fam,
+                    **_names.PACKAGES[name],
+                }
+            )
+        out[task] = _packages_table(rows, task)
     return out
 
 
@@ -156,6 +201,7 @@ def collect_context(bench_root: Path, include: str = "baseline") -> dict:
         "commit": (rows[0].get("git_commit", "") if rows else ""),
         "device": (rows[0].get("device_label", "") if rows else ""),
         "power": (rows[0].get("power_profile", "") if rows else ""),
+        "packages": collect_packages(bench_root),
         "stt": None,
         "tts": None,
     }
@@ -175,9 +221,7 @@ def collect_context(bench_root: Path, include: str = "baseline") -> dict:
         section = {
             "table": _colored_table(scored, task),
             "n_configs": len(scored),
-            "winner_id": winner.get("engine_id"),
             "winner": _names.display(winner),
-            "cards": _cards(scored, task),
         }
         if task == "stt":
             section["best_wer"] = f"{_metric_v(winner, 'wer') * 100:.2f}%"
@@ -201,7 +245,7 @@ def _manifest(bench_root: Path) -> dict:
     return json.loads(p.read_text()) if p.exists() else {}
 
 
-def _env(bench_root: Path, out_path: Path) -> jinja2.Environment:
+def _env(bench_root: Path) -> jinja2.Environment:
     manifest = _manifest(bench_root)
 
     def chart(name: str, alt: str = "", width: str = "100%") -> str:
@@ -216,13 +260,7 @@ def _env(bench_root: Path, out_path: Path) -> jinja2.Environment:
         autoescape=False,
         loader=jinja2.FileSystemLoader(str(bench_root)),
     )
-    env.globals.update(
-        chart=chart,
-        good=good,
-        bad=bad,
-        color=color,
-        ctx=None,  # set per-render
-    )
+    env.globals.update(chart=chart)
     return env
 
 
@@ -235,8 +273,8 @@ def render_readme(
     bench_root = Path(bench_root)
     template = template or bench_root / "README.md.j2"
     out = out or bench_root / "README.md"
-    env = _env(bench_root, out)
+    env = _env(bench_root)
     ctx = collect_context(bench_root, include)
     tpl = env.from_string(Path(template).read_text())
-    out.write_text(tpl.render(ctx=ctx, root=""))
+    out.write_text(tpl.render(ctx=ctx))
     return out
