@@ -1,7 +1,7 @@
 # edge-containers
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Jetson%20Orin-8A2BE2" alt="Platform: Jetson AGX Orin (sm_87)">
+  <img src="https://img.shields.io/badge/platform-Jetson%20Orin-eb6834" alt="Platform: Jetson AGX Orin (sm_87)">
   <img src="https://img.shields.io/badge/platform-Jetson%20Thor-8A2BE2" alt="Platform: Jetson AGX Thor (sm_110)">
   <img src="https://img.shields.io/badge/CUDA-13.2-76b900" alt="CUDA 13.2 SBSA">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
@@ -10,13 +10,10 @@
 <p align="center">
   <b>Production container images for NVIDIA Jetson edge GPUs</b> — a full streaming
   voice stack (speech recognition + synthesis) and a spec-driven benchmark harness.
-  One fat image per package serves <b>both boards</b> (native cubins for sm_87 +
-  sm_110a plus forward-compat PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1
+  One docker image per package serves <b>both boards</b> (native cubins for <code>sm_87</code> +
+  <code>sm_110a</code> plus forward-compat PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1
   userspace with the GPU driver injected from the host.
 </p>
-
-> Status: **local only** — nothing is on Docker Hub or GitHub yet. The publish
-> workflow activates when this repo is pushed and tagged.
 
 <p align="center">
   <a href="#engine-families">Families</a> •
@@ -33,6 +30,8 @@
 > Measured on **jetson-agx-thor-128gb** (default power) — every number below comes from
 the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks).
 
+### Speech-to-text
+
 
 <table width="100%">
   <tr>
@@ -40,18 +39,19 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🦜&nbsp;parakeet.cpp</h3>
       <p>one parakeet.cpp runtime, several q8_0 GGUF models</p>
-      <p><a href="packages/stt/nemotron-unified-asr/">nemotron-unified 0.6B q8_0</a><br><a href="packages/stt/phonon2-stt/">phonon-2.5 q8_0</a><br><a href="packages/stt/parakeet-redux-stt/">parakeet-redux 178M q8_0</a><br><a href="packages/stt/parakeet-redux-stt/">redux packed (CPU)</a><br></p>
       <br>
     </td>
     <td width="50%" valign="top" align="center">
       <br>
       <h3>⚡&nbsp;faster-whisper</h3>
       <p>faster-whisper 1.2.1 on our CTranslate2 4.8.4 build</p>
-      <p><a href="packages/stt/wyoming-faster-whisper/">faster-whisper tiny int8</a><br></p>
       <br>
     </td>
   </tr>
 </table>
+
+
+### Text-to-speech
 
 
 <table width="100%">
@@ -60,28 +60,24 @@ the committed raw artifacts; full tables and charts in [Benchmarks](#-benchmarks
       <br>
       <h3>🗣️&nbsp;kokoro</h3>
       <p>Kokoro-82M v1.0, int8 ONNX on onnxruntime-gpu</p>
-      <p><a href="packages/tts/kokoro-tts/">kokoro 82M int8</a><br></p>
       <br>
     </td>
     <td width="25%" valign="top" align="center">
       <br>
       <h3>✨&nbsp;paradee</h3>
       <p>Paradee-8M v1.0 int8 ONNX — a Kokoro distillation</p>
-      <p><a href="packages/tts/paradee-tts/">paradee 8M int8 (CPU)</a><br><a href="packages/tts/paradee-tts/">paradee 8M int8 (GPU)</a><br></p>
       <br>
     </td>
     <td width="25%" valign="top" align="center">
       <br>
       <h3>🎺&nbsp;piper1-tts</h3>
       <p>piper-tts 1.8.0 on our onnxruntime-gpu build</p>
-      <p><a href="packages/tts/wyoming-piper1-tts/">piper1-tts libritts-r medium</a><br></p>
       <br>
     </td>
     <td width="25%" valign="top" align="center">
       <br>
       <h3>🌊&nbsp;phonon-31m</h3>
       <p>gradium/phonon-31m-en via the ptts runtime — CPU-only by design</p>
-      <p><a href="packages/tts/phonon31m-tts/">phonon-31m (CPU)</a><br></p>
       <br>
     </td>
   </tr>
@@ -108,7 +104,7 @@ disk); **anon MiB** is true process memory.
 | parakeet-redux-stt | redux packed (CPU) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0668 | 0.1001 | 0.4241 | $\color{#f85149}{\text{0.8946}}$ | 1,101 | 730 | — (CPU) |
 | wyoming-faster-whisper | faster-whisper tiny int8 | cuda | $\color{#f85149}{\text{0.0721}}$ | $\color{#f85149}{\text{0.0279}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0118}}$ | $\color{#3fb950}{\text{0.0179}}$ | $\color{#3fb950}{\text{0.0748}}$ | $\color{#3fb950}{\text{0.1375}}$ | 616 | 561 | 14 |
 
-*500 utterances · 5 configurations · 🥇 **nemotron-unified 0.6B q8_0** at **1.77% WER**
+> *500 utterances · 5 configurations · 🥇 **nemotron-unified 0.6B q8_0** at **1.77% WER**
 (🥇🥈🥉 = composite top 3); fastest RTF p50
 **0.012**. Green = best in column, red = worst. GPU W is the
 tegrastats module draw over each engine's window; the packed-CPU engine has none
@@ -150,7 +146,7 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 | wyoming-piper1-tts | piper1-tts libritts-r medium | cuda | 0.0406 | 0.1210 | 0.1884 | 0.2413 | 0.1884 | 0.2413 | 1,158 | 1,099 | 26 |
 | phonon31m-tts | phonon-31m (CPU) | cpu | 0.1119 | 0.1216 | 0.6763 | 1.9760 | $\color{#3fb950}{\text{0.0663}}$ | $\color{#3fb950}{\text{0.0978}}$ | 512 | 498 | — (CPU) |
 
-*444 sentences · 5 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
+> *444 sentences · 5 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
 **0.019**; best TTFA p50 **66 ms**
 (300 ms gate). TTFA = time to first audio: streaming engines report the first
 chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so
@@ -178,7 +174,7 @@ their TTFA equals the synth p50/p90.*
 </p>
 
 
-Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
+> Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
 
 
 ## Supported Hardware
@@ -237,7 +233,7 @@ docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyo
 docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
 ```
 
-On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
+> On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
 580.00 vs the baked 13.2 userspace — minor-version compatibility). After the host
 upgrade, drop the flag.
 
