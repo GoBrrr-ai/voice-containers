@@ -3,7 +3,8 @@
 # Usage: ./smoke_stt.sh <image>
 set -euo pipefail
 IMAGE="${1:?usage: smoke_stt.sh <image>}"
-AUDIO="/home/narandill/edge-containers/task/voice-data/smoke_tts_16k.wav"
+REPO="$(cd "$(dirname "$0")/../../../.." && pwd)"
+AUDIO="$REPO/task/voice-data/smoke_tts_16k.wav"
 [ -f "$AUDIO" ] || { echo "missing $AUDIO"; exit 1; }
 
 echo "[smoke] 1/2 transcription en->en (canary-transcribe)"

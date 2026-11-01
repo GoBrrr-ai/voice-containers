@@ -7,7 +7,7 @@ OUT="$(mktemp -d /tmp/pocket-smoke-XXXXXX)"
 
 echo "[smoke] 1/2 CLI generation (pocket-tts generate)"
 docker run --rm -v "$OUT":/data --entrypoint pocket-tts "$IMAGE" \
-  generate --text "Hello from Jetson Thor." --output /data/pocket_cli.wav
+  generate --text "Hello from Jetson Thor." --output-path /data/pocket_cli.wav
 S=$(stat -c%s "$OUT/pocket_cli.wav"); echo "[smoke] wav: $S bytes"
 [ "$S" -gt 50000 ] || { echo "[smoke] FAIL: wav too small"; exit 1; }
 

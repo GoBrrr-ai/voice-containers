@@ -10,7 +10,7 @@ import os
 
 import soundfile as sf
 
-from moonshine_voice import Transcriber
+from moonshine_voice import ModelArch, Transcriber
 
 
 def main() -> None:
@@ -30,12 +30,14 @@ def main() -> None:
 
     t = Transcriber(
         model_path=os.environ.get("MOONSHINE_MODEL_DIR", "/models/moonshine-streaming-en"),
-        model_arch=int(os.environ.get("MOONSHINE_MODEL_ARCH", "5")),
+        model_arch=ModelArch(int(os.environ.get("MOONSHINE_MODEL_ARCH", "5"))),
     )
-    text = t.transcribe_without_streaming(pcm, sr)
-    if not isinstance(text, str):  # segment list -> join
-        text = " ".join(getattr(s, "text", str(s)) for s in text)
-    print(text.strip())
+    res = t.transcribe_without_streaming(pcm.tolist(), sr)
+    lines = getattr(res, "lines", None) or []
+    text = " ".join(getattr(l, "text", "") for l in lines).strip()
+    if not text:  # older shape fallback
+        text = str(getattr(res, "text", "") or "").strip()
+    print(text)
     if args.out:
         with open(args.out, "w") as f:
             f.write(text.strip() + "\n")

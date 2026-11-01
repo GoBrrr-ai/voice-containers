@@ -141,7 +141,7 @@ PACKAGES = {
     },
     "nemotron-streaming-stt": {
         "what": "NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx",
-        "streaming": "**true native** (cache-aware, 160 ms chunks)",
+        "streaming": "**true native** (cache-aware, graph-chunked)",
     },
     "pocket-tts": {
         "what": "Kyutai Pocket TTS 100M (official pkg) — streaming + voice cloning, 7 languages",

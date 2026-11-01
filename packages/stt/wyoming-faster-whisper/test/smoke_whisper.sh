@@ -3,7 +3,8 @@
 # ready — first boot downloads the model into the /data volume).
 set -euo pipefail
 IMAGE="${1:?usage: smoke_whisper.sh <image>}"
-AUDIO="/home/narandill/edge-containers/task/voice-data/smoke_tts_16k.wav"
+REPO="$(cd "$(dirname "$0")/../../../.." && pwd)"
+AUDIO="$REPO/task/voice-data/smoke_tts_16k.wav"
 [ -f "$AUDIO" ] || { echo "missing $AUDIO"; exit 1; }
 NAME_SUFFIX="$$"
 NAME="wyoming-faster-whisper-smoke-$$"

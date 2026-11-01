@@ -20,5 +20,5 @@ if [ "${1:-}" = "--push" ]; then
 fi
 
 echo "Done. Run e.g.:"
-echo "  docker run --rm -v /data:/data --entrypoint pocket-tts ${REPO}/pocket-tts:${VERSION} generate --text \"Hello\" -o /data/x.wav"
+echo "  docker run --rm -v /data:/data --entrypoint pocket-tts ${REPO}/pocket-tts:${VERSION} generate --text \"Hello\" --output-path /data/x.wav"
 echo "  docker run --rm -p 8000:8000 ${REPO}/pocket-tts:${VERSION} serve"
