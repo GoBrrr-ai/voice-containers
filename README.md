@@ -29,7 +29,11 @@
 
 | Package | Image (`narandill/<name>`) | Family | What it is | Streaming |
 |---|---|---|---|---|
+| [`canary-flash-stt`](packages/stt/canary-flash-stt/) | `canary-flash-stt:0.1.0` | 🐤 canary | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X→EN) via sherpa-onnx | VAD-chunked (opt-in) |
 | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | `wyoming-faster-whisper:0.1.0` | ⚡ faster-whisper | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
+| [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | `moonshine-streaming-stt:0.1.0` | 🌙 moonshine | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime) | **native incremental** (live partials) |
+| [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | `nemotron-streaming-stt:0.1.0` | 🔊 nemotron-streaming | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx | **true native** (cache-aware, 160 ms chunks) |
+| [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | `parakeet-tdt-stt:0.1.0` | 🦜 parakeet-tdt | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx | VAD-chunked (opt-in) |
 | [`nemotron-unified-asr`](packages/stt/nemotron-unified-asr/) | `nemotron-unified-asr:0.1.0` | 🦜 parakeet.cpp | nvidia nemotron-unified-asr 0.6B (q8_0) on parakeet.cpp | **true buffered** (0.16–2.08 s) |
 | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | `parakeet-redux-stt:0.1.0` | 🦜 parakeet.cpp | moondream parakeet-redux 178M (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
 | [`phonon2-stt`](packages/stt/phonon2-stt/) | `phonon2-stt:0.1.0` | 🦜 parakeet.cpp | fermion phonon-2.5 (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
@@ -42,6 +46,7 @@
 | [`paradee-tts`](packages/tts/paradee-tts/) | `paradee-tts:0.2.0` | ✨ paradee | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices) | sentence-chunked |
 | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | `phonon31m-tts:0.1.0` | 🌊 phonon-31m | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~76 ms p95) |
 | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | `wyoming-piper1-tts:0.1.0` | 🎺 piper1-tts | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1 | wyoming streaming |
+| [`pocket-tts`](packages/tts/pocket-tts/) | `pocket-tts:0.1.0` | 🎒 pocket-tts | Kyutai Pocket TTS 100M (official pkg) — streaming + voice cloning, 7 languages | **true streaming** (~200 ms TTFA) |
 
 ## Supported Hardware
 
@@ -181,8 +186,8 @@ upgrade, drop the flag.
 
 ```
 packages/             the images — packages/<stt|tts|llm>/<name>/
-  stt/                  speech recognition: wyoming-faster-whisper, nemotron-unified-asr, parakeet-redux-stt, phonon2-stt
-  tts/                  speech synthesis: wyoming-piper1-tts, kokoro-tts, phonon31m-tts, paradee-tts
+  stt/                  speech recognition: wyoming-faster-whisper, nemotron-unified-asr, parakeet-redux-stt, phonon2-stt, moonshine-streaming-stt, canary-flash-stt, parakeet-tdt-stt, nemotron-streaming-stt
+  tts/                  speech synthesis: wyoming-piper1-tts, kokoro-tts, phonon31m-tts, paradee-tts, pocket-tts
   llm/                  LLM runtime (outside the voice stack)
 builders/             shared artifact builders (wheels-cu132, parakeet-cpp) — not shipped
 bench/                spec-driven benchmark harness (datasets, engines, probes, metrics)

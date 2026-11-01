@@ -29,6 +29,11 @@ JSONL schema already carries their fields.
 | `paradee` | `narandill/paradee-tts` | cuda, cpu | int8 graph |
 | `piper` | `narandill/wyoming-piper1-tts` | cuda, cpu | `PiperVoice.synthesize_wav` |
 
+> The 2026-11 engines (moonshine-streaming-stt, canary-flash-stt,
+> parakeet-tdt-stt, nemotron-streaming-stt, pocket-tts) ship **without
+> adapters yet** — write them (and a config) when first benched; the images
+> already expose `*-transcribe` / `pocket-tts` CLIs the adapters can drive.
+
 ## Matrix, charts and README (spec §10)
 
 Every run appends one line per engine config to `benchmarks/history.jsonl`;

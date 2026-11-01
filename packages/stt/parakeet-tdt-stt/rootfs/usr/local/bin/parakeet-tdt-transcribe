@@ -1,0 +1,46 @@
+#!/opt/venv/bin/python3
+"""Parakeet TDT 0.6B v3 transcription (offline, per utterance, 25 languages).
+
+Usage: parakeet-tdt-transcribe <wav> [-o out.txt]
+
+Max ~20-30 s per pass; VAD-chunk longer audio upstream (see README).
+"""
+import argparse
+import os
+
+import sherpa_onnx
+import soundfile as sf
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Parakeet TDT 0.6B v3 STT (int8, sherpa-onnx)")
+    ap.add_argument("wav")
+    ap.add_argument("-o", "--out", default="")
+    args = ap.parse_args()
+
+    recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
+        encoder=os.environ["TDT_ENCODER"],
+        decoder=os.environ["TDT_DECODER"],
+        joiner=os.environ["TDT_JOINER"],
+        tokens=os.environ["TDT_VOCAB"],
+        num_threads=1,
+        provider="cpu",
+        decoding_method="greedy_search",
+        model_type="nemo_transducer",
+    )
+    pcm, sr = sf.read(args.wav, dtype="float32")
+    if pcm.ndim > 1:
+        pcm = pcm.mean(axis=1)
+
+    stream = recognizer.create_stream()
+    stream.accept_waveform(sr, pcm)
+    recognizer.decode_stream(stream)
+    text = stream.result.text.strip()
+    print(text)
+    if args.out:
+        with open(args.out, "w") as f:
+            f.write(text + "\n")
+
+
+if __name__ == "__main__":
+    main()
