@@ -103,7 +103,7 @@ PACKAGES = {
         "streaming": "**true streaming** (TTFA ~76 ms p95)",
     },
     "paradee-tts": {
-        "what": "Paradee-8M-v1.0 int8 ONNX (Kokoro distillation)",
+        "what": "Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices)",
         "streaming": "sentence-chunked",
     },
 }

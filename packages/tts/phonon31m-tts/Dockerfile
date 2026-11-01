@@ -6,17 +6,19 @@
 # aarch64 manylinux wheel (Rust "xn" engine). True streaming via
 # tts.stream() — TTFA p95 28.4 ms (Open TTS LB #1 on CPU), RTFx 16.26.
 #
-# Baked: model.q8.gguf (61.5 MB) + default-voice.safetensors + tokenizer files.
+# Baked: model.q8.gguf (64.5 MB) + default-voice.safetensors + tokenizer files.
 # RAM ~0.10-0.15 GB. Ships ptts (CLI) and tts-stream-server (chunked HTTP).
 # =============================================================================
 FROM ubuntu:24.04 AS models
+# Pinned: the upstream default voice silently changed to "Reuben" on
+# 2026-10-22 without a version bump — resolve/92741c5b freezes it.
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /models/phonon-31m-en && cd /models/phonon-31m-en \
     && for F in model.q8.gguf default-voice.safetensors config.json generation_config.json \
                 chat_template.jinja tokenizer.json tokenizer.model tokenizer.5.0.0.json \
                 tokenizer_config.json processor_config.json; do \
-        curl -fL --retry 5 -O "https://huggingface.co/gradium/phonon-31m-en/resolve/main/$F"; \
+        curl -fL --retry 5 -O "https://huggingface.co/gradium/phonon-31m-en/resolve/92741c5b07d085ff840e26fea8ce43110b87852f/$F"; \
     done
 
 FROM ubuntu:24.04

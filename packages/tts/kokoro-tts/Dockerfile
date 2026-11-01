@@ -18,14 +18,19 @@ ARG BASE_IMAGE=nvidia/cuda:13.2.1-runtime-ubuntu24.04
 ARG ORT_WHEEL_IMAGE=narandill/edge-wheels:cu132
 
 # --- model fetch stage --------------------------------------------------------
+# Pinned to the onnx-community repo revision (unchanged since 2025-02-08):
+# a resolve/main curl would silently pick up any future re-export.
+# voices-v1.0.bin is a GitHub release asset (re-uploaded 2026-08-19 with the
+# fixed graph contract) — verified by digest instead of a URL pin.
 FROM ${BASE_IMAGE} AS models
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/kokoro \
     && curl -fL --retry 5 -o /opt/kokoro/model_uint8.onnx \
-        "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model_uint8.onnx" \
+        "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/onnx/model_uint8.onnx" \
     && curl -fL --retry 5 -o /opt/kokoro/voices-v1.0.bin \
-        "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin"
+        "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin" \
+    && echo "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d  /opt/kokoro/voices-v1.0.bin" | sha256sum --check -
 
 # --- final ---------------------------------------------------------------------
 # Shared ort wheel enters as a stage (BuildKit does not expand vars in --from);

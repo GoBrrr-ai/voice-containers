@@ -27,11 +27,11 @@ engines:
       model: /models/phonon-31m-en
       lang: en
       quant: q8_0
-  - name: paradee                 # 8.6MB int8 Kokoro distillation
-    image: narandill/paradee-tts:0.1.0
+  - name: paradee                 # 8.5MB int8 Kokoro distillation (v1.2, 4 voices)
+    image: narandill/paradee-tts:0.2.0
     backends: [cuda, cpu]
     opts:
-      version: "1.0"
+      version: "1.2"
       quantized: true
   - name: piper                   # the wave-1 TTS baseline
     image: narandill/wyoming-piper1-tts:0.1.0

@@ -39,7 +39,7 @@
 | Package | Image (`narandill/<name>`) | Family | What it is | Streaming |
 |---|---|---|---|---|
 | [`kokoro-tts`](packages/tts/kokoro-tts/) | `kokoro-tts:0.1.0` | 🗣️ kokoro | Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a) | `create_stream()` |
-| [`paradee-tts`](packages/tts/paradee-tts/) | `paradee-tts:0.1.0` | ✨ paradee | Paradee-8M-v1.0 int8 ONNX (Kokoro distillation) | sentence-chunked |
+| [`paradee-tts`](packages/tts/paradee-tts/) | `paradee-tts:0.2.0` | ✨ paradee | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices) | sentence-chunked |
 | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | `phonon31m-tts:0.1.0` | 🌊 phonon-31m | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~76 ms p95) |
 | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | `wyoming-piper1-tts:0.1.0` | 🎺 piper1-tts | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1 | wyoming streaming |
 

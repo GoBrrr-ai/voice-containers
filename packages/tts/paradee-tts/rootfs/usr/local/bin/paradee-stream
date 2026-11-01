@@ -5,7 +5,12 @@ are generated). Usage: paradee-stream "long text..." [-o out.wav] [--voice V]
 
 Emits per-chunk timing so you can pipe frames to a player as they arrive.
 """
-import argparse, os, re, sys, time, wave
+import argparse
+import os
+import re
+import sys
+import time
+import wave
 
 import numpy as np
 from paradee import Paradee, SAMPLE_RATE
@@ -22,7 +27,7 @@ def main() -> None:
     ap.add_argument("-o", "--out", default="paradee_stream.wav")
     ap.add_argument("--voice", default="af_heart")
     a = ap.parse_args()
-    tts = Paradee(version=os.environ.get("PARADEE_MODEL_VERSION", "1.0"), quantized=True)
+    tts = Paradee(version=os.environ.get("PARADEE_MODEL_VERSION", "1.2"), quantized=True)
     t0 = time.perf_counter()
     w = wave.open(a.out, "wb")
     w.setnchannels(1); w.setsampwidth(2); w.setframerate(SAMPLE_RATE)
