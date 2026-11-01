@@ -1,4 +1,4 @@
-"""Append-only benchmark history (mirrors mjolnir's history.jsonl).
+"""Append-only benchmark history.
 
 Every ``bench run`` appends one line per (engine, backend) config to
 ``benchmarks/history.jsonl`` — ts, host, device, commit, run_id, config and

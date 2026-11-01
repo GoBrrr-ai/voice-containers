@@ -22,11 +22,14 @@ README, charts and result matrices from raw data.
    memory (≥100 GB held → wait ≤30 min → defer). Never kill co-tenants.
 4. **Use the bench venv.** The user's system `python3` lacks numpy/jinja2 —
    always run bench code with `bench/.venv/bin/python`.
-5. **No banned strings**: the pre-rename names (purged; git
-   history excepted) and `PRD` (say "spec"). The spec file
+5. **No banned strings**: the purged legacy project names never appear in any
+   tracked file — not even in this rule. The exact patterns live in the git
+   history (see the purge commit); grep `README.md` against them and it must
+   return 0. `PRD` is banned too — say "spec". The spec file
    `task/benchmark-prd.md` itself keeps its lowercase name.
-6. **`task/` is gitignored** and lives inside this repo. The old
-   `jetson-containers` clone keeps a compat symlink to it — don't delete.
+6. **`task/` is gitignored** and lives inside this repo. An older checkout
+   elsewhere on disk keeps a compat symlink to it — if you ever find a
+   symlink pointing into `task/`, don't delete it.
 7. **Engine ids are internal.** `parakeet_cpp_0…3`, `kokoro_0`, `piper_3` …
    are config indices. Anything user-visible (tables, charts, cards) uses the
    original project + model names via `bench/names.py` — add new projects
@@ -110,7 +113,7 @@ bench plot --readme
 
 ```bash
 make bench-plot                                # regenerates README.md + charts
-grep -ci "PRD\|narandill" README.md     # must be 0
+grep -ci "PRD" README.md                       # must be 0; purged legacy names too (rule 5)
 bash -n scripts/sweep-build.sh                 # after touching scripts
 pre-commit run --all-files
 ```

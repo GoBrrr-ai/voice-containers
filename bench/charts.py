@@ -1,4 +1,4 @@
-"""Chart generation from the benchmark history (mirrors mjolnir's charts.py).
+"""Chart generation from the benchmark history.
 
 ``render_all`` builds every chart that has data into
 ``assets/benchmarks/<task>/<name>.png`` (dark theme, 2x) and writes
@@ -9,13 +9,12 @@ Charts needing per-utterance data read the raw run dirs under
 
 from __future__ import annotations
 import json
-import time
 from pathlib import Path
 
 from . import matrix as _matrix
 from . import names as _names
 from . import theme
-from .theme import DARK, Mode, apply, footer, log_y_if_spanning, row_color
+from .theme import DARK, Mode, apply, footer, row_color
 
 DPI = 200  # 2x PNG per spec 10.3 (vs matplotlib's default 100)
 
@@ -71,8 +70,9 @@ def _best_id(rows, key, lower=True):
 
 def _title(ax, text: str, mode: Mode = DARK) -> None:
     """Consistent chart title: big, bold, left-aligned, light on dark."""
-    ax.set_title(text, loc="left", fontsize=15, fontweight="bold",
-                 color=mode.text, pad=22)
+    ax.set_title(
+        text, loc="left", fontsize=15, fontweight="bold", color=mode.text, pad=22
+    )
 
 
 def _backend_marker(row: dict) -> str:
@@ -107,9 +107,7 @@ def _pretty_dataset(row: dict) -> str:
         parts[0], parts[0].capitalize()
     )
     split = parts[1] if len(parts) > 1 else ""
-    task = row.get("task") or (
-        "stt" if "wer" in (row.get("metrics") or {}) else "tts"
-    )
+    task = row.get("task") or ("stt" if "wer" in (row.get("metrics") or {}) else "tts")
     n = (row.get("metrics") or {}).get("n")
     unit = "utts" if task == "stt" else "sents"
     out = f"{name} {split}" if split else name
@@ -255,10 +253,16 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     # p50 -> p90 spread per point
     def _whisker(axes, wer, rtf, p90):
         if p90 and p90 > rtf:
-            axes.plot([rtf, p90], [wer, wer], color=mode.text_dim,
-                      linewidth=1.2, alpha=0.7, zorder=2)
+            axes.plot(
+                [rtf, p90],
+                [wer, wer],
+                color=mode.text_dim,
+                linewidth=1.2,
+                alpha=0.7,
+                zorder=2,
+            )
 
-    for (r, wer, rtf) in pts:
+    for r, wer, rtf in pts:
         _whisker(ax, wer, rtf, _matrix._metric(r, "rtf_p90"))
 
     for (r, wer, rtf), mem in zip(pts, mems):
@@ -327,9 +331,7 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         colors.append(row_color(r))
     if not data:
         return None
-    best_i = min(
-        range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2]
-    )
+    best_i = min(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])
     labels = [_label(r, star=i == best_i) for i, r in enumerate(rows_used)]
     bp = ax.boxplot(
         data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
@@ -337,8 +339,9 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     _bold_stars(ax)
     for i, vals_i in enumerate(data):
         p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
-        ax.plot([p90, p90], [i + 0.75, i + 1.25],
-                color=mode.green, linewidth=1.8, zorder=4)
+        ax.plot(
+            [p90, p90], [i + 0.75, i + 1.25], color=mode.green, linewidth=1.8, zorder=4
+        )
     for patch, c in zip(bp["boxes"], colors):
         patch.set_facecolor(c)
         patch.set_alpha(0.75)
@@ -431,14 +434,20 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
     )
     for i, p90 in enumerate(p90s):
         if p90:
-            ax.plot([p90, p90], [i - 0.28, i + 0.28],
-                    color=mode.text, linewidth=1.6, alpha=0.85, zorder=4)
+            ax.plot(
+                [p90, p90],
+                [i - 0.28, i + 0.28],
+                color=mode.text,
+                linewidth=1.6,
+                alpha=0.85,
+                zorder=4,
+            )
     if any(p90s):
         ax.plot([], [], color=mode.text, linewidth=1.6, label="p90")
-        ax.legend(loc="lower right", frameon=False, fontsize=8,
-                  labelcolor=mode.text_dim)
-    ax.set_xlim(min(v for v in rtfs if v > 0) * 0.8,
-                max(max(rtfs), max(p90s)) * 1.25)
+        ax.legend(
+            loc="lower right", frameon=False, fontsize=8, labelcolor=mode.text_dim
+        )
+    ax.set_xlim(min(v for v in rtfs if v > 0) * 0.8, max(max(rtfs), max(p90s)) * 1.25)
     _title(ax, "Speech synthesis — real-time factor")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
@@ -512,9 +521,7 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         colors.append(row_color(r))
     if not data:
         return None
-    best_i = min(
-        range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2]
-    )
+    best_i = min(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])
     labels = [_label(r, star=i == best_i) for i, r in enumerate(rows_used)]
     bp = ax.boxplot(
         data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
@@ -522,8 +529,9 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     _bold_stars(ax)
     for i, vals_i in enumerate(data):
         p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
-        ax.plot([p90, p90], [i + 0.75, i + 1.25],
-                color=mode.green, linewidth=1.8, zorder=4)
+        ax.plot(
+            [p90, p90], [i + 0.75, i + 1.25], color=mode.green, linewidth=1.8, zorder=4
+        )
     for patch, c in zip(bp["boxes"], colors):
         patch.set_facecolor(c)
         patch.set_alpha(0.75)
@@ -596,7 +604,9 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
     raw_vals, labels = [], []
     for r in sorted(rows, key=lambda x: x.get("rank", 999)):
         raw_vals.append([_matrix._metric(r, k) for k in metric_keys])
-        labels.append(_label(r, star=r.get("rank") == 1))  # aggregate view -> composite winner
+        labels.append(
+            _label(r, star=r.get("rank") == 1)
+        )  # aggregate view -> composite winner
     if len(raw_vals) < 2:
         return None
     grid = []
@@ -617,8 +627,10 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
         else dict(w=1.9, cw=1.55, h=1.2, ch=0.55, tick=8.5, ylab=8.5, cell=7.5, cb=7)
     )
     fig, ax = plt.subplots(
-        figsize=(geom["w"] + geom["cw"] * len(metric_keys),
-                 geom["h"] + geom["ch"] * len(labels))
+        figsize=(
+            geom["w"] + geom["cw"] * len(metric_keys),
+            geom["h"] + geom["ch"] * len(labels),
+        )
     )
     apply(fig, ax)
     im = ax.imshow(g, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
@@ -653,15 +665,26 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
             # pale yellow/green mid tones was unreadable
             rgba = im.cmap(im.norm(g[i][j]))  # g: configs × metrics (transposed)
             lum = 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]
-            ax.text(j, i, txt, ha="center", va="center", fontsize=geom["cell"],
-                    color=mode.bg if lum > 0.55 else mode.text)
+            ax.text(
+                j,
+                i,
+                txt,
+                ha="center",
+                va="center",
+                fontsize=geom["cell"],
+                color=mode.bg if lum > 0.55 else mode.text,
+            )
     ax.grid(False)
     cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
     cb.ax.tick_params(colors=mode.text_dim, labelsize=geom["cb"])
     cb.set_label("normalized score (1 = best)", color=mode.text_dim, fontsize=8)
-    _title(ax, "Speech "
-           + ("recognition" if task == "stt" else "synthesis")
-           + " — normalized metric heatmap", mode)
+    _title(
+        ax,
+        "Speech "
+        + ("recognition" if task == "stt" else "synthesis")
+        + " — normalized metric heatmap",
+        mode,
+    )
     _footer_common(fig, rows, extra=" · green = better (direction-aware)")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     return fig
@@ -702,8 +725,13 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
         d = out_dir / task
         d.mkdir(parents=True, exist_ok=True)
         p = d / f"{name}.png"
-        fig.savefig(p, dpi=DPI, facecolor=fig.get_facecolor(),
-                    bbox_inches="tight", pad_inches=0.2)
+        fig.savefig(
+            p,
+            dpi=DPI,
+            facecolor=fig.get_facecolor(),
+            bbox_inches="tight",
+            pad_inches=0.2,
+        )
         plt.close(fig)
         manifest.setdefault(name, []).append(
             {"task": task, "dark": str(p.relative_to(bench_root))}

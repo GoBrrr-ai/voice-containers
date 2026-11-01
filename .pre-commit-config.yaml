@@ -26,4 +26,9 @@ repos:
     rev: 1.8.2
     hooks:
       - id: bandit
-        args: ["--skip=B101", "-q"]
+        # Local CLI harness, not a service: B404/B603/B607 (subprocess is the
+        # job — docker, sysctl, probes; no shell=True anywhere), B110 (best-
+        # effort cleanup), B311 (dataset sampling, not crypto), B104 (the TTS
+        # server binds 0.0.0.0 inside a container), B701 (jinja renders local
+        # markdown from committed data, never untrusted HTML input).
+        args: ["--skip=B101,B104,B110,B311,B404,B603,B607,B701", "-q"]

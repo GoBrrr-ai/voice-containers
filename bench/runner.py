@@ -95,7 +95,7 @@ def _wait_for_free_gpu(
     poll_s: float = 2.0,
     util_threshold_pct: int = 10,
 ) -> None:
-    """Co-tenancy policy (mjolnir-style clean window): never measure on a busy GPU.
+    """Co-tenancy policy (clean-window): never measure on a busy GPU.
 
     A sample is clean only when BOTH the GPU memory held by compute apps is
     below ``threshold_mib`` AND utilization is below ``util_threshold_pct``.
@@ -402,7 +402,7 @@ def run_config(config_path: str) -> str:
         env_rec["config"] = cfg  # full resolved config, for provenance
         (out / "env.json").write_text(json.dumps(env_rec, indent=2))
 
-        # page-cache drop right before measuring (mjolnir cachectl): a warm
+        # page-cache drop right before measuring (cachectl): a warm
         # file cache inflates the container memory numbers. Automatic — runs
         # passwordlessly with the grant, silently skips without it.
         from . import cachectl
@@ -431,7 +431,7 @@ def run_config(config_path: str) -> str:
                 first_job = False
                 # cold page cache per measurement — without this the previous
                 # engine's model files sit in cache and inflate the next one's
-                # cgroup memory reading (mjolnir cachectl; silent sans grant)
+                # cgroup memory reading (cachectl; silent sans grant)
                 from . import cachectl
 
                 cachectl.prepare_bench(quiet=i > 0 or bi > 0)

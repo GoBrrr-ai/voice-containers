@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 import json
-import sys
 from pathlib import Path
 
 import typer
@@ -74,8 +73,8 @@ def report(run_dir: str):
 def grant_permissions(yes: bool = typer.Option(False, "--yes", "-y")):
     """Install the NOPASSWD sudo grant for the page-cache clear (one prompt).
 
-    Idempotent: a present grant (even one installed by another checkout, e.g.
-    mjolnir's) is detected and left untouched. Adds ONLY
+    Idempotent: a present grant (even one installed by another checkout) is
+    detected and left untouched. Adds ONLY
     `sysctl -w vm.drop_caches=3` — never full sudo."""
     from . import cachectl
 
@@ -106,7 +105,7 @@ def drop_caches():
 def plot(readme: bool = True, include: str = "baseline"):
     """Render all charts (+ README.md with --readme) from benchmarks/history.jsonl.
 
-    Mirrors mjolnir's `plot --readme`: charts render dark-theme 2x PNGs into
+    Charts render dark-theme 2x PNGs into
     assets/benchmarks/ with a manifest; the README is rendered from
     README.md.j2 (StrictUndefined). Never re-runs inference.
     """

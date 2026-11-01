@@ -1,12 +1,12 @@
 # Build architecture (JP 7.2.1 fleet, sm_87 + sm_110)
 
-**Status:** 2026-10-31 · This repo is the single source of truth (migrated from the jetson-containers working branch).
+**Status:** 2026-10-31 · This repo is the single source of truth (migrated from the previous working branch).
 
 ## Rules
 
-1. **No jetson-containers builder system.** No `#---` YAML Dockerfile headers,
-   nothing under `packages/`, and no `jetson-containers build` CLI anywhere —
-   every project is a plain `docker build` via its own `build.sh`.
+1. **No external builder framework.** No `#---` YAML Dockerfile headers and
+   no builder CLI anywhere — every project is a plain `docker build` via its
+   own `build.sh`.
 2. **Shared dependencies are allowed** but each must be a **self-contained
    builder project** under `builders/`, producing tagged artifact images.
 3. **Decoupling contract:** an engine image may reference shared artifacts
@@ -45,7 +45,7 @@ by the same image — sm_87 and sm_110 cubins are baked side by side).
 |---|---|
 | `ARG PARAKEET_DIST_IMAGE=narandill/edge-builder:parakeet-cpp` | DONE — `builders/parakeet-cpp/` (pinned ref, carries the MelKernel GPU-stream fix). To fully vendor: `COPY --from=builder /opt/parakeet-dist …` inline builder stage (identical stages across the 3 STT Dockerfiles share BuildKit cache). |
 | `ARG WHEELS_IMAGE=narandill/edge-wheels:cu132` | DONE — `builders/wheels-cu132/` replicates the original instruction stream byte-identically (BuildKit cache hit, no recompile). To fully vendor: copy the wheels out of the built image and `COPY` them. |
-| `nvidia/cuda:13.2.1-{devel,runtime}-ubuntu24.04` bases | Keep (upstream images, not JC) |
+| `nvidia/cuda:13.2.1-{devel,runtime}-ubuntu24.04` bases | Keep (upstream images) |
 
 ## Verification gates (every CUDA image)
 
