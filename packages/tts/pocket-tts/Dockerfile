@@ -24,28 +24,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 python3
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
     # PyPI aarch64: pure-python wheel; torch is pulled as a CPU wheel.
-    && /opt/venv/bin/pip install --no-cache-dir pocket-tts==4.0.1
-
-# oneDNN's aarch64 JIT (Xbyak_aarch64) aborts on the Thor CPU with
-# "label is redefined" (torch 2.15.0) — disable the oneDNN path globally.
-# Re-test with a newer torch before removing (E9). NOTE: must go to the
-# STDLIB dir — a venv site-packages sitecustomize.py is shadowed by
-# Ubuntu's apport hook in /usr/lib/python3.12.
-RUN printf '%s\n' \
-    '# apport hook (Ubuntu default) + oneDNN aarch64 JIT workaround' \
-    'try:' \
-    '    import apport_python_hook' \
-    'except ImportError:' \
-    '    pass' \
-    'else:' \
-    '    apport_python_hook.install()' \
-    '' \
-    'try:' \
-    '    import torch' \
-    '    torch.backends.mkldnn.enabled = False' \
-    'except Exception:' \
-    '    pass' \
-    > /usr/lib/python3.12/sitecustomize.py
+    # torch pinned to 2.14.1: the 2.15.0+cu132 wheel's bundled oneDNN
+    # v3.13.3 aborts on Neoverse V3AE (Xbyak_aarch64 "label is redefined")
+    # during generation — 2.14.1's oneDNN is fine (verified on-device).
+    # Re-test when NVIDIA ships a fixed aarch64 wheel (E9).
+    && /opt/venv/bin/pip install --no-cache-dir pocket-tts==4.0.1 'torch==2.14.1'
 
 # Bake the model: a real generation downloads + caches weights and voices
 # under HF_HOME (offline OK afterwards). Default language bundle: english.
