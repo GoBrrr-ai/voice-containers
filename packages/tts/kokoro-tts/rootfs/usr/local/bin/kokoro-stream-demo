@@ -1,7 +1,11 @@
 #!/opt/venv/bin/python3
 """Streaming demo: create_stream() async generator + time-to-first-audio.
 Usage: kokoro-stream-demo "text" [-o out.wav] [--voice V]"""
-import argparse, asyncio, os, time, wave
+import argparse
+import asyncio
+import os
+import time
+import wave
 
 import onnxruntime as rt
 from kokoro_onnx import Kokoro

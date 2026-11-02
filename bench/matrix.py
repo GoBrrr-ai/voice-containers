@@ -9,7 +9,6 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from . import probes as _probes
 from .history import read_history
 
 # v1 composite weights (spec 10.2; quality fields absent until 7.3 lands)
@@ -206,9 +205,6 @@ def score_cohort(rows: list[dict], task: str, preset: str = "default") -> list[d
             if not ok:
                 failed = True
                 r["gates"].append(f"{gname}={v:.4g} > {bound}")
-        if m_err := (_metric(r, "n") or 0) - (_metric(r, "n_ok") or 0):
-            if _metric(r, "n"):
-                pass
         r["gate_pass"] = not failed
     rows.sort(key=lambda r: -r["score"])
     for i, r in enumerate(rows, 1):
@@ -240,5 +236,3 @@ def score_cohort(rows: list[dict], task: str, preset: str = "default") -> list[d
     for r in rows:
         r["pareto"] = r["engine_id"] in pareto
     return rows
-
-

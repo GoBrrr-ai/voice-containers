@@ -100,7 +100,9 @@ class ParakeetCpp:
         return self.device or "cuda"
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
-        import subprocess, tempfile, os
+        import subprocess
+        import tempfile
+        import os
 
         if wav_path is None:
             fd, wav_path = tempfile.mkstemp(suffix=".wav")
@@ -141,9 +143,9 @@ class ParakeetCpp:
                 f"parakeet-cli exit {out.returncode}: {' | '.join(tail)}"
             )
         lines = [
-            l
-            for l in out.stdout.splitlines()
-            if l.strip() and not l.startswith("[stream]")
+            line
+            for line in out.stdout.splitlines()
+            if line.strip() and not line.startswith("[stream]")
         ]
         return " ".join(lines).strip()
 
@@ -325,7 +327,8 @@ class PiperTts:
         return "cuda" if self.use_cuda else "cpu"
 
     def synthesize(self, text: str):
-        import tempfile, wave
+        import tempfile
+        import wave
 
         fd, path = tempfile.mkstemp(suffix=".wav")
         os.close(fd)

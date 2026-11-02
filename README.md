@@ -29,10 +29,10 @@
 
 | Package | Image (`narandill/<name>`) | Family | What it is | Streaming |
 |---|---|---|---|---|
-| [`canary-flash-stt`](packages/stt/canary-flash-stt/) | `canary-flash-stt:0.1.0` | 🐤 canary | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X→EN) via sherpa-onnx | VAD-chunked (opt-in) |
+| [`canary-flash-stt`](packages/stt/canary-flash-stt/) | `canary-flash-stt:0.1.0` | 🐤 canary | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx | VAD-chunked (opt-in) |
 | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | `wyoming-faster-whisper:0.1.0` | ⚡ faster-whisper | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
 | [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | `moonshine-streaming-stt:0.1.0` | 🌙 moonshine | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime) | **native incremental** (live partials) |
-| [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | `nemotron-streaming-stt:0.1.0` | 🔊 nemotron-streaming | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx | **true native** (cache-aware, 160 ms chunks) |
+| [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | `nemotron-streaming-stt:0.1.0` | 🔊 nemotron-streaming | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx | **true native** (cache-aware, graph-chunked) |
 | [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | `parakeet-tdt-stt:0.1.0` | 🦜 parakeet-tdt | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx | VAD-chunked (opt-in) |
 | [`nemotron-unified-asr`](packages/stt/nemotron-unified-asr/) | `nemotron-unified-asr:0.1.0` | 🦜 parakeet.cpp | nvidia nemotron-unified-asr 0.6B (q8_0) on parakeet.cpp | **true buffered** (0.16–2.08 s) |
 | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | `parakeet-redux-stt:0.1.0` | 🦜 parakeet.cpp | moondream parakeet-redux 178M (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
@@ -71,7 +71,7 @@ sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
 
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
 by `bench plot --readme` — regenerate with `make bench-plot`.
-> Cohort: **jetson-agx-thor-128gb · default power · commit 44cdb56 · 2026-11-01**.
+> Cohort: **jetson-agx-thor-128gb · default power · commit 44cdb56 · 2026-11-02**.
 Charts: ★ marks the best engine for that chart's metric. Memory: **cgroup MiB**
 counts the container's active file cache too (the model was just read from
 disk); **anon MiB** is true process memory.

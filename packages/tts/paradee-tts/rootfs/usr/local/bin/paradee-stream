@@ -30,7 +30,9 @@ def main() -> None:
     tts = Paradee(version=os.environ.get("PARADEE_MODEL_VERSION", "1.2"), quantized=True)
     t0 = time.perf_counter()
     w = wave.open(a.out, "wb")
-    w.setnchannels(1); w.setsampwidth(2); w.setframerate(SAMPLE_RATE)
+    w.setnchannels(1)
+    w.setsampwidth(2)
+    w.setframerate(SAMPLE_RATE)
     n = 0
     for i, s in enumerate(sentences(a.text)):
         audio = tts(s, voice=a.voice)

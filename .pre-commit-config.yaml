@@ -3,10 +3,15 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
+      # Frozen artifacts are never auto-fixed: benchmarks/raw/* are the
+      # committed run records; *.patch are whitespace-sensitive by nature.
       - id: trailing-whitespace
+        exclude: '(^|/)benchmarks/raw/|\.patch'
       - id: end-of-file-fixer
+        exclude: '(^|/)benchmarks/raw/|\.patch'
       - id: check-yaml
       - id: check-json
+        exclude: '(^|/)benchmarks/raw/'
       - id: check-merge-conflict
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.10.0.1
@@ -17,6 +22,19 @@ repos:
     rev: v2.13.0-beta
     hooks:
       - id: hadolint-docker
+        # Accepted warning-class rules (style-level, repo-wide): DL3008/3013
+        # (unpinned apt/pip in rolling bases), DL3003 (cd in RUN), DL3025
+        # (CMD JSON form), DL3042 (pip cache), DL3059 (chained RUNs),
+        # DL4006 (pipefail), DL3001 (info). Any NEW rule id still fails.
+        args:
+          - --ignore=DL3008
+          - --ignore=DL3003
+          - --ignore=DL3013
+          - --ignore=DL3025
+          - --ignore=DL3042
+          - --ignore=DL3059
+          - --ignore=DL4006
+          - --ignore=DL3001
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:

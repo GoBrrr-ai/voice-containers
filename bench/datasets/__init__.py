@@ -4,7 +4,6 @@ handles resampling, normalization and manifest creation — adapters never do.""
 from __future__ import annotations
 import hashlib
 import json
-import os
 from pathlib import Path
 
 from ..common import Sample
@@ -75,7 +74,6 @@ class LibriSpeechAdapter(BaseAdapter):
         return f"openslr/librispeech_asr@{self._rev}"
 
     def iter_samples(self, split: str, language: str):
-        import numpy as np
         import soundfile as sf
         import soxr
 

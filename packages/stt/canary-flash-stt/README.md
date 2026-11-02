@@ -1,7 +1,7 @@
 # canary-flash-stt (Jetson sm_87 + sm_110, CPU int8)
 
 **NVIDIA Canary-180M-Flash** (CC-BY-4.0) — 17-layer FastConformer encoder +
-4-layer decoder, ~182M params, en/de/es/fr with ASR + X→EN translation.
+4-layer decoder, ~182M params, en/de/es/fr with ASR + X↔EN translation.
 LibriSpeech-other 2.87 WER, SPGI 1.95. The strongest ASR in its class that
 also fits a GPU budget (FP16 ~0.4 GB).
 
