@@ -29,11 +29,11 @@
 
 | Package | Image (`narandill/<name>`) | Family | What it is | Streaming |
 |---|---|---|---|---|
-| [`canary-flash-stt`](packages/stt/canary-flash-stt/) | `canary-flash-stt:0.1.0` | 🐤 canary | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx | VAD-chunked (opt-in) |
+| [`canary-flash-stt`](packages/stt/canary-flash-stt/) | `canary-flash-stt:0.2.0` | 🐤 canary | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx | VAD-chunked (opt-in) |
 | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | `wyoming-faster-whisper:0.1.0` | ⚡ faster-whisper | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
-| [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | `moonshine-streaming-stt:0.1.0` | 🌙 moonshine | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime) | **native incremental** (live partials) |
-| [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | `nemotron-streaming-stt:0.1.0` | 🔊 nemotron-streaming | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx | **true native** (cache-aware, graph-chunked) |
-| [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | `parakeet-tdt-stt:0.1.0` | 🦜 parakeet-tdt | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx | VAD-chunked (opt-in) |
+| [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | `moonshine-streaming-stt:0.2.0` | 🌙 moonshine | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime) | **native incremental** (live partials) |
+| [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | `nemotron-streaming-stt:0.2.0` | 🔊 nemotron-streaming | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx | **true native** (cache-aware, graph-chunked) |
+| [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | `parakeet-tdt-stt:0.2.0` | 🦜 parakeet-tdt | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx | VAD-chunked (opt-in) |
 | [`nemotron-unified-asr`](packages/stt/nemotron-unified-asr/) | `nemotron-unified-asr:0.1.0` | 🦜 parakeet.cpp | nvidia nemotron-unified-asr 0.6B (q8_0) on parakeet.cpp | **true buffered** (0.16–2.08 s) |
 | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | `parakeet-redux-stt:0.1.0` | 🦜 parakeet.cpp | moondream parakeet-redux 178M (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
 | [`phonon2-stt`](packages/stt/phonon2-stt/) | `phonon2-stt:0.1.0` | 🦜 parakeet.cpp | fermion phonon-2.5 (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
@@ -46,7 +46,7 @@
 | [`paradee-tts`](packages/tts/paradee-tts/) | `paradee-tts:0.2.0` | ✨ paradee | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices) | sentence-chunked |
 | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | `phonon31m-tts:0.1.0` | 🌊 phonon-31m | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~76 ms p95) |
 | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | `wyoming-piper1-tts:0.1.0` | 🎺 piper1-tts | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1 | wyoming streaming |
-| [`pocket-tts`](packages/tts/pocket-tts/) | `pocket-tts:0.1.0` | 🎒 pocket-tts | Kyutai Pocket TTS 100M (official pkg) — streaming + voice cloning, 7 languages | **true streaming** (~200 ms TTFA) |
+| [`pocket-tts`](packages/tts/pocket-tts/) | `pocket-tts:0.2.0` | 🎒 pocket-tts | Kyutai Pocket TTS 100M (official pkg) — streaming + voice cloning, 7 languages | **true streaming** (~200 ms TTFA) |
 
 ## Supported Hardware
 
@@ -84,14 +84,19 @@ disk); **anon MiB** is true process memory.
 | 🥇 nemotron-unified-asr | nemotron-unified 0.6B q8_0 | cuda | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | 0.1126 | 0.2469 | 0.7162 | 0.8270 | 2,179 | 1,030 | 7 |
 | 🥈 canary-flash-stt | canary-180m-flash int8 | cpu | 0.0199 | 0.0055 | 0.2460 | $\color{#3fb950}{\text{0.0000}}$ | 0.1610 | 0.2283 | 0.9770 | 3.8869 | 777 | 766 | — (CPU) |
 | 🥉 phonon2-stt | phonon-2.5 q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.1093 | 0.2421 | 0.6962 | 0.8076 | 2,188 | 1,031 | 7 |
+| canary-flash-stt | canary-180m-flash int8 | cuda | 0.0202 | 0.0054 | 0.2440 | $\color{#3fb950}{\text{0.0000}}$ | 0.1330 | 0.1842 | 0.8078 | 3.1153 | 1,347 | 1,101 | 8 |
+| moonshine-streaming-stt | moonshine-streaming medium fp32 (ORT) | cpu | 0.0205 | 0.0080 | 0.2440 | $\color{#3fb950}{\text{0.0000}}$ | 0.1080 | 0.1335 | 0.6567 | 1.8402 | 2,358 | 2,334 | — (CPU) |
+| moonshine-streaming-stt | moonshine-streaming medium fp32 (ORT) | cuda | 0.0205 | 0.0080 | 0.2440 | $\color{#3fb950}{\text{0.0000}}$ | 0.0376 | 0.0453 | 0.2381 | 0.6336 | 1,703 | 1,647 | 16 |
+| parakeet-tdt-stt | parakeet-tdt 0.6B v3 int8 | cuda | 0.0223 | 0.0076 | 0.2940 | $\color{#3fb950}{\text{0.0000}}$ | 0.0897 | 0.1049 | 0.5698 | 1.3966 | 1,983 | 1,735 | 7 |
 | parakeet-tdt-stt | parakeet-tdt 0.6B v3 int8 | cpu | 0.0231 | 0.0079 | 0.3080 | $\color{#3fb950}{\text{0.0000}}$ | 0.1196 | 0.1298 | 0.7368 | 2.0574 | 1,313 | 1,300 | — (CPU) |
 | parakeet-redux-stt | parakeet-redux 178M q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.1108 | 0.2426 | 0.7019 | 0.8066 | 2,194 | 1,031 | 7 |
 | parakeet-redux-stt | redux packed (CPU) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0743 | 0.1239 | 0.4879 | 0.9450 | 1,107 | 730 | — (CPU) |
-| nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cpu | 0.0261 | 0.0085 | 0.3120 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.7844}}$ | $\color{#f85149}{\text{0.7971}}$ | $\color{#f85149}{\text{4.9934}}$ | $\color{#f85149}{\text{13.5}}$ | 1,364 | 1,344 | — (CPU) |
+| nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cpu | 0.0261 | 0.0085 | 0.3120 | $\color{#3fb950}{\text{0.0000}}$ | 0.7844 | 0.7971 | 4.9934 | 13.5 | 1,364 | 1,344 | — (CPU) |
+| nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cuda | 0.0262 | 0.0085 | 0.3080 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.8077}}$ | $\color{#f85149}{\text{0.8219}}$ | $\color{#f85149}{\text{5.1436}}$ | $\color{#f85149}{\text{13.9}}$ | 1,868 | 1,800 | 8 |
 | moonshine-streaming-stt | moonshine-streaming medium int8 | cpu | 0.0381 | 0.0210 | 0.4720 | $\color{#3fb950}{\text{0.0000}}$ | 0.1707 | 0.2672 | 1.1922 | 3.0605 | 657 | 643 | — (CPU) |
 | wyoming-faster-whisper | faster-whisper tiny int8 | cuda | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0130}}$ | $\color{#3fb950}{\text{0.0192}}$ | $\color{#3fb950}{\text{0.0859}}$ | $\color{#3fb950}{\text{0.1511}}$ | 616 | 562 | 13 |
 
-> *500 utterances · 9 configurations · 🥇 **nemotron-unified 0.6B q8_0** at **1.77% WER**
+> *500 utterances · 14 configurations · 🥇 **nemotron-unified 0.6B q8_0** at **1.77% WER**
 (🥇🥈🥉 = composite top 3); fastest RTF p50
 **0.013**. Green = best in column, red = worst. GPU W is the
 tegrastats module draw over each engine's window; the packed-CPU engine has none
@@ -133,8 +138,9 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 | paradee-tts | paradee 8M int8 (GPU) | cuda | $\color{#3fb950}{\text{0.0110}}$ | $\color{#3fb950}{\text{0.0276}}$ | $\color{#3fb950}{\text{0.0863}}$ | $\color{#3fb950}{\text{0.1391}}$ | 0.0863 | 0.1391 | 1,462 | 1,388 | 14 |
 | wyoming-piper1-tts | piper1-tts libritts-r medium | cuda | 0.0363 | 0.1046 | 0.1684 | 0.1839 | 0.1684 | 0.1839 | 1,158 | 1,100 | 11 |
 | phonon31m-tts | phonon-31m (CPU) | cpu | 0.1384 | 0.1502 | 0.8234 | 2.4125 | $\color{#3fb950}{\text{0.0845}}$ | $\color{#3fb950}{\text{0.1169}}$ | 526 | 508 | — (CPU) |
+| pocket-tts | pocket-tts 100M | cuda | 0.1248 | 0.1423 | 0.8164 | 13.0 | 0.8164 | 13.0 | 1,629 | 1,520 | 16 |
 
-> *444 sentences · 6 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
+> *444 sentences · 7 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
 **0.011**; best TTFA p50 **84 ms**
 (300 ms gate). TTFA = time to first audio: streaming engines report the first
 chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so

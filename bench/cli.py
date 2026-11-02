@@ -145,12 +145,13 @@ def drop_caches():
 
 
 @app.command()
-def plot(readme: bool = True, include: str = "baseline"):
+def plot(readme: bool = True, include: str = "baseline,gpu_variants"):
     """Render all charts (+ README.md with --readme) from benchmarks/history.jsonl.
 
-    Charts render dark-theme 2x PNGs into
-    assets/benchmarks/ with a manifest; the README is rendered from
-    README.md.j2 (StrictUndefined). Never re-runs inference.
+    ``include``: comma-separated run_name substrings — the published matrix
+    covers the baseline cohorts plus focused variant runs. Charts render
+    dark-theme 2x PNGs into assets/benchmarks/ with a manifest; the README
+    is rendered from README.md.j2 (StrictUndefined). Never re-runs inference.
     """
     from . import charts
     from . import readme as _readme
