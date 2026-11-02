@@ -26,7 +26,7 @@ def main() -> None:
         decoder=os.environ["CANARY_DECODER"],
         tokens=os.environ["CANARY_VOCAB"],
         num_threads=1,
-        provider="cpu",
+        provider=os.environ.get("CANARY_PROVIDER", "cpu"),
         src_lang=args.src,
         tgt_lang=args.tgt,
     )

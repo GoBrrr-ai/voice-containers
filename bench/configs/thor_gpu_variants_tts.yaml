@@ -1,0 +1,31 @@
+# Thor GPU variants — LibriSpeech test-clean text, 444 sentences (seed 42 manifest)
+# Focused run: ONLY the pocket-tts GPU row (explicit id pins the baseline index-space).
+run_name: thor_gpu_variants_tts
+task: tts
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/tts_librispeech_test-clean_en_500_seed42.jsonl
+  n: 444
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: pocket_tts              # Kyutai Pocket TTS 100M on CUDA (torch cu132)
+    id: pocket_tts_5
+    image: narandill/pocket-tts:0.2.0
+    backends: [cuda]
+    opts:
+      language: english
+      voice: alba
+      device: cuda
+streaming: {chunk_ms: 160, realtime_pass: true}
+warmup_n: 5
+repeats: 1
+cooldown_s: 60
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+output_dir: results

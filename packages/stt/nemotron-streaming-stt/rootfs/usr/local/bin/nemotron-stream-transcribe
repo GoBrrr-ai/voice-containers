@@ -29,7 +29,7 @@ def main() -> None:
         joiner=os.environ["NEMOSTREAM_JOINER"],
         tokens=os.environ["NEMOSTREAM_VOCAB"],
         num_threads=1,
-        provider="cpu",
+        provider=os.environ.get("NEMOTRON_STREAM_PROVIDER", "cpu"),
     )
     pcm, sr = sf.read(args.wav, dtype="float32")
     if pcm.ndim > 1:

@@ -126,6 +126,31 @@ RUN git clone --depth 1 --branch "${WYOMING_PIPER_REF}" \
 # compiler-free runtime stage in case upstream ships no aarch64 wheel) --------
 RUN python3 -m pip wheel --no-cache-dir --no-deps --wheel-dir /wheels "pysilero-vad==3.4.0"
 
+# --- sherpa-onnx (GPU-capable wheel) -----------------------------------------
+# sherpa-onnx has NO CUDA kernels of its own: SHERPA_ONNX_ENABLE_GPU just
+# forces BUILD_SHARED_LIBS and selects a downloaded ORT. All GPU compute lives
+# in the CUDA EP of the LINKED onnxruntime — so we point the build at OUR ORT
+# 1.31.1 (sm_87 + sm_110a SASS, CUDA 13.2) via the maintainer-endorsed
+# pre-installed-ORT escape hatch (k2-fsa issue #2046). The resulting wheel
+# serves provider=cpu AND provider=cuda; the ORT .so files are exported
+# alongside for the consuming images. Upstream ships no aarch64 CUDA-13
+# artifact (the official aarch64 +cuda wheel bundles ORT 1.11.0/CUDA 10.2).
+ARG SHERPA_ONNX_REF=v2.0.1
+RUN git clone --depth 1 --branch "${SHERPA_ONNX_REF}" \
+        https://github.com/k2-fsa/sherpa-onnx /src/sherpa-onnx
+
+RUN cd /src/sherpa-onnx \
+    && export SHERPA_ONNXRUNTIME_INCLUDE_DIR=/src/onnxruntime/include/onnxruntime/core/session \
+    && export SHERPA_ONNXRUNTIME_LIB_DIR=/src/onnxruntime/build/Linux/Release \
+    && export SHERPA_ONNX_CMAKE_ARGS="-DSHERPA_ONNX_ENABLE_GPU=ON;-DSHERPA_ONNX_ENABLE_PYTHON=ON;-DSHERPA_ONNX_ENABLE_TESTS=OFF;-DSHERPA_ONNX_ENABLE_CHECK=OFF;-DSHERPA_ONNX_ENABLE_PORTAUDIO=OFF;-DSHERPA_ONNX_ENABLE_BINARY=ON;-DSHERPA_ONNXRUNTIME_INCLUDE_DIR=/src/onnxruntime/include/onnxruntime/core/session;-DSHERPA_ONNXRUNTIME_LIB_DIR=/src/onnxruntime/build/Linux/Release" \
+    && python3 setup.py bdist_wheel -d /wheels/ \
+    && mkdir -p /wheels/ort-libs \
+    && cp -a /src/onnxruntime/build/Linux/Release/onnxruntime/capi/libonnxruntime*.so* /wheels/ort-libs/ \
+    && ln -s libonnxruntime.so.1.31.1 /wheels/ort-libs/libonnxruntime.so.1 \
+    && python3 -m pip install --break-system-packages --no-cache-dir /wheels/sherpa_onnx-*.whl \
+    && python3 -c "import sherpa_onnx; print('sherpa-onnx import OK:', sherpa_onnx.__version__)" \
+    && cuobjdump --list-elf /wheels/ort-libs/libonnxruntime_providers_cuda.so | grep -oE 'sm_[0-9a-z]+' | sort | uniq -c
+
 # -----------------------------------------------------------------------------
 # Runtime: wheels + cuDNN + supervisor. No compilers, headers, sources, caches.
 # -----------------------------------------------------------------------------
