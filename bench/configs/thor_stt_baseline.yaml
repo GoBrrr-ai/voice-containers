@@ -42,6 +42,37 @@ engines:
       model: rhasspy/faster-whisper-tiny-int8  # wyoming "tiny-int8" alias resolved
       device: cuda
       compute_type: default
+  - name: moonshine               # Streaming Medium 245M (official runtime, CPU)
+    image: narandill/moonshine-streaming-stt:0.1.0
+    backends: [cpu]
+    opts:
+      model_dir: /models/moonshine-streaming-en
+      model_arch: 5
+  - name: canary                  # Canary-180M-Flash int8 (CPU; GPU path later)
+    image: narandill/canary-flash-stt:0.1.0
+    backends: [cpu]
+    opts:
+      encoder: /models/canary-flash/encoder.int8.onnx
+      decoder: /models/canary-flash/decoder.int8.onnx
+      tokens: /models/canary-flash/tokens.txt
+      src_lang: en
+      tgt_lang: en
+  - name: parakeet_tdt            # TDT 0.6B v3 int8 (25 languages, CPU)
+    image: narandill/parakeet-tdt-stt:0.1.0
+    backends: [cpu]
+    opts:
+      encoder: /models/parakeet-tdt-v3/encoder.int8.onnx
+      decoder: /models/parakeet-tdt-v3/decoder.int8.onnx
+      joiner: /models/parakeet-tdt-v3/joiner.int8.onnx
+      tokens: /models/parakeet-tdt-v3/tokens.txt
+  - name: nemotron_streaming      # Streaming EN 0.6B int8 (160 ms baked, CPU)
+    image: narandill/nemotron-streaming-stt:0.1.0
+    backends: [cpu]
+    opts:
+      encoder: /models/nemotron-streaming-160ms/encoder.int8.onnx
+      decoder: /models/nemotron-streaming-160ms/decoder.int8.onnx
+      joiner: /models/nemotron-streaming-160ms/joiner.int8.onnx
+      tokens: /models/nemotron-streaming-160ms/tokens.txt
 streaming: {chunk_ms: 160, realtime_pass: false}   # v1: offline passes; realtime pass fast-follow
 warmup_n: 5
 repeats: 1

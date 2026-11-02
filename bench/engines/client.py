@@ -153,6 +153,183 @@ class ParakeetCpp:
         raise NotImplementedError("v1: streaming via whole-file --stream runs")
 
 
+# --------------------------------------------------------- 2026-11 CPU engines
+class MoonshineStreaming:
+    """Moonshine Streaming Medium 245M — official moonshine-voice runtime.
+
+    Native incremental streaming exists (create_stream), but v1 benches the
+    offline per-utterance path (transcribe_without_streaming) so WER/RTF are
+    comparable with the other engines; the bundle is the quantized
+    medium-streaming-en .ort set baked at /models/moonshine-streaming-en.
+    """
+
+    name = "moonshine"
+    backends = {"cpu"}
+    supports_streaming = False
+    required_sample_rate = 16000
+
+    def __init__(self, opts):
+        self.model_dir = opts.get("model_dir", "/models/moonshine-streaming-en")
+        self.arch = int(opts.get("model_arch", 5))
+        from moonshine_voice import ModelArch, Transcriber
+
+        # built once: ORT session init per utterance would dominate RTF
+        self._t = Transcriber(
+            model_path=self.model_dir, model_arch=ModelArch(self.arch)
+        )
+
+    def load(self, opts):
+        pass
+
+    def actual_backend(self) -> str:
+        return "cpu"
+
+    def transcribe(self, pcm, sr: int, wav_path: str | None = None):
+        import numpy as np
+
+        pcm = np.asarray(pcm, dtype="float32")
+        if sr != 16000:
+            import soxr
+
+            pcm = soxr.resample(pcm, sr, 16000)
+            sr = 16000
+        res = self._t.transcribe_without_streaming(pcm.tolist(), 16000)
+        return " ".join(
+            getattr(line, "text", "") for line in getattr(res, "lines", [])
+        ).strip()
+
+
+class CanaryFlash:
+    """NVIDIA Canary-180M-Flash int8 — sherpa-onnx offline nemo-canary.
+
+    Per-utterance after VAD (no native streaming); en/de/es/fr ASR plus
+    bidirectional X↔EN translation via src_lang/tgt_lang.
+    """
+
+    name = "canary"
+    backends = {"cpu"}
+    supports_streaming = False
+    required_sample_rate = 16000
+
+    def __init__(self, opts):
+        self.encoder = opts["encoder"]
+        self.decoder = opts["decoder"]
+        self.tokens = opts["tokens"]
+        self.src = opts.get("src_lang", "en")
+        self.tgt = opts.get("tgt_lang", "en")
+        import sherpa_onnx
+
+        self._r = sherpa_onnx.OfflineRecognizer.from_nemo_canary(
+            encoder=self.encoder,
+            decoder=self.decoder,
+            tokens=self.tokens,
+            num_threads=1,
+            provider="cpu",
+            src_lang=self.src,
+            tgt_lang=self.tgt,
+        )
+
+    def load(self, opts):
+        pass
+
+    def actual_backend(self) -> str:
+        return "cpu"
+
+    def transcribe(self, pcm, sr: int, wav_path: str | None = None):
+        import numpy as np
+
+        stream = self._r.create_stream()
+        stream.accept_waveform(sr, np.asarray(pcm, dtype="float32"))
+        self._r.decode_stream(stream)
+        return stream.result.text.strip()
+
+
+class ParakeetTdt:
+    """NVIDIA Parakeet TDT 0.6B v3 int8 — sherpa-onnx offline nemo_transducer.
+
+    25 languages, per-utterance after VAD; ≤ ~30 s per pass (LibriSpeech
+    utterances fit).
+    """
+
+    name = "parakeet_tdt"
+    backends = {"cpu"}
+    supports_streaming = False
+    required_sample_rate = 16000
+
+    def __init__(self, opts):
+        import sherpa_onnx
+
+        self._r = sherpa_onnx.OfflineRecognizer.from_transducer(
+            encoder=opts["encoder"],
+            decoder=opts["decoder"],
+            joiner=opts["joiner"],
+            tokens=opts["tokens"],
+            num_threads=1,
+            provider="cpu",
+            decoding_method="greedy_search",
+            model_type="nemo_transducer",
+        )
+
+    def load(self, opts):
+        pass
+
+    def actual_backend(self) -> str:
+        return "cpu"
+
+    def transcribe(self, pcm, sr: int, wav_path: str | None = None):
+        import numpy as np
+
+        stream = self._r.create_stream()
+        stream.accept_waveform(sr, np.asarray(pcm, dtype="float32"))
+        self._r.decode_stream(stream)
+        return stream.result.text.strip()
+
+
+class NemotronStreaming:
+    """NVIDIA Nemotron Speech Streaming EN 0.6B int8 — sherpa OnlineRecognizer.
+
+    Cache-aware native streaming with the 160 ms latency profile baked into
+    the graph; v1 benches the canonical whole-utterance feed (the graph
+    chunks internally — never pre-chunk). Streaming-partial metrics are a
+    fast-follow.
+    """
+
+    name = "nemotron_streaming"
+    backends = {"cpu"}
+    supports_streaming = False
+    required_sample_rate = 16000
+
+    def __init__(self, opts):
+        import sherpa_onnx
+
+        self._r = sherpa_onnx.OnlineRecognizer.from_transducer(
+            encoder=opts["encoder"],
+            decoder=opts["decoder"],
+            joiner=opts["joiner"],
+            tokens=opts["tokens"],
+            num_threads=1,
+            provider="cpu",
+        )
+
+    def load(self, opts):
+        pass
+
+    def actual_backend(self) -> str:
+        return "cpu"
+
+    def transcribe(self, pcm, sr: int, wav_path: str | None = None):
+        import numpy as np
+
+        stream = self._r.create_stream()
+        stream.accept_waveform(sr, np.asarray(pcm, dtype="float32"))
+        stream.accept_waveform(sr, np.zeros(int(0.2 * sr), dtype=np.float32))
+        stream.input_finished()
+        while self._r.is_ready(stream):
+            self._r.decode_stream(stream)
+        result = self._r.get_result(stream)
+        return (result if isinstance(result, str) else result.text).strip()
+
+
 # ---------------------------------------------------------------- TTS engines
 class Kokoro:
     name = "kokoro"
@@ -348,8 +525,65 @@ class PiperTts:
         yield self.synthesize(text)
 
 
-STT_ENGINES = {c.name: c for c in (FasterWhisper, ParakeetCpp)}
-TTS_ENGINES = {c.name: c for c in (Kokoro, Ptts, Paradee, PiperTts)}
+class PocketTts:
+    """Kyutai Pocket TTS 100M — the official pocket-tts package (torch-cpu).
+
+    Native streaming with adaptive chunks exists in the package, but v1
+    benches generate_audio per sentence (whole-utterance), comparable with
+    the other non-streaming TTS engines. The english bundle is baked into
+    /opt/hf-cache; the oneDNN aarch64 JIT is disabled image-wide (Thor CPU
+    abort, see the package Dockerfile).
+    """
+
+    name = "pocket_tts"
+    backends = {"cpu"}
+    supports_streaming = False
+    output_sample_rate = 24000
+    voices = [
+        "alba",
+        "marius",
+        "javert",
+        "jean",
+        "fantine",
+        "cosette",
+        "eponine",
+        "azelma",
+    ]
+
+    def __init__(self, opts):
+        self.language = opts.get("language", "english")
+        self.voice = opts.get("voice", "alba")
+        from pocket_tts import TTSModel
+
+        self._m = TTSModel.load_model(language=self.language)
+        self._voice_state = self._m.get_state_for_audio_prompt(self.voice)
+
+    def load(self, opts):
+        pass
+
+    def actual_backend(self) -> str:
+        return "cpu"
+
+    def synthesize(self, text: str):
+        import numpy as np
+
+        audio = self._m.generate_audio(self._voice_state, text)
+        _sync_cuda()
+        return np.asarray(audio), self._m.sample_rate
+
+
+STT_ENGINES = {
+    c.name: c
+    for c in (
+        FasterWhisper,
+        ParakeetCpp,
+        MoonshineStreaming,
+        CanaryFlash,
+        ParakeetTdt,
+        NemotronStreaming,
+    )
+}
+TTS_ENGINES = {c.name: c for c in (Kokoro, Ptts, Paradee, PiperTts, PocketTts)}
 
 
 def main() -> None:
@@ -483,7 +717,9 @@ def run_sample(
                     audio,
                     rec_utt["sample_rate"],
                 )
-    except Exception as e:  # record and continue (spec: a crash must not kill the suite)
+    except (
+        Exception
+    ) as e:  # record and continue (spec: a crash must not kill the suite)
         rec_utt.update(status="error", error=repr(e)[:500])
     return rec_utt if record else None
 
