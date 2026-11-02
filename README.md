@@ -71,7 +71,7 @@ sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
 
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
 by `bench plot --readme` — regenerate with `make bench-plot`.
-> Cohort: **jetson-agx-thor-128gb · default power · commit 44cdb56 · 2026-11-02**.
+> Cohort: **jetson-agx-thor-128gb · default power · commit 3a7634f · 2026-11-02**.
 Charts: ★ marks the best engine for that chart's metric. Memory: **cgroup MiB**
 counts the container's active file cache too (the model was just read from
 disk); **anon MiB** is true process memory.
@@ -81,15 +81,19 @@ disk); **anon MiB** is true process memory.
 
 | engine | model | backend | WER | CER | SER | halluc. | RTF p50 | RTF p90 | lat p50 (s) | lat p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 🥇 nemotron-unified-asr | nemotron-unified 0.6B q8_0 | cuda | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.1092}}$ | $\color{#f85149}{\text{0.2380}}$ | $\color{#f85149}{\text{0.6920}}$ | 0.7954 | 2,179 | 1,029 | 7 |
-| 🥈 phonon2-stt | phonon-2.5 q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.1051 | 0.2321 | 0.6686 | 0.7717 | 2,170 | 1,030 | 7 |
-| 🥉 parakeet-redux-stt | parakeet-redux 178M q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.1055 | 0.2323 | 0.6677 | 0.7716 | 2,181 | 1,031 | 7 |
-| parakeet-redux-stt | redux packed (CPU) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0668 | 0.1001 | 0.4241 | $\color{#f85149}{\text{0.8946}}$ | 1,101 | 730 | — (CPU) |
-| wyoming-faster-whisper | faster-whisper tiny int8 | cuda | $\color{#f85149}{\text{0.0721}}$ | $\color{#f85149}{\text{0.0279}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0118}}$ | $\color{#3fb950}{\text{0.0179}}$ | $\color{#3fb950}{\text{0.0748}}$ | $\color{#3fb950}{\text{0.1375}}$ | 616 | 561 | 14 |
+| 🥇 nemotron-unified-asr | nemotron-unified 0.6B q8_0 | cuda | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | 0.1126 | 0.2469 | 0.7162 | 0.8270 | 2,179 | 1,030 | 7 |
+| 🥈 canary-flash-stt | canary-180m-flash int8 | cpu | 0.0199 | 0.0055 | 0.2460 | $\color{#3fb950}{\text{0.0000}}$ | 0.1610 | 0.2283 | 0.9770 | 3.8869 | 777 | 766 | — (CPU) |
+| 🥉 phonon2-stt | phonon-2.5 q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.1093 | 0.2421 | 0.6962 | 0.8076 | 2,188 | 1,031 | 7 |
+| parakeet-tdt-stt | parakeet-tdt 0.6B v3 int8 | cpu | 0.0231 | 0.0079 | 0.3080 | $\color{#3fb950}{\text{0.0000}}$ | 0.1196 | 0.1298 | 0.7368 | 2.0574 | 1,313 | 1,300 | — (CPU) |
+| parakeet-redux-stt | parakeet-redux 178M q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.1108 | 0.2426 | 0.7019 | 0.8066 | 2,194 | 1,031 | 7 |
+| parakeet-redux-stt | redux packed (CPU) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0743 | 0.1239 | 0.4879 | 0.9450 | 1,107 | 730 | — (CPU) |
+| nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cpu | 0.0261 | 0.0085 | 0.3120 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.7844}}$ | $\color{#f85149}{\text{0.7971}}$ | $\color{#f85149}{\text{4.9934}}$ | $\color{#f85149}{\text{13.5}}$ | 1,364 | 1,344 | — (CPU) |
+| moonshine-streaming-stt | moonshine-streaming medium int8 | cpu | 0.0381 | 0.0210 | 0.4720 | $\color{#3fb950}{\text{0.0000}}$ | 0.1707 | 0.2672 | 1.1922 | 3.0605 | 657 | 643 | — (CPU) |
+| wyoming-faster-whisper | faster-whisper tiny int8 | cuda | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | $\color{#3fb950}{\text{0.0130}}$ | $\color{#3fb950}{\text{0.0192}}$ | $\color{#3fb950}{\text{0.0859}}$ | $\color{#3fb950}{\text{0.1511}}$ | 616 | 562 | 13 |
 
-> *500 utterances · 5 configurations · 🥇 **nemotron-unified 0.6B q8_0** at **1.77% WER**
+> *500 utterances · 9 configurations · 🥇 **nemotron-unified 0.6B q8_0** at **1.77% WER**
 (🥇🥈🥉 = composite top 3); fastest RTF p50
-**0.012**. Green = best in column, red = worst. GPU W is the
+**0.013**. Green = best in column, red = worst. GPU W is the
 tegrastats module draw over each engine's window; the packed-CPU engine has none
 (hollow point, idle draw) in the power chart.*
 
@@ -123,14 +127,15 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 
 | engine | model | backend | RTF p50 | RTF p90 | synth p50 (s) | synth p90 (s) | TTFA p50 (s) | TTFA p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 🥇 kokoro-tts | kokoro 82M int8 | cuda | 0.0482 | 0.0868 | 0.3098 | 0.8135 | 0.3098 | 0.8096 | 1,583 | 1,457 | 14 |
-| 🥈 paradee-tts | paradee 8M int8 (CPU) | cpu | $\color{#f85149}{\text{0.1497}}$ | $\color{#f85149}{\text{0.1516}}$ | $\color{#f85149}{\text{1.1171}}$ | $\color{#f85149}{\text{3.2504}}$ | $\color{#f85149}{\text{1.1171}}$ | $\color{#f85149}{\text{3.2504}}$ | 629 | 563 | — (CPU) |
-| 🥉 paradee-tts | paradee 8M int8 (GPU) | cuda | $\color{#3fb950}{\text{0.0188}}$ | $\color{#3fb950}{\text{0.0462}}$ | $\color{#3fb950}{\text{0.1412}}$ | $\color{#3fb950}{\text{0.1905}}$ | 0.1412 | 0.1905 | 1,513 | 1,418 | 16 |
-| wyoming-piper1-tts | piper1-tts libritts-r medium | cuda | 0.0406 | 0.1210 | 0.1884 | 0.2413 | 0.1884 | 0.2413 | 1,158 | 1,099 | 26 |
-| phonon31m-tts | phonon-31m (CPU) | cpu | 0.1119 | 0.1216 | 0.6763 | 1.9760 | $\color{#3fb950}{\text{0.0663}}$ | $\color{#3fb950}{\text{0.0978}}$ | 512 | 498 | — (CPU) |
+| 🥇 pocket-tts | pocket-tts 100M | cpu | $\color{#f85149}{\text{0.3934}}$ | $\color{#f85149}{\text{0.5836}}$ | $\color{#f85149}{\text{2.5111}}$ | $\color{#f85149}{\text{53.8}}$ | $\color{#f85149}{\text{2.5111}}$ | $\color{#f85149}{\text{53.8}}$ | 4,229 | 4,173 | — (CPU) |
+| 🥈 kokoro-tts | kokoro 82M int8 | cuda | 0.0525 | 0.0953 | 0.3377 | 0.8554 | 0.3377 | 0.8346 | 1,590 | 1,465 | 14 |
+| 🥉 paradee-tts | paradee 8M int8 (CPU) | cpu | 0.0573 | 0.0586 | 0.4310 | 1.2937 | 0.4310 | 1.2937 | 1,956 | 1,888 | — (CPU) |
+| paradee-tts | paradee 8M int8 (GPU) | cuda | $\color{#3fb950}{\text{0.0110}}$ | $\color{#3fb950}{\text{0.0276}}$ | $\color{#3fb950}{\text{0.0863}}$ | $\color{#3fb950}{\text{0.1391}}$ | 0.0863 | 0.1391 | 1,462 | 1,388 | 14 |
+| wyoming-piper1-tts | piper1-tts libritts-r medium | cuda | 0.0363 | 0.1046 | 0.1684 | 0.1839 | 0.1684 | 0.1839 | 1,158 | 1,100 | 11 |
+| phonon31m-tts | phonon-31m (CPU) | cpu | 0.1384 | 0.1502 | 0.8234 | 2.4125 | $\color{#3fb950}{\text{0.0845}}$ | $\color{#3fb950}{\text{0.1169}}$ | 526 | 508 | — (CPU) |
 
-> *444 sentences · 5 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
-**0.019**; best TTFA p50 **66 ms**
+> *444 sentences · 6 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
+**0.011**; best TTFA p50 **84 ms**
 (300 ms gate). TTFA = time to first audio: streaming engines report the first
 chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so
 their TTFA equals the synth p50/p90.*
