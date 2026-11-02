@@ -2,54 +2,83 @@
 
 Deployment hardware has **shared unified memory**: GPU allocations draw from
 the same pool as the CPU, so the bench's `cgroup MiB` column is the budget
-metric regardless of backend. Policy: **GPU-first wherever a JP 7.2.1 wheel
-exists**; CPU-only engines are listed with the exact blocker that keeps
-them off the GPU.
+metric regardless of backend. Policy: **GPU-first** — every package ships
+native sm_87 + sm_110a cubins (no JIT) except the one CPU-by-design engine.
+Mission 2026-11-02: "all packages on GPU, native for both archs; re-implement
+whatever blocks." Status per package below; perf numbers live in the README
+matrix (the bench decides GPU-vs-CPU per utterance, honestly).
 
-Status as of 2026-11-02 (bench run `20261102_122832` STT / `20261102_143219`
-TTS). ✅ = measured in the committed matrix; (capable) = works but not benched.
+## Where the native cubins live (verified with cuobjdump)
 
-## Speech recognition (9 configs)
+| Artifact | SASS | PTX |
+|---|---|---|
+| our ORT 1.31.1 `providers_cuda.so` (builders/wheels-cu132) | 316× sm_87 + 316× sm_110a + 292× sm_90a | none (deliberate: cubins cover the exact fleet) |
+| CTranslate2 4.8.4 (`libctranslate2.so.4.8.4`) | 34× sm_87 + 34× sm_110 | none |
+| parakeet.cpp `libggml-cuda.so` (builders/parakeet-cpp) | sm_87 + sm_110a | none |
+| NVIDIA torch 2.15.0+cu132 aarch64 wheel | sm_110 native (Thor); **sm_80 cubins run natively on Orin sm_87** via within-major 8.0→8.7 binary compat — no JIT anywhere | none in wheel |
 
-| Image | GPU | CPU | GPU blocker (if any) |
+PTX note: with the cubin set covering exactly {Orin sm_87, Thor sm_110a},
+PTX is dead weight — and worse for TTFA (driver JIT on first load, cache
+invalidated by driver updates). The only PTX shipped is ORT's
+`110a-virtual`, kept as free forward-compat insurance for future
+Thor-family silicon (plain compute_110 is rejected by ptxas for the FP4/MoE
+kernels).
+
+## Speech recognition (12 configs)
+
+| Image | GPU | CPU | Notes |
 |---|---|---|---|
-| `nemotron-unified-asr` 0.6B q8_0 (parakeet.cpp) | ✅ | (capable — GGUF runs on CPU) | — |
-| `parakeet-redux-stt` q8_0 + packed (parakeet.cpp) | ✅ | ✅ (packed ternary, ultra-light) | — |
-| `phonon2-stt` q8_0 + packed (parakeet.cpp) | ✅ | (capable — packed gguf is baked) | — |
-| `wyoming-faster-whisper` tiny-int8 (CT2) | ✅ | (capable — CT2 CPU) | — |
-| `moonshine-streaming-stt` 245M int8 | ❌ | ✅ | **Wheel gap**: official `moonshine-voice` bundles a CPU-only ORT. GPU route: the community five-graph ONNX export (`Masterx/...`) on our ORT-GPU wheel — untested; frontend graph is fp32-only. |
-| `canary-flash-stt` 180M int8 (sherpa) | ❌ | ✅ | **Two blockers**: (1) sherpa-onnx has no aarch64 CUDA-13 build; (2) the ONNX exports ship no featurizer graph — the NeMo 128-bin mel contract must be hand-implemented before our ORT-GPU wheel can serve the soniqo/istupakov graphs. |
-| `parakeet-tdt-stt` 0.6B v3 int8 (sherpa) | ❌ | ✅ | sherpa-onnx GPU build missing (see above). **Cheapest GPU win in the repo**: a GGUF exists (`mudler/parakeet-cpp-gguf`: f16 1.44 GB, q8_0 941 MB, **q6_k 813 MB — fits the 0.8 GB budget**) → a parakeet.cpp variant like redux/phonon2 is a config-only change away. |
-| `nemotron-streaming-stt` 0.6B int8 (sherpa) | ❌ | ✅ | **Hardest**: no GGUF (parakeet.cpp does not implement this cache-aware RNNT), the FP32 export is 2.2 GB, and sherpa-onnx has no aarch64 CUDA-13 build. |
+| `nemotron-unified-asr` 0.6B q8_0 (parakeet.cpp) | ✅ native | (capable — GGUF) | |
+| `parakeet-redux-stt` q8_0 + packed (parakeet.cpp) | ✅ native | ✅ | |
+| `phonon2-stt` q8_0 + packed (parakeet.cpp) | ✅ native | (capable) | |
+| `wyoming-faster-whisper` tiny-int8 (CT2) | ✅ native | (capable) | |
+| `canary-flash-stt` 0.2.0 (sherpa GPU wheel) | ✅ int8 on CUDA EP | ✅ | one image, `provider=cpu|cuda`; int8-QDQ dequant overhead can make GPU slower on tiny clips |
+| `parakeet-tdt-stt` 0.2.0 (sherpa GPU wheel) | ✅ int8 on CUDA EP | ✅ | maintainer-verified int8+CUDA (k2-fsa #2282); fp32 likely faster on GPU — follow-up |
+| `nemotron-streaming-stt` 0.2.0 (sherpa GPU wheel) | ✅ int8 on CUDA EP | ✅ | streaming transducer on CUDA: verified upstream via streaming-zipformer #3620 + GPU-CI nemo-fastconformer smoke |
+| `moonshine-streaming-stt` 0.2.0 | ✅ fp32 5-graph on CUDA EP (mixed: frontend on CPU) | ✅ two paths | official .ort lib is CPU-only by design (fused com.microsoft ops); GPU = Masterx fp32 export on our ORT (driver in rootfs). int8 graphs unusable on GPU: `DynamicQuantizeLinear` has no CUDA kernel |
+
+**Why this was blocked before**: sherpa-onnx has NO CUDA kernels of its own —
+GPU means linking against a CUDA-enabled ORT
+(`task/research/sherpa-onnx-cuda-aarch64/`). Upstream ships no aarch64
+CUDA-13 artifact (the official `+cuda` aarch64 wheel bundles ORT
+1.11.0/CUDA 10.2). Fix: `builders/wheels-cu132` now builds
+`sherpa_onnx-2.0.1+cuda` against our ORT via the maintainer-endorsed
+`SHERPA_ONNXRUNTIME_INCLUDE_DIR/LIB_DIR` escape hatch (k2-fsa #2046).
 
 ## Speech synthesis (6 configs)
 
-| Image | GPU | CPU | GPU blocker (if any) |
+| Image | GPU | CPU | Notes |
 |---|---|---|---|
-| `kokoro-tts` int8 ONNX | ✅ | (capable) | — |
-| `paradee-tts` v1.2 int8 ONNX | ✅ (RTF p50 0.011 — fastest synth) | ✅ | — |
-| `wyoming-piper1-tts` ONNX | ✅ | (capable) | — |
-| `phonon31m-tts` (ptts) | ❌ **by design** | ✅ (26× RT measured) | Not a wheel gap: the `ptts` Rust engine has no GPU backend at all; it is CPU-optimized (TTFA champion). |
-| `pocket-tts` 100M (torch) | ❌ (v1) | ✅ (RTF p50 0.39) | **Wheel exists — test missing**: NVIDIA's `torch 2.15.0+cu132` aarch64 wheel gencodes sm_80/90/100/110/120 → **Thor sm_110 ✓, Orin sm_87 ✗** (`cudaErrorNoKernelImageForDevice`). Whether the package moves tensors to CUDA is unverified (it advertises CPU-only). oneDNN must stay **off** either way (v3.13.3 aborts on Neoverse V3AE; on 2.14.1 it is 2.7× slower than the reference+NVPL path). |
+| `kokoro-tts` int8 ONNX | ✅ native | (capable) | |
+| `paradee-tts` v1.2 int8 ONNX | ✅ native | ✅ | |
+| `wyoming-piper1-tts` ONNX | ✅ native | (capable) | |
+| `pocket-tts` 0.2.0 (torch cu132) | ✅ sm_110 native (Thor) / sm_80-cubin compat (Orin) | ✅ | measured RTF **0.13 GPU** vs 0.39 CPU on Thor; ubuntu base needs `NVIDIA_VISIBLE_DEVICES=all` or the nvidia runtime injects no libcuda |
+| `phonon31m-tts` (ptts) | ❌ **by design** | ✅ (26× RT) | the ptts Rust engine has no GPU backend — the mission's single sanctioned CPU-only exception |
 
-## Upgrade paths, ranked by effort ÷ value
+## Runtime pitfalls (all hit & fixed 2026-11-02)
 
-1. **parakeet-tdt GGUF GPU variant** — config-only; reuses the parakeet.cpp
-   adapter/ids; q6_k fits the Orin budget (rides E3's quant testing).
-2. **pocket-tts GPU on Thor** — the wheel is already in the image; one
-   device-support probe decides it. Orin stays CPU (no sm_87 gencode).
-3. **canary GPU via soniqo/istupakov graphs + our ORT-GPU wheel** — needs
-   the mel featurizer implemented (contract fully spelled in the export's
-   `config.json`); then Canary FP16 ≈ 0.4 GB is the report's best GPU ASR.
-4. **moonshine GPU via the five-graph export** — medium effort, untested
-   upstream on CUDA EP.
-5. **nemotron-streaming GPU** — blocked from every angle; keep CPU.
+- **ubuntu-base GPU images need `NVIDIA_VISIBLE_DEVICES=all` +
+  `NVIDIA_DRIVER_CAPABILITIES=compute,utility`** — without them the nvidia
+  runtime injects no libcuda ("Found no NVIDIA driver"). nvidia/cuda bases
+  bake these in.
+- **The nvidia/cuda base's `requirements.nvidia` brand list has no Thor
+  entry** — any docker run on this host needs `-e NVIDIA_DISABLE_REQUIRE=1`
+  unless the image sets it (repo-wide smoke convention:
+  `RUNTIME=(--runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1)`).
+- **Never CUDA-EP-test inside the wheels BUILDER image**: its stub
+  `libcuda.so.1` (builder-only link trick) shadows the injected driver →
+  "CUDA driver is a stub library".
+- **sherpa + moonshine frontend on CUDA**: the first frontend call reduces
+  an empty carried-sample buffer (`sample_len=0`); CUDA EP rejects it
+  (`PrepareForReduce: can't reduce on dim 0`), CPU EP is fine → moonshine
+  runs a MIXED-EP pipeline (frontend CPU, 4 heavy graphs CUDA).
+- **fp16 ONNX is the broken quant on CUDA EP** (empty outputs, k2-fsa
+  #2282) — int8 (QDQ/QOperator) and fp32 work; fp32 often fastest on GPU
+  since int8-QDQ dequantizes anyway.
 
 ## Orin Nano 8 GB caveat
 
-NVIDIA's cu132 aarch64 wheels ship **no sm_87 gencode** — anything riding
-them (pocket-tts GPU, future torch-based engines) is **Thor-only** until a
-JP 7.2.1 sm_87 wheel appears. The report's rule 1 (`cudaErrorNoKernelImageForDevice`)
-applies verbatim. On Orin, the CPU roster is not a fallback — it is the
-deployment thesis (Option A), and `phonon31m-tts` + `parakeet-*-packed`
-were chosen for exactly that.
+The torch cu132 wheel covers Orin via sm_80-cubin binary compat (verified
+gencode list, not yet on-device). On Orin, CPU-first remains the deployment
+thesis (Option A) — the GPU roster above is for Thor-first deployment and
+any future Orin GPU probing.
