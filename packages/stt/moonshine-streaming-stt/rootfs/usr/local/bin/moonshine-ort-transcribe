@@ -1,0 +1,148 @@
+#!/opt/venv/bin/python3
+"""Moonshine Streaming Medium 245M on onnxruntime — fp32 5-graph Masterx export.
+
+Usage: moonshine-ort-transcribe <wav> [-o out.txt] [--provider cuda|cpu]
+
+Why a second runtime next to the official moonshine-voice lib: the official
+.ort bundle is fused to com.microsoft CPU-only operators (CPU-only by
+design, upstream docs/execution-providers.md); these plain-ai.onnx fp32
+graphs partition onto the CUDA EP of our onnxruntime-gpu build.
+(int8 graphs would thrash CUDA: DynamicQuantizeLinear is CPU-only.)
+
+Protocol verified against the Masterx binaries + moonshine C++ core
+(task/research/moonshine-gpu-protocol/summary.md): int16/32768 -> zero-pad
+to 640-sample multiple -> frontend with zero states -> encoder once over
+all features -> adapter(pos_offset=0) -> cross_kv once -> greedy BOS
+decode, cap ceil(sec * 6.5) <= 448, stop at EOS=2, HF tokenizers decode.
+"""
+
+import argparse
+import json
+import os
+import sys
+
+import numpy as np
+
+
+def load_sessions(model_dir: str, provider: str):
+    import onnxruntime as ort
+
+    so = ort.SessionOptions()
+    so.log_severity_level = 3
+    providers = (
+        ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        if provider == "cuda"
+        else ["CPUExecutionProvider"]
+    )
+    names = ("frontend", "encoder", "adapter", "cross_kv", "decoder_kv")
+    sess = {}
+    for n in names:
+        # Mixed EP when provider=cuda: the frontend's first call reduces over
+        # an EMPTY carried-sample buffer (sample_len=0), which the CUDA EP
+        # rejects (PrepareForReduce: "Can't reduce on dim with value of 0")
+        # while the CPU EP handles it — and the frontend is ~1.5% of the
+        # compute. The four heavy graphs take the CUDA EP.
+        prov = ["CPUExecutionProvider"] if n == "frontend" else providers
+        sess[n] = ort.InferenceSession(
+            os.path.join(model_dir, f"{n}.onnx"), so, providers=prov
+        )
+    if provider == "cuda":
+        active = sess["encoder"].get_providers()
+        if active[0] != "CUDAExecutionProvider":
+            print(f"WARNING: CUDA EP not active (got {active})", file=sys.stderr)
+    return sess
+
+
+def transcribe_pcm(sess: dict, cfg: dict, tok, pcm_i16: np.ndarray) -> str:
+    pcm = pcm_i16.astype(np.float32) / 32768.0
+    pcm = np.pad(pcm, (0, (-len(pcm)) % 640))[None, :]
+    shp = cfg["frontend_state_shapes"]
+
+    def z(key, dtype):
+        return np.zeros(
+            shp[key], np.int64 if key in ("sample_len", "frame_count") else dtype
+        )
+
+    feats = sess["frontend"].run(
+        None,
+        {
+            "audio_chunk": pcm,
+            "sample_buffer": z("sample_buffer", np.float32),
+            "sample_len": z("sample_len", np.int64),
+            "conv1_buffer": z("conv1_buffer", np.float32),
+            "conv2_buffer": z("conv2_buffer", np.float32),
+            "frame_count": z("frame_count", np.int64),
+        },
+    )[0]
+    if feats.shape[1] == 0:
+        return ""
+    max_pos = cfg.get("max_position_embeddings", 4096)
+    assert feats.shape[1] < max_pos, (
+        f"segment too long: {feats.shape[1]} frames >= {max_pos}"
+    )
+
+    enc = sess["encoder"].run(None, {"features": feats})[0]
+    memory = sess["adapter"].run(
+        None, {"encoded": enc, "pos_offset": np.array([0], np.int64)}
+    )[0]
+    k_cross, v_cross = sess["cross_kv"].run(None, {"memory": memory})
+
+    d, h, hd = cfg["depth"], cfg["nheads"], cfg["head_dim"]
+    empty = np.zeros((d, 1, h, 0, hd), np.float32)
+    token = np.array([[cfg["bos_id"]]], np.int64)
+    k_self, v_self = empty, empty
+    budget = min(-(-len(pcm[0]) * 13 // (2 * 16000)), 448)  # ceil(sec * 6.5)
+    ids = []
+    while len(ids) < budget:
+        logits, k_self, v_self, _, _ = sess["decoder_kv"].run(
+            None,
+            {
+                "token": token,
+                "k_self": k_self,
+                "v_self": v_self,
+                "out_k_cross": k_cross,
+                "out_v_cross": v_cross,
+            },
+        )
+        nxt = int(logits[0, -1].argmax())
+        if nxt == cfg["eos_id"]:
+            break
+        ids.append(nxt)
+        token = np.array([[nxt]], np.int64)
+    return tok.decode(ids).strip()
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(
+        description="Moonshine Streaming Medium STT (ORT fp32)"
+    )
+    ap.add_argument("wav")
+    ap.add_argument("-o", "--out", default="")
+    ap.add_argument(
+        "--provider", default=os.environ.get("MOONSHINE_ORT_PROVIDER", "cpu")
+    )
+    args = ap.parse_args()
+
+    model_dir = os.environ.get("MOONSHINE_ONNX_DIR", "/models/moonshine-onnx-fp32")
+    sess = load_sessions(model_dir, args.provider)
+    cfg = json.load(open(os.path.join(model_dir, "streaming_config.json")))
+    from tokenizers import Tokenizer
+
+    tok = Tokenizer.from_file(os.path.join(model_dir, "tokenizer.json"))
+
+    import wave
+
+    with wave.open(args.wav, "rb") as w:
+        assert w.getframerate() == 16000 and w.getnchannels() == 1, "expect 16 kHz mono"
+        pcm = np.frombuffer(w.readframes(w.getnframes()), np.int16)
+
+    text = transcribe_pcm(sess, cfg, tok, pcm)
+    if args.out:
+        with open(args.out, "w") as f:
+            f.write(text + "\n")
+    else:
+        print(text)
+
+
+if __name__ == "__main__":
+    main()

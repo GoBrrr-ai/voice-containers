@@ -61,6 +61,14 @@ RUN /opt/venv/bin/pocket-tts generate --text "Warm up the Pocket TTS cache." \
     && find /opt/hf-cache -type f -exec sha256sum {} + | sort -k2 > /opt/hf-cache/BAKE_MANIFEST.sha256 \
     && du -sh /opt/hf-cache && rm -f /tmp/warm.wav
 
+# GPU-capable: the torch cu132 wheel ships sm_110 SASS (Thor) and sm_80
+# cubins (native on Orin sm_87 via within-major 8.0→8.7 binary compat —
+# no JIT). Driver injection on an ubuntu base needs both vars (nvidia/cuda
+# bases bake them in); without them libcuda never appears and torch fails
+# with "Found no NVIDIA driver". `pocket-tts --device cuda` / .to("cuda").
+ENV NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
 ENV PATH="/opt/venv/bin:${PATH}"
 
 EXPOSE 8000

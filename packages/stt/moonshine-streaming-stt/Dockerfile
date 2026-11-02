@@ -1,18 +1,22 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# moonshine-streaming-stt 0.1.0 — Moonshine Streaming Medium 245M (MIT)
+# moonshine-streaming-stt 0.2.0 — Moonshine Streaming Medium 245M (MIT)
 #
-# Native incremental streaming ASR (English) via the OFFICIAL moonshine-voice
-# runtime: aarch64 manylinux wheel on PyPI (bundles the ORT C++ core), model
-# = .ort flatbuffer 5-graph bundle (encoder/adapter/cross_kv/decoder_kv/
-# frontend) from download.moonshine.ai, quantized medium-streaming-en.
-# Open-ASR-avg WER 6.65% (float reference). CPU-only by design — no CUDA
-# needed, runs on A78AE (Orin) and Thor alike.
-#
-# ~270 MB of model files + ~50-300 MB runtime. Ships `moonshine-transcribe`
-# (offline per file) — for live partials use the streaming API
-# (Transcriber.create_stream / MicTranscriber, see README).
+# TWO runtimes, one image:
+#  - CPU: official moonshine-voice 0.1.5 — its .ort 5-graph bundle is fused
+#    to com.microsoft CPU-only ops (CPU-only by design, upstream
+#    docs/execution-providers.md).
+#  - GPU: Masterx 5-graph plain-ai.onnx FP32 export driven directly on our
+#    onnxruntime-gpu 1.31.1 CUDA EP (sm_87 + sm_110a native SASS). The int8
+#    twins would thrash the CUDA EP (DynamicQuantizeLinear has no CUDA
+#    kernel; MatMulInteger alone does) — fp32 is the GPU config. Protocol +
+#    driver: task/research/moonshine-gpu-protocol/summary.md.
 # =============================================================================
+# DECOUPLING CONTRACT: these two ARGs are the only external artifact
+# references in this file; override to re-point either.
+ARG BASE_IMAGE=nvidia/cuda:13.2.1-runtime-ubuntu24.04
+ARG WHEELS_IMAGE=narandill/edge-wheels:cu132
+
 FROM ubuntu:24.04 AS models
 # Pinned stage dir: the quantized medium-streaming-en bundle (arch id 5),
 # digests recorded 2026-11-01. spelling_cnn.ort deliberately absent — it
@@ -39,28 +43,67 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && sha256sum --check --strict /tmp/moonshine.sha256 \
     && rm /tmp/moonshine.sha256
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS models-onnx
+# Pinned: Masterx/moonshine-streaming-medium-ONNX @ 3c59ebafc67091803df5297
+# 32365a259b0cc7b8a (2026-10-05) — fp32 5-graph set, MIT, token-for-token
+# vs transformers per upstream README. frontend is fp32-only by design
+# ("convolution state carry should stay exact").
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /models/moonshine-onnx-fp32 && cd /models/moonshine-onnx-fp32 \
+    && for F in frontend.onnx encoder.onnx adapter.onnx cross_kv.onnx \
+                decoder_kv.onnx streaming_config.json tokenizer.json; do \
+        curl -fsSL --retry 5 -O \
+            "https://huggingface.co/Masterx/moonshine-streaming-medium-ONNX/resolve/3c59ebafc67091803df529732365a259b0cc7b8a/$F" \
+            || exit 1; \
+    done \
+    && printf '%s  %s\n' \
+        bd97db4c43438034ca78dc444eed6bdfba03ea7a6e5f3c9c0d05693acf687a6c frontend.onnx \
+        9696eb966b76abffcbab8d3e0829032faee14d7d2535f78dcc59d456b6bfe16c encoder.onnx \
+        a3e71a3fdca1459b7eb751d85c8781e76c552b305b4e061dba5854ae9aeaf85e adapter.onnx \
+        b12501cb46dbc269ac42daaff06ec92075c555f6d308b8e2f2bdeaa9df8404ed cross_kv.onnx \
+        0241a270d277d45e7d66502f57ceb7d72b33802461cd37e2f250377e745f6116 decoder_kv.onnx \
+        bc7f1dfbffeb99049afc93fab4d0ee32473961d56e857f46c3f75a03f2e6effd streaming_config.json \
+        28bbc54a47dfa33673affa26010f23ac452685b18c76e81451d9b3ea25a54d54 tokenizer.json \
+        > /tmp/moonshine-onnx.sha256 \
+    && sha256sum --check --strict /tmp/moonshine-onnx.sha256 \
+    && rm /tmp/moonshine-onnx.sha256
+
+# DECOUPLING CONTRACT: these two ARGs are the only external artifact
+# references in the runtime stage; override to re-point either.
+FROM ${WHEELS_IMAGE} AS wheels
+FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.title="moonshine-streaming-stt" \
-      org.opencontainers.image.description="Moonshine Streaming Medium 245M via moonshine-voice 0.1.5; native incremental streaming, CPU-only; JP 7.2.1" \
+      org.opencontainers.image.description="Moonshine Streaming Medium 245M; CPU via moonshine-voice 0.1.5, GPU via fp32 ONNX on onnxruntime-gpu 1.31.1 (CUDA EP sm_87+sm_110a native); JP 7.2.1" \
       org.opencontainers.image.source="https://github.com/moonshine-ai/moonshine"
-# MIT (runtime + weights). Ubuntu 24.04 glibc 2.39 satisfies the manylinux_2_34 wheel.
+# MIT (runtimes + weights). Ubuntu 24.04 glibc 2.39 satisfies the manylinux_2_34 wheel.
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 python3-venv libsndfile1 \
+        python3 python3-venv libsndfile1 libcudnn9-cuda-13 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=models /models /models
+COPY --from=models-onnx /models/moonshine-onnx-fp32 /models/moonshine-onnx-fp32
+COPY --from=wheels /wheels/onnxruntime_gpu-*.whl /tmp/
 COPY rootfs/ /
 
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
     # Pinned: 0.1.5 ships aarch64 manylinux_2_31/2_34 wheels (ORT core inside).
     && /opt/venv/bin/pip install --no-cache-dir moonshine-voice==0.1.5 soundfile soxr \
-    && chmod +x /usr/local/bin/moonshine-transcribe
+    # GPU path: fp32 5-graph driver on our CUDA-13 ORT (sm_87+sm_110a SASS);
+    # tokenizers = HF BPE decoder for the Masterx tokenizer.json.
+    && /opt/venv/bin/pip install --no-cache-dir "tokenizers>=0.20,<1" \
+    && /opt/venv/bin/pip install --no-cache-dir /tmp/onnxruntime_gpu-*.whl \
+    && rm -rf /tmp/onnxruntime_gpu-*.whl \
+    && chmod +x /usr/local/bin/moonshine-transcribe /usr/local/bin/moonshine-ort-transcribe
 
 ENV PATH="/opt/venv/bin:${PATH}" \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
     MOONSHINE_MODEL_DIR=/models/moonshine-streaming-en \
-    MOONSHINE_MODEL_ARCH=5
+    MOONSHINE_MODEL_ARCH=5 \
+    MOONSHINE_ONNX_DIR=/models/moonshine-onnx-fp32
 
 CMD ["moonshine-transcribe", "--help"]

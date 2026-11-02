@@ -208,6 +208,123 @@ class MoonshineStreaming:
         ).strip()
 
 
+class MoonshineOrt:
+    """Moonshine Streaming Medium 245M — fp32 5-graph ONNX on our ORT wheel.
+
+    The official moonshine-voice runtime is CPU-only (its .ort set is fused
+    to com.microsoft CPU operators); the Masterx plain-ai.onnx fp32 export
+    partitions onto the CUDA EP cleanly (int8 twins would thrash it:
+    DynamicQuantizeLinear is CPU-only). Whole-utterance protocol per
+    task/research/moonshine-gpu-protocol/summary.md: pad to 640 -> frontend
+    (zero states) -> encoder once -> adapter(pos_offset=0) -> cross_kv once
+    -> greedy BOS decode, cap ceil(sec*6.5) <= 448, EOS=2.
+    """
+
+    name = "moonshine_ort"
+    backends = {"cpu", "cuda"}
+    supports_streaming = False
+    required_sample_rate = 16000
+
+    def __init__(self, opts):
+        import onnxruntime as ort
+
+        self.device = opts.get("device", "cpu")
+        self.model_dir = opts.get("model_dir", "/models/moonshine-onnx-fp32")
+        gpu = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        so = ort.SessionOptions()
+        so.log_severity_level = 3
+        self._s = {}
+        for n in ("frontend", "encoder", "adapter", "cross_kv", "decoder_kv"):
+            # Mixed EP when device=cuda: the frontend's first call reduces
+            # over an EMPTY carried-sample buffer (sample_len=0), which the
+            # CUDA EP rejects while CPU handles it — and the frontend is
+            # ~1.5% of the compute. The four heavy graphs take CUDA.
+            prov = (
+                ["CPUExecutionProvider"]
+                if n == "frontend"
+                else (gpu if self.device == "cuda" else ["CPUExecutionProvider"])
+            )
+            self._s[n] = ort.InferenceSession(
+                os.path.join(self.model_dir, f"{n}.onnx"), so, providers=prov
+            )
+        if (
+            self.device == "cuda"
+            and self._s["encoder"].get_providers()[0] != "CUDAExecutionProvider"
+        ):
+            raise RuntimeError("CUDA EP not active — refusing to silently bench CPU")
+        self._cfg = json.load(
+            open(os.path.join(self.model_dir, "streaming_config.json"))
+        )
+        from tokenizers import Tokenizer
+
+        self._tok = Tokenizer.from_file(os.path.join(self.model_dir, "tokenizer.json"))
+
+    def load(self, opts):
+        pass
+
+    def actual_backend(self) -> str:
+        return self.device
+
+    def transcribe(self, pcm, sr: int, wav_path: str | None = None):
+        import numpy as np
+
+        raw = (
+            np.frombuffer(pcm, np.int16) if isinstance(pcm, (bytes, bytearray)) else pcm
+        )
+        pcm = raw.astype(np.float32) / 32768.0
+        pcm = np.pad(pcm, (0, (-len(pcm)) % 640))[None, :]
+        shp = self._cfg["frontend_state_shapes"]
+
+        def z(key, dtype):
+            return np.zeros(
+                shp[key], np.int64 if key in ("sample_len", "frame_count") else dtype
+            )
+
+        feats = self._s["frontend"].run(
+            None,
+            {
+                "audio_chunk": pcm,
+                "sample_buffer": z("sample_buffer", np.float32),
+                "sample_len": z("sample_len", np.int64),
+                "conv1_buffer": z("conv1_buffer", np.float32),
+                "conv2_buffer": z("conv2_buffer", np.float32),
+                "frame_count": z("frame_count", np.int64),
+            },
+        )[0]
+        if feats.shape[1] == 0:
+            return ""
+        max_pos = self._cfg.get("max_position_embeddings", 4096)
+        assert feats.shape[1] < max_pos, "segment too long"
+        enc = self._s["encoder"].run(None, {"features": feats})[0]
+        memory = self._s["adapter"].run(
+            None, {"encoded": enc, "pos_offset": np.array([0], np.int64)}
+        )[0]
+        k_cross, v_cross = self._s["cross_kv"].run(None, {"memory": memory})
+        d, h, hd = self._cfg["depth"], self._cfg["nheads"], self._cfg["head_dim"]
+        empty = np.zeros((d, 1, h, 0, hd), np.float32)
+        token = np.array([[self._cfg["bos_id"]]], np.int64)
+        k_self, v_self = empty, empty
+        budget = min(-(-len(pcm[0]) * 13 // (2 * 16000)), 448)  # ceil(sec*6.5)
+        ids = []
+        while len(ids) < budget:
+            logits, k_self, v_self, _, _ = self._s["decoder_kv"].run(
+                None,
+                {
+                    "token": token,
+                    "k_self": k_self,
+                    "v_self": v_self,
+                    "out_k_cross": k_cross,
+                    "out_v_cross": v_cross,
+                },
+            )
+            nxt = int(logits[0, -1].argmax())
+            if nxt == self._cfg["eos_id"]:
+                break
+            ids.append(nxt)
+            token = np.array([[nxt]], np.int64)
+        return self._tok.decode(ids).strip()
+
+
 class CanaryFlash:
     """NVIDIA Canary-180M-Flash int8 — sherpa-onnx offline nemo-canary.
 
@@ -216,7 +333,7 @@ class CanaryFlash:
     """
 
     name = "canary"
-    backends = {"cpu"}
+    backends = {"cpu", "cuda"}
     supports_streaming = False
     required_sample_rate = 16000
 
@@ -226,6 +343,7 @@ class CanaryFlash:
         self.tokens = opts["tokens"]
         self.src = opts.get("src_lang", "en")
         self.tgt = opts.get("tgt_lang", "en")
+        self.device = opts.get("device", "cpu")
         import sherpa_onnx
 
         self._r = sherpa_onnx.OfflineRecognizer.from_nemo_canary(
@@ -233,7 +351,7 @@ class CanaryFlash:
             decoder=self.decoder,
             tokens=self.tokens,
             num_threads=1,
-            provider="cpu",
+            provider=self.device,
             src_lang=self.src,
             tgt_lang=self.tgt,
         )
@@ -242,7 +360,7 @@ class CanaryFlash:
         pass
 
     def actual_backend(self) -> str:
-        return "cpu"
+        return self.device
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
 
@@ -260,20 +378,21 @@ class ParakeetTdt:
     """
 
     name = "parakeet_tdt"
-    backends = {"cpu"}
+    backends = {"cpu", "cuda"}
     supports_streaming = False
     required_sample_rate = 16000
 
     def __init__(self, opts):
         import sherpa_onnx
 
+        self.device = opts.get("device", "cpu")
         self._r = sherpa_onnx.OfflineRecognizer.from_transducer(
             encoder=opts["encoder"],
             decoder=opts["decoder"],
             joiner=opts["joiner"],
             tokens=opts["tokens"],
             num_threads=1,
-            provider="cpu",
+            provider=self.device,
             decoding_method="greedy_search",
             model_type="nemo_transducer",
         )
@@ -282,7 +401,7 @@ class ParakeetTdt:
         pass
 
     def actual_backend(self) -> str:
-        return "cpu"
+        return self.device
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
 
@@ -302,27 +421,28 @@ class NemotronStreaming:
     """
 
     name = "nemotron_streaming"
-    backends = {"cpu"}
+    backends = {"cpu", "cuda"}
     supports_streaming = False
     required_sample_rate = 16000
 
     def __init__(self, opts):
         import sherpa_onnx
 
+        self.device = opts.get("device", "cpu")
         self._r = sherpa_onnx.OnlineRecognizer.from_transducer(
             encoder=opts["encoder"],
             decoder=opts["decoder"],
             joiner=opts["joiner"],
             tokens=opts["tokens"],
             num_threads=1,
-            provider="cpu",
+            provider=self.device,
         )
 
     def load(self, opts):
         pass
 
     def actual_backend(self) -> str:
-        return "cpu"
+        return self.device
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
         import numpy as np
@@ -533,17 +653,19 @@ class PiperTts:
 
 
 class PocketTts:
-    """Kyutai Pocket TTS 100M — the official pocket-tts package (torch-cpu).
+    """Kyutai Pocket TTS 100M — the official pocket-tts package (torch).
 
     Native streaming with adaptive chunks exists in the package, but v1
     benches generate_audio per sentence (whole-utterance), comparable with
     the other non-streaming TTS engines. The english bundle is baked into
     /opt/hf-cache; the oneDNN aarch64 JIT is disabled image-wide (Thor CPU
-    abort, see the package Dockerfile).
+    abort, see the package Dockerfile). GPU: model.to("cuda") — the torch
+    cu132 wheel carries sm_110 SASS (Thor) and sm_80 cubins (Orin sm_87
+    within-major compat); measured RTF 0.13 on Thor (CPU 0.39).
     """
 
     name = "pocket_tts"
-    backends = {"cpu"}
+    backends = {"cpu", "cuda"}
     supports_streaming = False
     output_sample_rate = 24000
     voices = [
@@ -560,16 +682,19 @@ class PocketTts:
     def __init__(self, opts):
         self.language = opts.get("language", "english")
         self.voice = opts.get("voice", "alba")
+        self.device = opts.get("device", "cpu")
         from pocket_tts import TTSModel
 
         self._m = TTSModel.load_model(language=self.language)
+        if self.device != "cpu":
+            self._m.to(self.device)
         self._voice_state = self._m.get_state_for_audio_prompt(self.voice)
 
     def load(self, opts):
         pass
 
     def actual_backend(self) -> str:
-        return "cpu"
+        return self.device
 
     def synthesize(self, text: str):
         import numpy as np
@@ -585,6 +710,7 @@ STT_ENGINES = {
         FasterWhisper,
         ParakeetCpp,
         MoonshineStreaming,
+        MoonshineOrt,
         CanaryFlash,
         ParakeetTdt,
         NemotronStreaming,
