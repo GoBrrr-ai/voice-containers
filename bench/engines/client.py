@@ -43,7 +43,7 @@ def _sync_cuda() -> None:
         pass  # no CUDA runtime in this image — nothing to synchronize
 
 
-def _to_float(pcm) -> "np.ndarray":
+def _to_float(pcm):
     """Harness feeds raw int16 WAV bytes (wave.readframes); engines want
     float32 in [-1, 1]. Numpy arrays pass through untouched."""
     import numpy as np
