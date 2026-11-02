@@ -24,7 +24,7 @@ def main() -> None:
         joiner=os.environ["TDT_JOINER"],
         tokens=os.environ["TDT_VOCAB"],
         num_threads=1,
-        provider="cpu",
+        provider=os.environ.get("PARAKEET_TDT_PROVIDER", "cpu"),
         decoding_method="greedy_search",
         model_type="nemo_transducer",
     )

@@ -1,0 +1,70 @@
+# Thor GPU variants — LibriSpeech test-clean 500 utts, seed 42
+# Focused run: ONLY the new GPU rows (+ the moonshine WER-parity CPU row).
+# Explicit ids pin the baseline config's index-space (canary_9 ... moonshine_ort_13);
+# the baseline yaml computes those same ids by position — never renumber either file.
+run_name: thor_gpu_variants_stt
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 500
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: canary                  # Canary-180M-Flash int8 on CUDA EP
+    id: canary_9
+    image: narandill/canary-flash-stt:0.2.0
+    backends: [cuda]
+    opts:
+      encoder: /models/canary-flash/encoder.int8.onnx
+      decoder: /models/canary-flash/decoder.int8.onnx
+      tokens: /models/canary-flash/tokens.txt
+      src_lang: en
+      tgt_lang: en
+      device: cuda
+  - name: parakeet_tdt            # TDT 0.6B v3 int8 on CUDA EP (25 languages)
+    id: parakeet_tdt_10
+    image: narandill/parakeet-tdt-stt:0.2.0
+    backends: [cuda]
+    opts:
+      encoder: /models/parakeet-tdt-v3/encoder.int8.onnx
+      decoder: /models/parakeet-tdt-v3/decoder.int8.onnx
+      joiner: /models/parakeet-tdt-v3/joiner.int8.onnx
+      tokens: /models/parakeet-tdt-v3/tokens.txt
+      device: cuda
+  - name: nemotron_streaming      # Streaming EN 0.6B int8 on CUDA EP
+    id: nemotron_streaming_11
+    image: narandill/nemotron-streaming-stt:0.2.0
+    backends: [cuda]
+    opts:
+      encoder: /models/nemotron-streaming-160ms/encoder.int8.onnx
+      decoder: /models/nemotron-streaming-160ms/decoder.int8.onnx
+      joiner: /models/nemotron-streaming-160ms/joiner.int8.onnx
+      tokens: /models/nemotron-streaming-160ms/tokens.txt
+      device: cuda
+  - name: moonshine_ort           # Moonshine Medium fp32, CPU EP (WER-parity ref)
+    id: moonshine_ort_12
+    image: narandill/moonshine-streaming-stt:0.2.0
+    backends: [cpu]
+    opts:
+      model_dir: /models/moonshine-onnx-fp32
+      device: cpu
+  - name: moonshine_ort           # Moonshine Medium fp32 on CUDA EP
+    id: moonshine_ort_13
+    image: narandill/moonshine-streaming-stt:0.2.0
+    backends: [cuda]
+    opts:
+      model_dir: /models/moonshine-onnx-fp32
+      device: cuda
+streaming: {chunk_ms: 160, realtime_pass: false}
+warmup_n: 5
+repeats: 1
+cooldown_s: 60
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+output_dir: results

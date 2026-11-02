@@ -1,13 +1,17 @@
-# syntax=docker/dockerfile:1
 # =============================================================================
-# canary-flash-stt 0.1.0 — NVIDIA Canary-180M-Flash (CC-BY-4.0)
+# canary-flash-stt 0.2.0 — NVIDIA Canary-180M-Flash (CC-BY-4.0)
 #
 # FastConformer encoder + 4-layer decoder (en/de/es/fr, ASR + X↔EN), ~182M
 # params. INT8 sherpa-onnx export (encoder 132.7 MB + decoder 74.4 MB) on the
-# CPU EP — the strongest ASR here that also has an easy GPU path (FP16 ONNX,
-# see README). Per-utterance after VAD chunking: no native streaming.
-# LibriSpeech-other 2.87 WER, SPGI 1.95.
+# GPU-capable sherpa wheel — ONE image serves provider=cpu AND provider=cuda
+# (CUDA EP: sm_87 + sm_110a native SASS via our ORT 1.31.1). Per-utterance
+# after VAD chunking: no native streaming. LibriSpeech-other 2.87 WER, SPGI 1.95.
 # =============================================================================
+# DECOUPLING CONTRACT: these two ARGs are the only external artifact
+# references in this file; override to re-point either.
+ARG BASE_IMAGE=nvidia/cuda:13.2.1-runtime-ubuntu24.04
+ARG WHEELS_IMAGE=narandill/edge-wheels:cu132
+
 FROM ubuntu:24.04 AS models
 # Pinned k2-fsa asr-models release asset (int8, en-es-de-fr).
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates bzip2 \
@@ -23,26 +27,40 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     done \
     && rm -rf /tmp/canary
 
-FROM ubuntu:24.04
+# DECOUPLING CONTRACT: these two ARGs are the only external artifact
+# references in the runtime stage; override to re-point either.
+FROM ${WHEELS_IMAGE} AS wheels
+FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.title="canary-flash-stt" \
-      org.opencontainers.image.description="NVIDIA Canary-180M-Flash int8 via sherpa-onnx 2.0.1; VAD-chunked offline ASR + X↔EN translation, CPU; JP 7.2.1" \
+      org.opencontainers.image.description="NVIDIA Canary-180M-Flash int8 via sherpa-onnx 2.0.1 (GPU wheel: CUDA EP sm_87+sm_110a native + CPU); VAD-chunked offline ASR + X↔EN translation; JP 7.2.1" \
       org.opencontainers.image.source="https://huggingface.co/soniqo/Canary-180M-Flash-ONNX"
 # Weights CC-BY-4.0 (upstream nvidia/canary-180m-flash); sherpa-onnx Apache-2.0.
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv \
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-venv libcudnn9-cuda-13 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=models /models /models
+COPY --from=wheels /wheels/sherpa_onnx-*.whl /wheels/ort-libs/ /tmp/sherpa/
 COPY rootfs/ /
 
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
-    # PyPI aarch64 CPU wheel; v2.0.1 fixes canary lang2id derivation.
-    && /opt/venv/bin/pip install --no-cache-dir sherpa-onnx==2.0.1 soundfile \
+    # GPU-capable sherpa-onnx wheel from builders/wheels-cu132 — linked
+    # against OUR CUDA-13 ORT (sm_87+sm_110a SASS in providers_cuda.so), so
+    # ONE image serves provider=cpu and provider=cuda. v2.0.1 fixes canary
+    # lang2id derivation. cuBLAS ships with the CUDA runtime base; cuDNN 9
+    # via apt; the ORT .so files land on LD_LIBRARY_PATH.
+    && /opt/venv/bin/pip install --no-cache-dir /tmp/sherpa/sherpa_onnx-*.whl soundfile \
+    && mkdir -p /opt/ort/lib \
+    && cp -a /tmp/sherpa/libonnxruntime*.so* /opt/ort/lib/ \
+    && rm -rf /tmp/sherpa \
     && chmod +x /usr/local/bin/canary-transcribe
 
 ENV PATH="/opt/venv/bin:${PATH}" \
+    LD_LIBRARY_PATH=/opt/ort/lib \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
     CANARY_ENCODER=/models/canary-flash/encoder.int8.onnx \
     CANARY_DECODER=/models/canary-flash/decoder.int8.onnx \
     CANARY_VOCAB=/models/canary-flash/tokens.txt \
