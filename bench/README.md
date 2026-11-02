@@ -29,10 +29,12 @@ JSONL schema already carries their fields.
 | `paradee` | `narandill/paradee-tts` | cuda, cpu | int8 graph |
 | `piper` | `narandill/wyoming-piper1-tts` | cuda, cpu | `PiperVoice.synthesize_wav` |
 
-> The 2026-11 engines (moonshine-streaming-stt, canary-flash-stt,
-> parakeet-tdt-stt, nemotron-streaming-stt, pocket-tts) ship **without
-> adapters yet** — write them (and a config) when first benched; the images
-> already expose `*-transcribe` / `pocket-tts` CLIs the adapters can drive.
+> The 2026-11 engines all have adapters + config rows now. GPU-first per the
+> unified-memory policy: one image serves `provider=cpu` **and** `provider=cuda`
+> for the sherpa trio + moonshine (GPU = fp32 5-graph export on our ORT CUDA
+> EP; frontend on CPU — its first call reduces an empty buffer the CUDA EP
+> rejects). `ptts` (phonon-31m) is CPU-only by design; `pocket_tts` GPU rides
+> the torch cu132 wheel (sm_110 SASS Thor / sm_80 cubins Orin).
 
 ## Matrix, charts and README (spec §10)
 
@@ -48,6 +50,13 @@ bench/.venv/bin/python -m bench.cli plot --readme
 
 make bench-plot   # same thing
 ```
+
+Retention: `history.jsonl` is append-only and tiny — keep everything. The raw
+dirs are the bulk; prune superseded ones with `make bench-prune`
+(`bench/.venv/bin/python -m bench.cli prune`, dry-run by default, `--yes` to
+apply). It protects every run dir a matrix row references (e.g. an older
+dir holding the only complete run of an engine) plus the newest `--keep N`
+per task; everything else is superseded and safe to delete.
 
 Ranking = composite score (direction-aware min-max within the cohort, log-scale
 for RTF/latency/memory/power; preset weights `default|realtime_assistant|batch_transcription|low_power`)
