@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
-# CPU smoke test (no GPU needed): offline transcription of the 16 kHz test wav.
+# Smoke test: offline transcription + streaming API + the ORT fp32 GPU driver.
 # Usage: ./smoke_stt.sh <image>
 set -euo pipefail
 IMAGE="${1:?usage: smoke_stt.sh <image>}"
 REPO="$(cd "$(dirname "$0")/../../../.." && pwd)"
 AUDIO="$REPO/task/voice-data/smoke_tts_16k.wav"
 [ -f "$AUDIO" ] || { echo "missing $AUDIO"; exit 1; }
+# nvidia runtime + disable-requirement-check: the nvidia/cuda base's brand
+# list has no Thor entry, so the check fails on JP 7.2.1 without this
+# (same convention as the other package smokes; harmless pre-JP7.2.1).
+RUNTIME=(--runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1)
 
-echo "[smoke] 1/2 transcription (moonshine-transcribe, medium streaming bundle)"
-OUT=$(docker run --rm -v "$AUDIO":/audio/x.wav:ro \
+echo "[smoke] 1/3 transcription (moonshine-transcribe, medium streaming bundle)"
+OUT=$(docker run --rm "${RUNTIME[@]}" -v "$AUDIO":/audio/x.wav:ro \
   --entrypoint moonshine-transcribe "$IMAGE" /audio/x.wav 2>/dev/null | tail -4)
 echo "$OUT" | head -c 400; echo
 [ -n "$OUT" ] || { echo "[smoke] FAIL: no transcript"; exit 1; }
 
-echo "[smoke] 2/2 streaming API smoke (create_stream + add_audio)"
-docker run --rm -i -v "$AUDIO":/audio/x.wav:ro --entrypoint /opt/venv/bin/python "$IMAGE" - <<'PY'
+echo "[smoke] 2/3 streaming API smoke (create_stream + add_audio)"
+docker run --rm -i "${RUNTIME[@]}" -v "$AUDIO":/audio/x.wav:ro --entrypoint /opt/venv/bin/python "$IMAGE" - <<'PY'
 import os, soundfile as sf
 from moonshine_voice import ModelArch, Transcriber
 pcm, sr = sf.read("/audio/x.wav", dtype="float32")
@@ -31,5 +35,9 @@ text = " ".join(l.text for l in out.lines).strip()
 assert text, "empty streaming transcript"
 print("streaming API OK:", text[:80])
 PY
+
+echo "[smoke] 3/3 ORT fp32 driver on CUDA EP (mixed EP: frontend on CPU)"
+docker run --rm "${RUNTIME[@]}" -v "$AUDIO":/audio/x.wav:ro \
+  --entrypoint moonshine-ort-transcribe "$IMAGE" /audio/x.wav --provider cuda 2>/dev/null
 
 echo "[smoke] PASS"

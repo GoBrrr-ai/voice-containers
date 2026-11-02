@@ -48,6 +48,15 @@ engines:
     opts:
       language: english
       voice: alba
+  # --- GPU variant (2026-11-02): torch cu132 wheel, sm_110 SASS native on
+  # Thor (sm_80 cubins cover Orin sm_87 within-major); measured RTF 0.13.
+  - name: pocket_tts              # Kyutai Pocket TTS 100M on CUDA
+    image: narandill/pocket-tts:0.2.0
+    backends: [cuda]
+    opts:
+      language: english
+      voice: alba
+      device: cuda
 streaming: {chunk_ms: 160, realtime_pass: true}
 warmup_n: 5
 repeats: 1
