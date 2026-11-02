@@ -130,9 +130,10 @@ def cohort_of(row: dict) -> tuple:
 def select_rows(bench_root: Path, include: str = "baseline") -> list[dict]:
     """Latest complete row per (cohort, engine_id) from history.
 
-    ``include`` is a substring filter on run_name ("baseline" by default;
-    "" / "all" selects everything). Completeness = n_ok equals the manifest
-    line count (the frozen subset is the truth, not dataset.n).
+    ``include`` filters on run_name: comma-separated substrings, any of
+    which match ("baseline" by default; "" / "all" selects everything).
+    Completeness = n_ok equals the manifest line count (the frozen subset
+    is the truth, not dataset.n).
     """
     rows = []
     seen: set[tuple] = set()
@@ -152,8 +153,10 @@ def select_rows(bench_root: Path, include: str = "baseline") -> list[dict]:
 
     for r in sorted(read_history(bench_root), key=lambda x: x.get("epoch", 0)):
         run_name = r.get("run_name", "")
-        if include and include not in ("all", "") and include not in run_name:
-            continue
+        if include and include not in ("all", ""):
+            pats = [s.strip() for s in include.split(",") if s.strip()]
+            if pats and not any(p in run_name for p in pats):
+                continue
         n_expected = expected(r.get("manifest", ""))
         m = r.get("metrics") or {}
         if n_expected and m.get("n_ok") != n_expected:

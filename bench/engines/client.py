@@ -700,6 +700,10 @@ class PocketTts:
         import numpy as np
 
         audio = self._m.generate_audio(self._voice_state, text)
+        # GPU: generate_audio returns a tensor on the model's device —
+        # pull it to host before numpy (cuda:0 tensors can't convert).
+        if self.device != "cpu":
+            audio = audio.cpu()
         _sync_cuda()
         return np.asarray(audio), self._m.sample_rate
 

@@ -57,6 +57,7 @@ MODEL_COLORS = {
     "faster-whisper tiny int8": "#E69F00",  # Okabe-Ito orange
     # new STT (2026-11) — hues unused within the STT chart set
     "moonshine-streaming medium int8": "#009E73",  # Okabe-Ito green
+    "moonshine-streaming medium fp32 (ORT)": "#009E73",  # same family, GPU driver
     "canary-180m-flash int8": "#F0E442",  # Okabe-Ito yellow (canary!)
     "parakeet-tdt 0.6B v3 int8": "#CC79A7",  # Okabe-Ito pink
     "nemotron-streaming 0.6B int8 (160 ms)": "#0072B2",  # Okabe-Ito blue
@@ -202,6 +203,8 @@ def display(row: dict) -> str:
     if proj == "wyoming-piper1-tts":
         return "piper1-tts libritts-r medium"
     if proj == "moonshine-streaming-stt":
+        if str(row.get("engine_id") or "").startswith("moonshine_ort"):
+            return "moonshine-streaming medium fp32 (ORT)"
         return "moonshine-streaming medium int8"
     if proj == "canary-flash-stt":
         return "canary-180m-flash int8"
