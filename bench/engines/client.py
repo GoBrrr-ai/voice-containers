@@ -43,6 +43,16 @@ def _sync_cuda() -> None:
         pass  # no CUDA runtime in this image — nothing to synchronize
 
 
+def _to_float(pcm) -> "np.ndarray":
+    """Harness feeds raw int16 WAV bytes (wave.readframes); engines want
+    float32 in [-1, 1]. Numpy arrays pass through untouched."""
+    import numpy as np
+
+    if isinstance(pcm, (bytes, bytearray)):
+        return np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+    return np.asarray(pcm, dtype="float32")
+
+
 # ---------------------------------------------------------------- STT engines
 class FasterWhisper:
     name = "faster_whisper"
@@ -185,9 +195,8 @@ class MoonshineStreaming:
         return "cpu"
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
-        import numpy as np
 
-        pcm = np.asarray(pcm, dtype="float32")
+        pcm = _to_float(pcm)
         if sr != 16000:
             import soxr
 
@@ -236,10 +245,9 @@ class CanaryFlash:
         return "cpu"
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
-        import numpy as np
 
         stream = self._r.create_stream()
-        stream.accept_waveform(sr, np.asarray(pcm, dtype="float32"))
+        stream.accept_waveform(sr, _to_float(pcm))
         self._r.decode_stream(stream)
         return stream.result.text.strip()
 
@@ -277,10 +285,9 @@ class ParakeetTdt:
         return "cpu"
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
-        import numpy as np
 
         stream = self._r.create_stream()
-        stream.accept_waveform(sr, np.asarray(pcm, dtype="float32"))
+        stream.accept_waveform(sr, _to_float(pcm))
         self._r.decode_stream(stream)
         return stream.result.text.strip()
 
@@ -321,7 +328,7 @@ class NemotronStreaming:
         import numpy as np
 
         stream = self._r.create_stream()
-        stream.accept_waveform(sr, np.asarray(pcm, dtype="float32"))
+        stream.accept_waveform(sr, _to_float(pcm))
         stream.accept_waveform(sr, np.zeros(int(0.2 * sr), dtype=np.float32))
         stream.input_finished()
         while self._r.is_ready(stream):
