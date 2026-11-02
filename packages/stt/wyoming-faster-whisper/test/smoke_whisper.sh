@@ -10,7 +10,7 @@ NAME_SUFFIX="$$"
 NAME="wyoming-faster-whisper-smoke-$$"
 RUNTIME=(--runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1)
 
-for i in $(seq 1 90); do
+for _ in $(seq 1 90); do
   USED=$(nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits 2>/dev/null | awk '{s+=$1} END {print s+0}')
   [ "${USED:-0}" -lt 100000 ] && break
   echo "[smoke] GPU busy (${USED} MiB in use) - sleeping 20s"; sleep 20
@@ -25,7 +25,7 @@ trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
 
 echo "[smoke] stt round trip (retries until ready; first boot downloads the model)"
 ok=""
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   if OUT=$(timeout 300 docker exec -i "$NAME" /opt/venv/bin/python - \
       < "$(dirname "$0")/wyoming_roundtrip.py" stt /data/smoke_tts_16k.wav 2>/dev/null) && [ -n "$OUT" ]; then
     ok="$OUT"; break

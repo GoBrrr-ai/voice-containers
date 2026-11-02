@@ -39,7 +39,7 @@ def _edit_counts(ref: list[str], hyp: list[str]) -> tuple[int, int, int]:
 
 def corpus_wer_cer(refs: Iterable[str], hyps: Iterable[str]) -> dict:
     """Corpus-level WER/CER = summed errors / summed words (spec 6.1)."""
-    S = D = I = Nw = Nc = CERe = 0
+    S = D = ins = Nw = Nc = CERe = 0
     ser = empty = hall = 0
     n = 0
     for ref, hyp in zip(refs, hyps):
@@ -48,7 +48,7 @@ def corpus_wer_cer(refs: Iterable[str], hyps: Iterable[str]) -> dict:
         s, d, i = _edit_counts(rw, hw)
         S += s
         D += d
-        I += i
+        ins += i
         Nw += len(rw)
         if not hw and ref.strip():
             empty += 1
@@ -64,11 +64,11 @@ def corpus_wer_cer(refs: Iterable[str], hyps: Iterable[str]) -> dict:
         Nc += len(rc)
     return {
         "n": n,
-        "wer": (S + D + I) / Nw if Nw else None,
+        "wer": (S + D + ins) / Nw if Nw else None,
         "cer": CERe / Nc if Nc else None,
         "sub_rate": S / Nw if Nw else None,
         "del_rate": D / Nw if Nw else None,
-        "ins_rate": I / Nw if Nw else None,
+        "ins_rate": ins / Nw if Nw else None,
         "ser": ser / n if n else None,
         "empty_rate": empty / n if n else None,
         "hallucination_rate": hall / n if n else None,

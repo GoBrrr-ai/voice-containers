@@ -1,6 +1,6 @@
 """Common records shared by datasets, engines, runner and metrics (spec §3.1)."""
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from typing import Optional
 
 

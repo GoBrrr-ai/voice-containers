@@ -1,6 +1,8 @@
 #!/opt/venv/bin/python3
 """Synthesize text to a WAV file. Usage: kokoro-say "text" [-o out.wav] [--voice V] [--speed F] [--lang L]"""
-import argparse, os, wave
+import argparse
+import os
+import wave
 
 import onnxruntime as rt
 from kokoro_onnx import Kokoro

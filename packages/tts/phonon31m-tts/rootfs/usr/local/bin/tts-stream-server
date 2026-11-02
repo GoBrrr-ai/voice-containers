@@ -66,7 +66,6 @@ class Handler(BaseHTTPRequestHandler):
             return
         q = parse_qs(u.query)
         text = (q.get("text") or [""])[0]
-        voice = (q.get("voice") or [None])[0]
         if not text:
             self.send_error(400, "missing text")
             return

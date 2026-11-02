@@ -11,7 +11,7 @@ RUNTIME=(--runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1)   # env only needed pre-J
 # --- wait for a free GPU (up to ~30 min; NEVER kill other people's jobs) -----
 # Co-tenants are fine (125GB Thor); wait only under real memory pressure.
 # NEVER kill anyone's processes.
-for i in $(seq 1 90); do
+for _ in $(seq 1 90); do
   USED=$(nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits 2>/dev/null | awk '{s+=$1} END {print s+0}')
   [ "${USED:-0}" -lt 100000 ] && break
   echo "[smoke] GPU busy (${USED} MiB in use) - sleeping 20s"; sleep 20
@@ -49,7 +49,7 @@ trap 'docker rm -f "$CID" >/dev/null 2>&1 || true' EXIT
 # listens (false positive -> POST reset), and a raw connect+EOF can hit the
 # server mid-boot. GET / answers 404 fast and cannot wedge the POST handler.
 up=0
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   # NOTE: curl -w prints "000" on failure by itself; do NOT append another
   # 000 via || -- the doubled value would compare != "000" and false-positive.
   C=$(curl -s -m 3 -o /dev/null -w "%{http_code}" http://localhost:18080/ 2>/dev/null || true)

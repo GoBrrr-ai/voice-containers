@@ -127,7 +127,7 @@ def _metric_v(r: dict, k: str):
 
 def _package_version(build_sh: Path) -> str:
     """Image version from a package's build.sh — the single source of truth."""
-    m = re.search(r'VERSION="\$\{VERSION:-(?P<v>[^"}]+)\}"', build_sh.read_text())
+    m = re.search(r'\bVERSION="\$\{VERSION:-(?P<v>[^"}]+)\}"', build_sh.read_text())
     if not m:
         raise ValueError(f"cannot parse VERSION from {build_sh}")
     return m.group("v")

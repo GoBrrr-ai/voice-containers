@@ -8,7 +8,7 @@ RUNTIME=(--runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1)
 
 # Co-tenants are fine (125GB Thor); wait only under real memory pressure.
 # NEVER kill anyone's processes.
-for i in $(seq 1 90); do
+for _ in $(seq 1 90); do
   USED=$(nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits 2>/dev/null | awk '{s+=$1} END {print s+0}')
   [ "${USED:-0}" -lt 100000 ] && break
   echo "[smoke] GPU busy (${USED} MiB in use) - sleeping 20s"; sleep 20

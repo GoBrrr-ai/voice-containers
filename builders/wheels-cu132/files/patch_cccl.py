@@ -30,7 +30,7 @@ for path in PATHS:
         lines = open(path).read().split("\n")
     except OSError:
         continue
-    idx = next((i for i, l in enumerate(lines) if MARKER in l), None)
+    idx = next((i for i, line in enumerate(lines) if MARKER in line), None)
     if idx is None:
         print("no qualified specialization found (skipping)", path)
         continue
@@ -47,10 +47,10 @@ for path in PATHS:
         print(f"unexpected specialization shape at line {idx + 1} (skipping)", path)
         continue
     body = [
-        l.replace(
+        line.replace(
             "::cuda::proclaims_copyable_arguments", "proclaims_copyable_arguments"
         )
-        for l in lines[start : end + 1]
+        for line in lines[start : end + 1]
     ]
     replacement = ["namespace cuda {"] + body + ["} // namespace cuda"]
     lines[start : end + 1] = replacement

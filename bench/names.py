@@ -36,11 +36,11 @@ DEFAULT_FAMILY_COLORS = {
     "kokoro": "#009E73",  # green
     "phonon-31m": "#CC79A7",  # pink
     "paradee": "#F0E442",  # yellow
-    "moonshine": "#56B4E9",  # sky blue
-    "canary": "#8a7f2f",  # dark yellow (F0E442 is taken by paradee)
-    "parakeet-tdt": "#D55E00",  # vermillion
+    "moonshine": "#009E73",  # green (unused within the STT chart set)
+    "canary": "#F0E442",  # yellow — a canary, obviously
+    "parakeet-tdt": "#CC79A7",  # pink (unused within the STT chart set)
     "nemotron-streaming": "#0072B2",  # blue
-    "pocket-tts": "#9467bd",  # purple
+    "pocket-tts": "#E69F00",  # orange
 }
 FAMILY_COLORS = {**DEFAULT_FAMILY_COLORS, **BRAND_COLORS}
 
@@ -55,18 +55,18 @@ MODEL_COLORS = {
     "parakeet-redux 178M q8_0": "#D55E00",  # Okabe-Ito vermillion
     "redux packed (CPU)": "#D55E00",  # same model as above — CPU variant
     "faster-whisper tiny int8": "#E69F00",  # Okabe-Ito orange
+    # new STT (2026-11) — hues unused within the STT chart set
+    "moonshine-streaming medium int8": "#009E73",  # Okabe-Ito green
+    "canary-180m-flash int8": "#F0E442",  # Okabe-Ito yellow (canary!)
+    "parakeet-tdt 0.6B v3 int8": "#CC79A7",  # Okabe-Ito pink
+    "nemotron-streaming 0.6B int8 (160 ms)": "#0072B2",  # Okabe-Ito blue
     # TTS
     "kokoro 82M int8": "#009E73",  # Okabe-Ito green
     "paradee 8M int8 (GPU)": "#F0E442",  # Okabe-Ito yellow
     "paradee 8M int8 (CPU)": "#F0E442",  # same model — backend variant
     "piper1-tts libritts-r medium": "#41BDF5",  # Home Assistant blue (brand)
     "phonon-31m (CPU)": "#CC79A7",  # Okabe-Ito pink
-    "pocket-tts 100M": "#9467bd",  # purple
-    # new STT
-    "moonshine-streaming medium int8": "#56B4E9",  # sky blue
-    "canary-180m-flash int8": "#8a7f2f",  # dark yellow
-    "parakeet-tdt 0.6B v3 int8": "#D55E00",  # vermillion
-    "nemotron-streaming 0.6B int8 (160 ms)": "#0072B2",  # blue
+    "pocket-tts 100M": "#E69F00",  # Okabe-Ito orange
 }
 
 
@@ -132,7 +132,7 @@ PACKAGES = {
         "streaming": "**native incremental** (live partials)",
     },
     "canary-flash-stt": {
-        "what": "NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X→EN) via sherpa-onnx",
+        "what": "NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx",
         "streaming": "VAD-chunked (opt-in)",
     },
     "parakeet-tdt-stt": {

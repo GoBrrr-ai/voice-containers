@@ -19,12 +19,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && mkdir -p /tmp/nemostream && cd /tmp/nemostream \
     && curl -fL --retry 5 -o nemostream.tar.bz2 \
         "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemotron-speech-streaming-en-0.6b-160ms-int8-2026-04-25.tar.bz2" \
+    && echo "0ae73a41cd51599dc7cac9ac083d9d35de53d762ca45923505fde47a3751814b  nemostream.tar.bz2" | sha256sum --check - \
     && tar -xjf nemostream.tar.bz2 \
     && mkdir -p /models/nemotron-streaming-160ms \
-    && find . -name "encoder.int8.onnx" -exec cp {} /models/nemotron-streaming-160ms/ \; \
-    && find . -name "decoder.int8.onnx" -exec cp {} /models/nemotron-streaming-160ms/ \; \
-    && find . -name "joiner.int8.onnx" -exec cp {} /models/nemotron-streaming-160ms/ \; \
-    && find . -name "tokens.txt" -exec cp {} /models/nemotron-streaming-160ms/ \; \
+    && for F in encoder.int8.onnx decoder.int8.onnx joiner.int8.onnx tokens.txt; do \
+        cp "sherpa-onnx-nemotron-speech-streaming-en-0.6b-160ms-int8-2026-04-25/$F" /models/nemotron-streaming-160ms/; \
+    done \
+    && test -f /models/nemotron-streaming-160ms/encoder.int8.onnx \
+    && test -f /models/nemotron-streaming-160ms/tokens.txt \
     && rm -rf /tmp/nemostream
 
 FROM ubuntu:24.04

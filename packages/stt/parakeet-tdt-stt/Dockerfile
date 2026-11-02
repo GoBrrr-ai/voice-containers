@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && mkdir -p /tmp/tdt && cd /tmp/tdt \
     && curl -fL --retry 5 -o tdt.tar.bz2 \
         "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2" \
+    && echo "5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf  tdt.tar.bz2" | sha256sum --check - \
     && tar -xjf tdt.tar.bz2 \
     && mkdir -p /models/parakeet-tdt-v3 \
     && for F in encoder.int8.onnx decoder.int8.onnx joiner.int8.onnx tokens.txt; do \
