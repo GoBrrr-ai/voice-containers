@@ -81,6 +81,49 @@ def grant_permissions(yes: bool = typer.Option(False, "--yes", "-y")):
     raise typer.Exit(cachectl.grant_drop_caches(assume_yes=yes))
 
 
+@app.command()
+def prune(
+    keep: int = typer.Option(1, "--keep", "-k", help="raw run dirs to keep per task"),
+    dry_run: bool = typer.Option(True, "--dry-run/--yes"),
+):
+    """Delete superseded benchmarks/raw/<run_id> dirs (latest --keep per task).
+
+    Retention policy: history.jsonl stays append-only (it is tiny); raw dirs
+    are the bulk. Protected: every run_id referenced by a matrix row (latest
+    complete per engine — e.g. the pocket row living in an older run dir),
+    plus the newest `keep` dirs per task; everything else is superseded.
+    """
+    import shutil
+
+    from .matrix import select_rows
+
+    protected = {r.get("run_id") for r in select_rows(BENCH)}
+    root = BENCH / "benchmarks" / "raw"
+    if not root.exists():
+        raise typer.Exit(0)
+    by_task: dict[str, list[Path]] = {}
+    for d in sorted(root.iterdir()):
+        if d.is_dir() and "_" in d.name:
+            task = d.name.rsplit("_", 1)[-1]
+            by_task.setdefault(task, []).append(d)
+    removed = 0
+    for task, dirs in sorted(by_task.items()):
+        newest = set(dirs[-keep:]) if keep else set()
+        for d in dirs:
+            if d.name in protected or d in newest:
+                continue
+            rel = d.relative_to(BENCH)
+            if dry_run:
+                typer.echo(f"would remove {rel} ({sum(1 for _ in d.rglob('*'))} files)")
+            else:
+                shutil.rmtree(d)
+                typer.echo(f"removed {rel}")
+            removed += 1
+    typer.echo(
+        f"{removed} dir(s) {'would be ' if dry_run else ''}removed (dry-run: rerun with --yes)"
+    )
+
+
 @app.command("drop-caches")
 def drop_caches():
     """Clear the host page cache (sysctl -w vm.drop_caches=3) — never prompts."""

@@ -7,7 +7,7 @@ PROJECTS := packages/llm/llama-cpp \
             packages/tts/wyoming-piper1-tts packages/tts/kokoro-tts \
             packages/tts/phonon31m-tts packages/tts/paradee-tts packages/tts/pocket-tts
 
-.PHONY: builders build-all verify-all smoke-all lint bench-prepare bench-selfcheck bench-plot
+.PHONY: builders build-all verify-all smoke-all lint bench-prepare bench-selfcheck bench-plot bench-prune
 
 builders: ## shared artifact builders (cached; instant on replay)
 	cd builders/parakeet-cpp && ./build.sh
@@ -34,3 +34,6 @@ bench-selfcheck: ## device/CUDA/probe/engine availability report (spec 9.3)
 
 bench-plot: ## charts + matrix + README.md from benchmarks/history.jsonl (no inference)
 	bench/.venv/bin/python -m bench.cli plot --readme
+
+bench-prune: ## delete superseded benchmarks/raw dirs (latest per task; --yes to apply)
+	bench/.venv/bin/python -m bench.cli prune
