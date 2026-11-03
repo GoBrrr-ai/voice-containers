@@ -588,7 +588,8 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     ax.set_xlabel("RTF p50 — audio-s per s (lower is better ↓, log)")
     ax.set_ylabel("corpus WER % (lower is better ↓)")
     _title(ax, "Speech recognition — accuracy vs speed")
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    # no tight_layout here: the lens inset axes are incompatible with it
+    fig.subplots_adjust(left=0.07, right=0.985, top=0.88, bottom=0.17)
     _footer_common(
         fig, rows, extra=" · marker = rank (❶❷❸ top-3) · size = memory · line = p50→p90"
     )
@@ -691,7 +692,8 @@ def stt_power(rows: list[dict], mode: Mode = DARK):
     )
     ax.set_ylabel("corpus WER % (lower is better ↓)")
     _title(ax, "Speech recognition — GPU power vs accuracy")
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    # no tight_layout here: the lens inset axes are incompatible with it
+    fig.subplots_adjust(left=0.07, right=0.985, top=0.88, bottom=0.17)
     _footer_common(
         fig,
         rows,
@@ -828,11 +830,11 @@ def tts_heatmap(rows: list[dict], mode: Mode = DARK):
 
 
 # -------------------------------------------------------------- shared
-# -------------------------------------------------------------- shared
 # Edge deployment profiles — VERSIONED. Changing anchors, weights, gates or
-# methodology means a NEW profile name (orin-nano-8gb-v2), never a silent
-# edit: a 98-point engine must stay a meaningful 98 six months and twenty
-# engines later.
+# methodology means a NEW profile name (after orin-nano-8gb-v2: v3), never a
+# silent edit: a 98-point engine must stay a meaningful 98 six months and
+# twenty engines later. Old profiles stay in this dict so their scores
+# remain computable.
 #
 # Vector tuple: (target, worst, weight). Score is ABSOLUTE, not
 # cohort-relative — 1.0 at/beyond the target, 0.0 at the worst-acceptable
@@ -898,8 +900,56 @@ EDGE_PROFILES = {
             },
         },
     },
+    # v2 — UNIFIED-MEMORY COEXISTENCE: on the Orin Nano the 8 GB is shared
+    # CPU+GPU and the voice stack must fit alongside llama.cpp weights and
+    # KV cache, so memory gains +10 weight (taken from RTF — real-time
+    # headroom is the least binding vector for an assistant) and the vector
+    # moves to ANON peak: cgroup peak counts reclaimable file cache (the
+    # model was just read from disk) and overstates the true footprint —
+    # the parakeet.cpp rows measure ~2.2 GB cgroup but only ~0.8 GB anon.
+    # The worst bound tightens 4 -> 3 GiB: with a 3.5 GB LLM resident, an
+    # engine above 3 GiB leaves nothing for the second voice engine. The
+    # hard 4 GiB gate stays (anon above that is undeployable, period).
+    "orin-nano-8gb-v2": {
+        "stt": {
+            "vectors": {
+                "wer": (0.02, 0.10, 0.30),
+                "offline_latency_s_p95": (0.3, 1.5, 0.20),
+                "rtf_p95": (0.10, 1.0, 0.15),
+                "anon_peak_mib": (1024, 3072, 0.35),
+            },
+            "gates": {
+                "wer": 0.10,
+                "offline_latency_s_p95": 1.5,
+                "anon_peak_mib": 4096,
+            },
+        },
+        "tts": {
+            "vectors": {
+                "tts_mos": (4.0, 2.5, 0.25),
+                "ttfa_s_p90": (0.3, 1.5, 0.25),
+                "rtf_p95": (0.10, 1.0, 0.15),
+                "anon_peak_mib": (1024, 3072, 0.35),
+            },
+            "gates": {
+                "ttfa_s_p90": 1.5,
+                "anon_peak_mib": 4096,
+            },
+        },
+    },
 }
-EDGE_PROFILE = "orin-nano-8gb-v1"
+EDGE_PROFILE = "orin-nano-8gb-v2"
+
+# metric -> display name for the axis-label weight summary
+_VECTOR_LABELS = {
+    "wer": "WER",
+    "offline_latency_s_p95": "latency p95",
+    "rtf_p95": "RTF p95",
+    "mem_peak_mib": "VRAM",
+    "anon_peak_mib": "VRAM",
+    "ttfa_s_p90": "TTFA p90",
+    "tts_mos": "quality",
+}
 
 
 def _edge_vector_score(v: float, target: float, worst: float) -> float:
@@ -961,19 +1011,17 @@ def _edge_chart(rows: list[dict], task: str, mode: Mode):
     value_labels = [
         f"{s:.0f}" + ("" if cov > 0.999 else f" · {cov:.0%}") for _, s, cov, _f in evals
     ]
+    prof = EDGE_PROFILES[EDGE_PROFILE][task]
+    vec_txt = " · ".join(
+        f"{_VECTOR_LABELS.get(k, k)} {int(w * 100)}%"
+        for k, (_t, _w, w) in prof["vectors"].items()
+    )
     if task == "stt":
-        xlabel = (
-            "edge deployment score (0–100; WER 35% · latency p95 20% · RTF p95 "
-            "20% · VRAM 25% — targets ≤2% / ≤0.3 s / ≤0.1 / ≤1 GiB)"
-        )
+        xlabel = f"edge deployment score (0–100; {vec_txt})"
         title = "Speech recognition — edge deployment score"
         footer = f" · profile {EDGE_PROFILE} · ✗ = hard-gate FAIL"
     else:
-        xlabel = (
-            "edge deployment-performance score (0–100; TTFA p90 25% · RTF p95 "
-            "25% · VRAM 25% · quality 25% pending MOS — targets ≤0.3 s / "
-            "≤0.1 / ≤1 GiB)"
-        )
+        xlabel = f"edge deployment-performance score (0–100; {vec_txt})"
         title = "Speech synthesis — edge deployment-performance score"
         footer = f" · profile {EDGE_PROFILE} · ✗ = hard-gate FAIL · MOS pending"
     _lollipop(
