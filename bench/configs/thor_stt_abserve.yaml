@@ -1,0 +1,31 @@
+# A/B serve leg — same manifest slice as thor_stt_abproc.yaml, but the runner
+# docker-runs the image's own voice-server (voice-api v1) and client.py drives
+# it from the host over loopback (serve: is the per-engine flag, see
+# task/research/server-api-audit/summary.md). Gate: hyp_raw identical to the
+# in-process leg, bit for bit.
+run_name: thor_stt_abserve
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 25
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: parakeet_cpp
+    id: abserve
+    image: narandill/parakeet-tdt-cpp-stt:0.1.0
+    backends: [cuda]
+    serve: {port: 8080, transport: openai}
+    opts:
+      model: /models/tdt-0.6b-v3-q4_k.gguf
+streaming: {chunk_ms: 160, realtime_pass: false}
+warmup_n: 2
+repeats: 1
+cooldown_s: 0
+probes: {interval_ms: 100, tegrastats: auto}
+output_dir: results

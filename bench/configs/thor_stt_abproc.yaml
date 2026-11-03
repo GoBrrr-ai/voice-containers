@@ -1,0 +1,30 @@
+# A/B in-process leg — transcript-invariance gate for the serve-mode flip
+# (server-api-audit plan §Rollout). parakeet-tdt-cpp q4_k must produce
+# bit-identical hyp_raw when driven over voice-api v1 HTTP
+# (thor_stt_abserve.yaml) vs in-process. 25-utt slice; history rows are
+# incomplete vs the 500-line manifest → filtered by matrix.select_rows.
+run_name: thor_stt_abproc
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 25
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: parakeet_cpp
+    id: abproc
+    image: narandill/parakeet-tdt-cpp-stt:0.1.0
+    backends: [cuda]
+    opts:
+      model: /models/tdt-0.6b-v3-q4_k.gguf
+streaming: {chunk_ms: 160, realtime_pass: false}
+warmup_n: 2
+repeats: 1
+cooldown_s: 0
+probes: {interval_ms: 100, tegrastats: auto}
+output_dir: results
