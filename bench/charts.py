@@ -8,15 +8,17 @@ Charts needing per-utterance data read the raw run dirs under
 
 Label discipline (the 28-config roster made these non-negotiable):
 - one engine can hold several rows (cuda + cpu twins) — every chart gets
-  UNIQUE per-row labels via ``_labels``; ``ax.barh(<names>)`` treats names
-  as a categorical axis and silently MERGES duplicates, overdrawing bars
-  and stranding the value annotations of later rows below the axis;
-- dense scatter clusters (wer-vs-rtf, power) label via ``_scatter_labels``
-  (greedy bbox repel + leader lines) instead of fixed offsets, which
-  turned into an unreadable pile once the cluster grew past ~8 engines;
-- log-scale bar charts became lollipops: a bar on a log axis starts at an
-  arbitrary axis minimum and reads as length anyway — stems + dots leave
-  the label lane clear and don't lie about magnitude;
+  UNIQUE per-row labels via ``_labels``; categorical axes merge duplicate
+  names, which silently drops bars and strands annotations;
+- every chart marks its top-3 places with ❶❷❸ (gold/silver/bronze, bold)
+  by the metric that chart ranks by — scatters and the heatmap use the
+  composite rank from ``score_cohort``;
+- comparisons run on lollipops (stems + dots), never bars: a bar on a
+  log axis starts at an arbitrary axis minimum and reads as length
+  anyway, and stems leave the value-label lane clear on any roster size;
+- the two dense scatters label via a numbered rank legend column —
+  direct labels (repelled or not) are unreadable at README half-scale
+  once the cluster passes a handful of points;
 - figure heights scale with the row count so every label stays legible.
 """
 
@@ -25,12 +27,18 @@ import json
 from collections import Counter
 from pathlib import Path
 
+import matplotlib.patheffects as patheffects
+
 from . import matrix as _matrix
 from . import names as _names
 from . import theme
 from .theme import DARK, Mode, apply, footer, row_color
 
 DPI = 200  # 2x PNG per spec 10.3 (vs matplotlib's default 100)
+
+# top-3 places: dingbat medals (DejaVu Sans) + classic medal colors
+_MEDAL = {1: "❶", 2: "❷", 3: "❸"}
+MEDAL_COLORS = {1: "#FFD700", 2: "#C0C0C0", 3: "#CD7F32"}  # gold silver bronze
 
 
 def _plt():
@@ -59,16 +67,16 @@ def _load_utterances(bench_root: Path, run_id: str, engine_id: str) -> list[dict
     return rows
 
 
-def _labels(rows: list[dict], star_id=None) -> list[str]:
-    """Unique per-chart series labels from the original engine + model.
+def _labels(rows: list[dict], ranks: dict | None = None) -> list[str]:
+    """Unique per-chart series labels; ``ranks`` maps id(row) -> 1|2|3 for
+    the top-3 places of the chart's own ranking metric (medal-prefixed).
 
     Rows sharing a display name (one engine, several backends) get an
     explicit "(GPU)"/"(CPU)" suffix — matching the ``paradee 8M int8
     (GPU)/(CPU)`` convention in ``names.display`` — so categorical axes
-    keep every row distinct. ``star`` marks the best row FOR THE CHART
-    BEING DRAWN — the metric shown decides (lower is better everywhere),
-    never the composite rank.
+    keep every row distinct.
     """
+    ranks = ranks or {}
     base = [_names.display(r) for r in rows]
     counts = Counter(base)
     out: list[str] = []
@@ -77,32 +85,28 @@ def _labels(rows: list[dict], star_id=None) -> list[str]:
             b = f"{b} ({(r.get('requested_backend') or '?').upper()})"
         while b in out:  # same name AND backend — never expected; still unique
             b = f"{b} · {r.get('engine_id')}"
-        out.append(b)
-    if star_id is not None:
-        out = [("★ " if id(r) == star_id else "") + b for r, b in zip(rows, out)]
+        rank = ranks.get(id(r))
+        out.append(f"{_MEDAL[rank]} {b}" if rank else b)
     return out
 
 
-def _star(labels: list[str], idx: int) -> list[str]:
-    out = list(labels)
-    out[idx] = "★ " + out[idx]
-    return out
+def _top3(rows: list[dict], key: str, lower: bool = True) -> dict[int, int]:
+    """{id(row): 1|2|3} by the chart's own metric (direction-aware)."""
+    rs = sorted(
+        (r for r in rows if _matrix._metric(r, key) is not None),
+        key=lambda r: _matrix._metric(r, key),
+        reverse=not lower,
+    )
+    return {id(r): i for i, r in enumerate(rs[:3], 1)}
 
 
-def _bold_stars(ax) -> None:
-    """Bold the y-tick label of the starred (best) row."""
-    for t in ax.get_yticklabels():
-        if t.get_text().startswith("★"):
-            t.set_fontweight("bold")
-
-
-def _best_id(rows, key, lower=True):
-    """id() of the row with the best (direction-aware) value of ``key``."""
-    rows = [r for r in rows if _matrix._metric(r, key) is not None]
-    if not rows:
-        return None
-    fn = min if lower else max
-    return id(fn(rows, key=lambda r: _matrix._metric(r, key)))
+def _style_medals(ax, labels: list[str]) -> None:
+    """Bold + gold/silver/bronze the y-tick labels of the medal rows."""
+    for t, lab in zip(ax.get_yticklabels(), labels):
+        for rank, medal in _MEDAL.items():
+            if lab.startswith(medal):
+                t.set_fontweight("bold")
+                t.set_color(MEDAL_COLORS[rank])
 
 
 def _title(ax, text: str, mode: Mode = DARK) -> None:
@@ -114,6 +118,10 @@ def _title(ax, text: str, mode: Mode = DARK) -> None:
 
 def _backend_marker(row: dict) -> str:
     return theme.BACKEND_MARKERS.get((row.get("requested_backend") or "cuda"), "D")
+
+
+def _is_cpu(row: dict) -> bool:
+    return (row.get("requested_backend") or "").lower() == "cpu"
 
 
 def _pretty_device(label: str) -> str:
@@ -174,6 +182,13 @@ def _auto_log(values: list[float]) -> bool:
     return bool(vals) and max(vals) / max(min(vals), 1e-12) >= 10
 
 
+def _text_on(hex_color: str, mode: Mode) -> str:
+    """Readable text color on top of a filled marker of ``hex_color``."""
+    r, g, b = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
+    lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return mode.bg if lum > 0.55 else mode.text
+
+
 def _value_label(ax, x, y, txt, mode: Mode, ha: str = "left") -> None:
     ax.text(
         x,
@@ -187,45 +202,6 @@ def _value_label(ax, x, y, txt, mode: Mode, ha: str = "left") -> None:
     )
 
 
-def _hbar(
-    ax,
-    names,
-    values,
-    colors,
-    mode: Mode,
-    fmt: str,
-    xlabel: str,
-    log: bool | None = None,
-    label_x: list | None = None,
-):
-    """Horizontal bar with in-axes value labels + footer-safe layout.
-
-    ``names`` MUST be unique (see ``_labels``): the categorical y-axis maps
-    duplicate names onto one slot, which silently drops bars.
-    """
-    assert len(set(names)) == len(names), "duplicate bar labels would merge rows"
-    if log is None:
-        log = _auto_log(values)
-    ax.barh(names, values, color=colors, edgecolor=mode.grid)
-    ax.invert_yaxis()
-    _bold_stars(ax)
-    if log:
-        ax.set_xscale("log")
-        lo = min(v for v in values if v > 0)
-        hi = max(values)
-        ax.set_xlim(lo * 0.8, hi * 1.45)
-        offset = hi * 0.06
-    else:
-        hi = max(values)
-        ax.set_xlim(0, hi * 1.18)
-        offset = hi * 0.015
-    for i, v in enumerate(values):
-        default_x = (v * 1.06) if (log and v > 0) else (v + offset)
-        x = label_x[i] if label_x else default_x
-        _value_label(ax, x, i, fmt.format(v), mode)
-    ax.set_xlabel(xlabel)
-
-
 def _lollipop(
     ax,
     names,
@@ -234,20 +210,35 @@ def _lollipop(
     mode: Mode,
     fmt: str,
     xlabel: str,
-    label_x: list | None = None,
     ticks: list | None = None,
+    log: bool | None = None,
 ):
-    """Stem + dot chart — the honest form for log-scale comparisons (a bar
-    on a log axis starts at an arbitrary axis minimum; a stem shows position
-    without pretending to encode length). Labels get a clear lane right of
-    each dot, so nothing overlaps even on a 20-row roster."""
+    """Stem + dot chart — the one honest form for any roster size: on a log
+    axis a bar starts at an arbitrary minimum and reads as length anyway,
+    and stems leave the value-label lane clear. Medals (from ``names``)
+    are bolded/colored on the y-tick labels."""
     assert len(set(names)) == len(names), "duplicate labels would merge rows"
-    ax.set_xscale("log")
-    lo = min(v for v in values if v > 0)
-    hi = max(max(values), max(ticks or [0]))
-    ax.set_xlim(lo * 0.7, hi * 1.55)
+    if log is None:
+        log = _auto_log(values)
     y = list(range(len(names)))
-    ax.hlines(y, lo * 0.7, values, color=colors, linewidth=2.4, zorder=2)
+    if log:
+        ax.set_xscale("log")
+        lo = min(v for v in values if v > 0)
+        hi = max(max(values), max(ticks or [0]))
+        ax.set_xlim(lo * 0.7, hi * 1.55)
+        pad = 0.055 * (__import__("math").log10(hi) - __import__("math").log10(lo))
+        label_x = [
+            max(v, (ticks or [0])[i] if ticks else 0) * 10**pad
+            for i, v in enumerate(values)
+        ]
+    else:
+        hi = max(max(values), max(ticks or [0]))
+        ax.set_xlim(0, hi * 1.22)
+        label_x = [
+            max(v, (ticks or [0])[i] if ticks else 0) + hi * 0.015
+            for i, v in enumerate(values)
+        ]
+    ax.hlines(y, ax.get_xlim()[0], values, color=colors, linewidth=2.4, zorder=2)
     ax.scatter(
         values, y, s=72, color=colors, edgecolor=mode.grid, linewidth=0.8, zorder=3
     )
@@ -261,156 +252,111 @@ def _lollipop(
                 alpha=0.85,
                 zorder=4,
             )
-    pad = 0.055 * (__import__("math").log10(hi) - __import__("math").log10(lo))
     for i, v in enumerate(values):
-        ref = max(v, (ticks or [0])[i] if ticks else 0)
-        x = label_x[i] if label_x else ref * 10**pad
-        _value_label(ax, x, i, fmt.format(v), mode)
+        _value_label(ax, label_x[i], i, fmt.format(v), mode)
     ax.set_yticks(y, names)
     ax.invert_yaxis()
-    _bold_stars(ax)
+    _style_medals(ax, names)
     ax.set_xlabel(xlabel)
 
 
-def _scatter_labels(fig, ax, pts, mode: Mode, fontsize: float = 8.2) -> None:
-    """Greedy collision-free label placement for dense scatter clusters.
+def _scatter_fig(n: int, mode: Mode):
+    """Two-panel layout for the dense scatters: dot plot + ranked legend.
 
-    ``pts``: [(x, y, text, color, prio, marker_size)] in data coords. Higher
-    ``prio`` picks its spot first (front-runners keep the slot next to their
-    marker). Candidates sweep expanding offset rings; each is scored by
-    rendered-bbox overlap against the markers and already-placed labels and
-    hard-rejected outside the axes. Winners far from their point get a thin
-    leader line. Fixed offsets, the previous approach, produced a single
-    unreadable pile once the RTF cluster grew past a handful of engines.
+    Direct labels cannot survive an 18-point cluster — at README half-scale
+    even repelled 8pt text is unreadable and leader lines mislead. Markers
+    carry their rank number; the legend column holds every package name at
+    full size, collision-free, whatever the roster grows to.
     """
-    from math import cos, sin, pi
-    from matplotlib.transforms import Bbox
+    plt = _plt()
+    fig, (ax, axl) = plt.subplots(
+        1,
+        2,
+        figsize=(12.8, max(5.4, 1.2 + 0.30 * n)),
+        gridspec_kw={"width_ratios": [2.55, 1.0], "wspace": 0.05},
+    )
+    apply(fig, ax)
+    apply(fig, axl)
+    axl.set_xticks([])
+    axl.set_yticks([])
+    axl.set_facecolor(mode.bg)
+    for sp in axl.spines.values():
+        sp.set_visible(False)
+    return fig, ax, axl
 
-    fig.canvas.draw()
-    rend = fig.canvas.get_renderer()
-    ptp = fig.dpi / 72.0  # points -> pixels; offsets are in points, bboxes in px
 
-    # marker obstacle bboxes and per-point pixel anchors
-    anchors, obstacles = {}, []
-    for i, (x, y, _t, _c, _p, s) in enumerate(pts):
-        cx, cy = ax.transData.transform((x, y))
-        r = (s**0.5) / 2 * ptp + 1.5
-        anchors[i] = (cx, cy)
-        obstacles.append(Bbox.from_bounds(cx - r, cy - r, 2 * r, 2 * r))
-    axes_bb = ax.get_window_extent()
-
-    probe = ax.text(0, 0, "", fontsize=fontsize)
-
-    def text_wh(t: str) -> tuple[float, float]:
-        probe.set_text(t)
-        bb = probe.get_window_extent(rend)
-        return bb.width + 5 * ptp, bb.height + 5 * ptp  # patch pad + safety
-
-    placed: dict[int, Bbox] = {}
-    anns: dict[int, object] = {}
-    order = sorted(range(len(pts)), key=lambda i: -pts[i][4])
-
-    def _overlap(b: Bbox, others) -> float:
-        total = 0.0
-        for ob in others:
-            ix0, ix1 = max(b.x0, ob.x0), min(b.x1, ob.x1)
-            iy0, iy1 = max(b.y0, ob.y0), min(b.y1, ob.y1)
-            if ix1 > ix0 and iy1 > iy0:
-                total += (ix1 - ix0) * (iy1 - iy0)
-        return total
-
-    def _scored(i: int, b: Bbox) -> float:
-        # label-on-label is the worst failure — weight it over label-on-marker
-        return 3.0 * _overlap(b, [bb for j, bb in placed.items() if j != i]) + _overlap(
-            b, obstacles
-        )
-
-    def _plan(i: int, zero_only: bool = False):
-        """Best (score, ring, dx, dy) for label i over the offset rings."""
-        w, h = text_wh(pts[i][2])
-        best = None
-        for ring in (9, 17, 26, 37, 50, 65, 85, 105):
-            for a in range(0, 360, 20):
-                rad = a * pi / 180
-                dx, dy = ring * cos(rad), ring * sin(rad)
-                lx = anchors[i][0] + dx * ptp
-                ly = anchors[i][1] + dy * ptp
-                left = lx if dx >= 0 else lx - w
-                bb = Bbox.from_bounds(left, ly - h / 2, w, h)
-                if not (
-                    axes_bb.x0 <= bb.x0
-                    and bb.x1 <= axes_bb.x1
-                    and axes_bb.y0 <= bb.y0
-                    and bb.y1 <= axes_bb.y1
-                ):
-                    continue
-                score = _scored(i, bb)
-                if zero_only and score > 0:
-                    continue
-                if best is None or (score, ring) < best[:2]:
-                    best = (score, ring, dx, dy)
-        return best
-
-    def _draw(i: int, dx: float, dy: float) -> None:
-        x, y, txt, color, _prio, _s = pts[i]
-        anns[i] = ax.annotate(
-            txt,
-            (x, y),
-            textcoords="offset points",
-            xytext=(dx, dy),
-            ha="left" if dx >= 0 else "right",
+def _legend_panel(axl, entries: list[tuple[dict, str]], mode: Mode) -> None:
+    """Ranked legend column. ``entries``: (row, label) top-to-bottom by rank."""
+    n = len(entries)
+    axl.set_xlim(0, 1)
+    axl.set_ylim(0, n + 0.6)
+    axl.text(
+        0.02,
+        n + 0.15,
+        "composite rank · ■ GPU ○ CPU",
+        fontsize=8,
+        color=mode.text_dim,
+        va="center",
+    )
+    for i, (r, lab) in enumerate(entries):
+        y = n - i - 0.5
+        rank = i + 1
+        axl.text(
+            0.02,
+            y,
+            "○" if _is_cpu(r) else "■",
+            color=row_color(r),
+            fontsize=9,
             va="center",
-            fontsize=fontsize,
-            color=color or mode.text,
-            zorder=5,
-            bbox=dict(boxstyle="round,pad=0.18", fc=mode.bg, ec="none", alpha=0.55),
+            ha="left",
         )
-        placed[i] = _planned_bbox(i, dx, dy)
-        if (dx * dx + dy * dy) ** 0.5 >= 26:  # displaced far — leader line
-            bb = placed[i]
-            ex = bb.x0 if dx >= 0 else bb.x1
-            ey = min(max(anchors[i][1], bb.y0), bb.y1)
-            inv = ax.transData.inverted()
-            (x0, y0), (x1, y1) = inv.transform(
-                [(anchors[i][0], anchors[i][1]), (ex, ey)]
+        if rank <= 3:
+            axl.text(
+                0.065,
+                y,
+                f"{_MEDAL[rank]} {lab}",
+                color=MEDAL_COLORS[rank],
+                fontsize=8.8,
+                fontweight="bold",
+                va="center",
+                ha="left",
             )
-            ax.plot(
-                [x0, x1],
-                [y0, y1],
-                color=mode.text_dim,
-                linewidth=0.7,
-                alpha=0.6,
-                zorder=1,
-                clip_on=False,
+        else:
+            axl.text(
+                0.065,
+                y,
+                f"{rank}. {lab}",
+                color=mode.text,
+                fontsize=8.8,
+                va="center",
+                ha="left",
             )
 
-    def _planned_bbox(i: int, dx: float, dy: float) -> Bbox:
-        w, h = text_wh(pts[i][2])
-        lx = anchors[i][0] + dx * ptp
-        ly = anchors[i][1] + dy * ptp
-        left = lx if dx >= 0 else lx - w
-        return Bbox.from_bounds(left, ly - h / 2, w, h)
 
-    for i in order:
-        best = _plan(i)
-        if best is None:  # fully boxed in — least-bad default
-            best = (None, 9, 10, 12)
-        _draw(i, best[2], best[3])
-
-    # repair pass: re-place any label still touching another (lowest prio first)
-    for _ in range(3):
-        dirty = False
-        for i in sorted(placed, key=lambda j: pts[j][4]):
-            if _overlap(placed[i], [bb for j, bb in placed.items() if j != i]) <= 0:
-                continue
-            best = _plan(i, zero_only=True)
-            if best:
-                anns[i].remove()
-                _draw(i, best[2], best[3])
-                dirty = True
-        if not dirty:
-            break
-    probe.remove()
+def _rank_text(ax, x, y, rank: int, face: str | None, mode: Mode) -> None:
+    """Rank number centered on a marker; top-3 keep their medal colors
+    (with a bg-colored stroke so gold/silver/bronze survive any fill)."""
+    if rank < 1:
+        return
+    if rank <= 3:
+        txt, color = _MEDAL[rank], MEDAL_COLORS[rank]
+        effects = [patheffects.withStroke(linewidth=1.2, foreground=mode.bg)]
+    else:
+        txt = str(rank)
+        color = mode.text if face is None else _text_on(face, mode)
+        effects = None
+    ax.text(
+        x,
+        y,
+        txt,
+        fontsize=6,
+        fontweight="bold",
+        ha="center",
+        va="center",
+        color=color,
+        zorder=4,
+        path_effects=effects,
+    )
 
 
 # --------------------------------------------------------------------- STT
@@ -422,11 +368,12 @@ def stt_ranking(rows: list[dict], mode: Mode = DARK):
     plt = _plt()
     fig, ax = plt.subplots(figsize=_figsize(len(rows), 4.2, 0.27))
     apply(fig, ax)
-    best = _best_id(rows, "wer")
-    names = _labels(rows, star_id=best)
+    names = _labels(rows, ranks=_top3(rows, "wer"))
     wers = [_matrix._metric(r, "wer") * 100 for r in rows]
     colors = [row_color(r) for r in rows]
-    _hbar(ax, names, wers, colors, mode, "{:.2f}%", "corpus WER % (lower is better ↓)")
+    _lollipop(
+        ax, names, wers, colors, mode, "{:.2f}%", "corpus WER % (lower is better ↓)"
+    )
     _title(ax, "Speech recognition — corpus WER")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
@@ -434,9 +381,6 @@ def stt_ranking(rows: list[dict], mode: Mode = DARK):
 
 
 def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
-    plt = _plt()
-    fig, ax = plt.subplots(figsize=(9.5, 5.8))
-    apply(fig, ax)
     pts = []
     for r in rows:
         wer, rtf = _matrix._metric(r, "wer"), _matrix._metric(r, "rtf")
@@ -445,23 +389,22 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
         pts.append((r, wer * 100, rtf))
     if not pts:
         return None
+    fig, ax, axl = _scatter_fig(len(pts), mode)
+    ordered = sorted(pts, key=lambda p: p[0].get("rank") or 999)
+    leg_rows = [r for r, _, _ in ordered]
+    _legend_panel(axl, list(zip(leg_rows, _labels(leg_rows))), mode)
+
     mems = [(_matrix._metric(r, "mem_peak_mib") or 0) for r, _, _ in pts]
     mmax = max(mems) or 1
     x_lo, x_hi = min(p[2] for p in pts), max(p[2] for p in pts)
     w_lo, w_hi = min(p[1] for p in pts), max(p[1] for p in pts)
-    ax.set_xscale("log")  # before any draw: transforms must match the final axes
+    ax.set_xscale("log")
     ax.set_xlim(x_lo * 0.5, x_hi * 3.2)
     ax.set_ylim(w_lo - (w_hi - w_lo) * 0.16 - 0.1, w_hi + (w_hi - w_lo) * 0.16 + 0.1)
 
-    front = sorted(
-        _matrix.score_cohort([dict(r) for r in rows], "stt"),
-        key=lambda r: r["pareto"] is False,
-    )
-    pareto_ids = {r.get("engine_id") for r in front if r.get("pareto")}
-
-    def _whisker(axes, wer, rtf, p90):
+    def _whisker(wer, rtf, p90):
         if p90 and p90 > rtf:
-            axes.plot(
+            ax.plot(
                 [rtf, p90],
                 [wer, wer],
                 color=mode.text_dim,
@@ -471,36 +414,26 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
             )
 
     for r, wer, rtf in pts:
-        _whisker(ax, wer, rtf, _matrix._metric(r, "rtf_p90"))
-
-    labels = _labels(rows)  # unique, backend-suffixed where needed
-    lab = {id(r): t for r, t in zip(rows, labels)}
-    scatter_pts = []
+        _whisker(wer, rtf, _matrix._metric(r, "rtf_p90"))
     for (r, wer, rtf), mem in zip(pts, mems):
-        s = 60 + 240 * (mem / mmax)
+        face = None if _is_cpu(r) else row_color(r)
         ax.scatter(
             rtf,
             wer,
-            s=s,
-            color=row_color(r),
+            s=60 + 240 * (mem / mmax),
+            facecolor="none" if _is_cpu(r) else row_color(r),
             marker=_backend_marker(r),
-            edgecolor=mode.text_dim,
-            linewidth=0.6,
+            edgecolor=mode.text_dim if not _is_cpu(r) else row_color(r),
+            linewidth=0.6 if not _is_cpu(r) else 1.4,
             zorder=3,
         )
-        scatter_pts.append(
-            (
-                rtf,
-                wer,
-                lab[id(r)],
-                mode.text,
-                1 if r.get("engine_id") in pareto_ids else 0,
-                s,
-            )
-        )
-    _scatter_labels(fig, ax, scatter_pts, mode)
+        _rank_text(ax, rtf, wer, r.get("rank") or 0, face, mode)
 
     # Pareto front (minimize WER then RTF) drawn as a step line
+    front = sorted(
+        _matrix.score_cohort([dict(r) for r in rows], "stt"),
+        key=lambda r: r["pareto"] is False,
+    )
     pf = sorted(
         [r for r in front if r.get("pareto")],
         key=lambda r: _matrix._metric(r, "rtf") or 0,
@@ -529,7 +462,7 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     _title(ax, "Speech recognition — accuracy vs speed")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(
-        fig, rows, extra=" · point size = memory · line = p50→p90 · □ GPU ○ CPU"
+        fig, rows, extra=" · marker = rank (❶❷❸ top-3) · size = memory · line = p50→p90"
     )
     return fig
 
@@ -553,12 +486,17 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         return None
     fig, ax = plt.subplots(figsize=_figsize(len(data), 4.6, 0.31))
     apply(fig, ax)
-    best_i = min(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])
-    labels = _star(_labels(rows_used), best_i)
+    medals = {}
+    for pos, i in enumerate(
+        sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])[:3],
+        1,
+    ):
+        medals[id(rows_used[i])] = pos
+    labels = _labels(rows_used, ranks=medals)
     bp = ax.boxplot(
         data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
     )
-    _bold_stars(ax)
+    _style_medals(ax, labels)
     for i, vals_i in enumerate(data):
         p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
         ax.plot(
@@ -575,12 +513,12 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     ax.set_xlabel("RTF per utterance (lower is better ↓, log)")
     ax.set_xscale("log")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows, extra=" · green tick = p90")
+    _footer_common(fig, rows, extra=" · green tick = p90 · ❶❷❸ = best median RTF")
     return fig
 
 
 def stt_memory(rows: list[dict], mode: Mode = DARK):
-    return _memory_bars(rows, mode)
+    return _memory_chart(rows, mode)
 
 
 def stt_heatmap(rows: list[dict], mode: Mode = DARK):
@@ -588,9 +526,6 @@ def stt_heatmap(rows: list[dict], mode: Mode = DARK):
 
 
 def stt_power(rows: list[dict], mode: Mode = DARK):
-    plt = _plt()
-    fig, ax = plt.subplots(figsize=(9.5, 5.4))
-    apply(fig, ax)
     pts = [
         (r, _matrix._metric(r, "gpu_power_w_mean"), _matrix._metric(r, "wer"))
         for r in rows
@@ -598,36 +533,39 @@ def stt_power(rows: list[dict], mode: Mode = DARK):
     ]
     if len(pts) < 2:
         return None
+    fig, ax, axl = _scatter_fig(len(pts), mode)
+    ordered = sorted(pts, key=lambda p: p[0].get("rank") or 999)
+    leg_rows = [r for r, _, _ in ordered]
+    _legend_panel(axl, list(zip(leg_rows, _labels(leg_rows))), mode)
+
     w_lo, w_hi = min(p[1] for p in pts), max(p[1] for p in pts)
     wers = [(p[2] or 0) * 100 for p in pts]
     ax.set_xlim(w_lo * 0.8, w_hi * 1.3)
     ax.set_ylim(min(wers) - 0.5, max(wers) + 0.5)
-    labels = _labels(rows)
-    lab = {id(r): t for r, t in zip(rows, labels)}
-    spts = []
     for r, w, wer in pts:
-        is_cpu = (r.get("requested_backend") or "").lower() == "cpu"
+        face = None if _is_cpu(r) else row_color(r)
         ax.scatter(
             w,
             (wer or 0) * 100,
             s=90,
-            facecolor="none" if is_cpu else row_color(r),
+            facecolor=face,
             marker=_backend_marker(r),
             edgecolor=row_color(r),
-            linewidth=1.6,
+            linewidth=1.6 if _is_cpu(r) else 0.6,
             zorder=3,
         )
-        spts.append(
-            (w, (wer or 0) * 100, lab[id(r)], mode.text, 0 if is_cpu else 1, 90.0)
-        )
-    _scatter_labels(fig, ax, spts, mode)
+        _rank_text(ax, w, (wer or 0) * 100, r.get("rank") or 0, face, mode)
     ax.set_xlabel(
         "mean GPU power over the engine window (W) — hollow = CPU engine (idle draw)"
     )
     ax.set_ylabel("corpus WER % (lower is better ↓)")
     _title(ax, "Speech recognition — GPU power vs accuracy")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows, extra=" · power from tegrastats job windows")
+    _footer_common(
+        fig,
+        rows,
+        extra=" · marker = rank (❶❷❸ top-3) · power from tegrastats job windows",
+    )
     return fig
 
 
@@ -640,8 +578,7 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
     plt = _plt()
     fig, ax = plt.subplots(figsize=_figsize(len(rows), 4.4, 0.30))
     apply(fig, ax)
-    best = _best_id(rows, "rtf")
-    names = _labels(rows, star_id=best)
+    names = _labels(rows, ranks=_top3(rows, "rtf"))
     rtfs = [_matrix._metric(r, "rtf") for r in rows]
     p90s = [_matrix._metric(r, "rtf_p90") or 0 for r in rows]
     colors = [row_color(r) for r in rows]
@@ -676,8 +613,7 @@ def tts_ttfa(rows: list[dict], mode: Mode = DARK):
     pts.sort(key=lambda x: x[1])
     fig, ax = plt.subplots(figsize=_figsize(len(pts), 4.0, 0.30))
     apply(fig, ax)
-    best = _best_id([r for r, _ in pts], "ttfa_s")
-    names = _labels([r for r, _ in pts], star_id=best)
+    names = _labels([r for r, _ in pts], ranks=_top3([r for r, _ in pts], "ttfa_s"))
     vals = [v * 1000 for _, v in pts]
     colors = [row_color(r) for r, _ in pts]
     p90s = [(_matrix._metric(r, "ttfa_s_p90") or 0) * 1000 for r, _ in pts]
@@ -721,12 +657,17 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         return None
     fig, ax = plt.subplots(figsize=_figsize(len(data), 4.2, 0.31))
     apply(fig, ax)
-    best_i = min(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])
-    labels = _star(_labels(rows_used), best_i)
+    medals = {}
+    for pos, i in enumerate(
+        sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])[:3],
+        1,
+    ):
+        medals[id(rows_used[i])] = pos
+    labels = _labels(rows_used, ranks=medals)
     bp = ax.boxplot(
         data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
     )
-    _bold_stars(ax)
+    _style_medals(ax, labels)
     for i, vals_i in enumerate(data):
         p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
         ax.plot(
@@ -743,12 +684,12 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
     ax.set_xlabel("synthesis latency per sentence (s, lower is better ↓, log)")
     ax.set_xscale("log")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows, extra=" · green tick = p90")
+    _footer_common(fig, rows, extra=" · green tick = p90 · ❶❷❸ = best median latency")
     return fig
 
 
 def tts_memory(rows: list[dict], mode: Mode = DARK):
-    return _memory_bars(rows, mode)
+    return _memory_chart(rows, mode)
 
 
 def tts_heatmap(rows: list[dict], mode: Mode = DARK):
@@ -756,7 +697,7 @@ def tts_heatmap(rows: list[dict], mode: Mode = DARK):
 
 
 # -------------------------------------------------------------- shared
-def _memory_bars(rows: list[dict], mode: Mode):
+def _memory_chart(rows: list[dict], mode: Mode):
     pts = [
         (r, _matrix._metric(r, "mem_peak_mib"))
         for r in rows
@@ -768,30 +709,20 @@ def _memory_bars(rows: list[dict], mode: Mode):
     plt = _plt()
     fig, ax = plt.subplots(figsize=_figsize(len(pts), 4.2, 0.27))
     apply(fig, ax)
-    best = _best_id([r for r, _ in pts], "mem_peak_mib")
-    names = _labels([r for r, _ in pts], star_id=best)
+    names = _labels(
+        [r for r, _ in pts], ranks=_top3([r for r, _ in pts], "mem_peak_mib")
+    )
     vals = [v for _, v in pts]
     colors = [row_color(r) for r, _ in pts]
-    if _auto_log(vals):
-        _lollipop(
-            ax,
-            names,
-            vals,
-            colors,
-            mode,
-            "{:,.0f} MiB",
-            "peak container memory (MiB, lower is better ↓)",
-        )
-    else:
-        _hbar(
-            ax,
-            names,
-            vals,
-            colors,
-            mode,
-            "{:,.0f} MiB",
-            "peak container memory (MiB, lower is better ↓)",
-        )
+    _lollipop(
+        ax,
+        names,
+        vals,
+        colors,
+        mode,
+        "{:,.0f} MiB",
+        "peak container memory (MiB, lower is better ↓)",
+    )
     _title(ax, "Peak container memory")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
@@ -813,8 +744,8 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
         return None
     lower_of = dict(_matrix.METRICS[task])
     ordered = sorted(rows, key=lambda x: x.get("rank", 999))
-    best = next((r for r in ordered if r.get("rank") == 1), None)
-    labels = _labels(ordered, star_id=id(best) if best else None)
+    ranks = {id(r): r["rank"] for r in ordered if r.get("rank") and r["rank"] <= 3}
+    labels = _labels(ordered, ranks=ranks)
     raw_vals = [[_matrix._metric(r, k) for k in metric_keys] for r in ordered]
     if len(raw_vals) < 2:
         return None
@@ -863,7 +794,7 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
         fontsize=geom["tick"],
     )
     ax.set_yticks(range(len(labels)), labels, fontsize=geom["ylab"])
-    _bold_stars(ax)
+    _style_medals(ax, labels)
     for i in range(len(labels)):
         for j in range(len(metric_keys)):
             raw = raw_vals[i][j]
@@ -894,7 +825,9 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
         + " — normalized metric heatmap",
         mode,
     )
-    _footer_common(fig, rows, extra=" · green = better (direction-aware)")
+    _footer_common(
+        fig, rows, extra=" · green = better (direction-aware) · ❶❷❸ = top-3 composite"
+    )
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     return fig
 
