@@ -53,13 +53,6 @@ def collect(git_commit: str = "") -> dict:
             ["bash", "-c", "jetson_clocks --show 2>/dev/null | head -3"]
         ),
         "tegrastats_available": _run(["bash", "-c", "command -v tegrastats"]) != "",
-        "docker_images_gpu": _run(
-            [
-                "bash",
-                "-c",
-                "docker images --format '{{.Repository}}' | grep narandill | sort | uniq",
-            ]
-        ),
         "git_commit": git_commit or _git_commit(),
         "utc_ts": _run(["date", "-u", "+%Y-%m-%dT%H:%M:%SZ"]),
     }
