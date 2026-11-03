@@ -17,8 +17,8 @@
 
 <p align="center">
   <a href="#packages">Packages</a> •
-  <a href="#-benchmarks">Benchmarks</a> •
   <a href="#quick-start">Quick start</a> •
+  <a href="#-benchmarks">Benchmarks</a> •
   <a href="#benchmarking">Benchmarking</a> •
   <a href="#ci">CI</a>
 </p>
@@ -68,13 +68,36 @@ sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
   </tbody>
 </table>
 
+## Quick start
+
+```bash
+# 1) shared artifact builders (cached; seconds on replay)
+make builders
+
+# 2) build everything
+make build-all          # or: cd packages/tts/kokoro-tts && ./build.sh
+
+# 3) verify cubins + smoke on the GPU (waits for free VRAM, never kills co-tenants)
+make verify-all
+make smoke-all
+
+# 4) run something
+docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.0
+docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
+```
+
+> On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
+580.00 vs the baked 13.2 userspace — minor-version compatibility). After the host
+upgrade, drop the flag.
+
 
 ## 📊 Benchmarks
 
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
 by `bench plot --readme` — regenerate with `make bench-plot`.
 > Cohort: **jetson-agx-thor-128gb · default power · commit 3a7634f · 2026-11-03**.
-Charts: ★ marks the best engine for that chart's metric. Memory: **cgroup MiB**
+Charts: ❶❷❸ mark the top-3 places (gold/silver/bronze) for that chart's ranking
+metric; the scatter legends rank by composite score. Memory: **cgroup MiB**
 counts the container's active file cache too (the model was just read from
 disk); **anon MiB** is true process memory.
 
@@ -107,6 +130,10 @@ disk); **anon MiB** is true process memory.
 **0.010**. Green = best in column, red = worst. GPU W is the
 tegrastats module draw over each engine's window; the packed-CPU engine has none
 (hollow point, idle draw) in the power chart.*
+
+<p align="center">
+<img src="assets/benchmarks/stt/stt-edge.png" alt="Speech recognition — edge deployment ranking (WER · latency · RTF · VRAM)" width="100%">
+</p>
 
 <p align="center">
 <img src="assets/benchmarks/stt/stt-wer-vs-rtf.png" alt="Speech recognition — accuracy vs speed with Pareto front" width="100%">
@@ -155,6 +182,10 @@ chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completio
 their TTFA equals the synth p50/p90.*
 
 <p align="center">
+<img src="assets/benchmarks/tts/tts-edge.png" alt="Speech synthesis — edge deployment ranking (TTFA · synth · RTF · VRAM)" width="100%">
+</p>
+
+<p align="center">
 <img src="assets/benchmarks/tts/tts-ranking.png" alt="Speech synthesis — real-time factor ranking" width="100%">
 </p>
 
@@ -178,28 +209,6 @@ their TTFA equals the synth p50/p90.*
 
 > Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
 
-
-## Quick start
-
-```bash
-# 1) shared artifact builders (cached; seconds on replay)
-make builders
-
-# 2) build everything
-make build-all          # or: cd packages/tts/kokoro-tts && ./build.sh
-
-# 3) verify cubins + smoke on the GPU (waits for free VRAM, never kills co-tenants)
-make verify-all
-make smoke-all
-
-# 4) run something
-docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.0
-docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
-```
-
-> On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
-580.00 vs the baked 13.2 userspace — minor-version compatibility). After the host
-upgrade, drop the flag.
 
 ## Layout
 

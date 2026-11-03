@@ -1,4 +1,10 @@
 {
+ "stt-edge": [
+  {
+   "dark": "assets/benchmarks/stt/stt-edge.png",
+   "task": "stt"
+  }
+ ],
  "stt-heatmap": [
   {
    "dark": "assets/benchmarks/stt/stt-heatmap.png",
@@ -33,6 +39,12 @@
   {
    "dark": "assets/benchmarks/stt/stt-wer-vs-rtf.png",
    "task": "stt"
+  }
+ ],
+ "tts-edge": [
+  {
+   "dark": "assets/benchmarks/tts/tts-edge.png",
+   "task": "tts"
   }
  ],
  "tts-heatmap": [
