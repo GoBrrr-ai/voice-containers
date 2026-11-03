@@ -336,7 +336,7 @@ def prepare(
         rows.append(d)
     picked = build_manifest(rows, n, seed, task)
     Path(out_dir).mkdir(parents=True, exist_ok=True)
-    name = f"{task}_{dataset}_{split.replace('.', '_')}_{language}_{n}_seed{seed}"
+    name = f"{task}_{dataset}_{split.replace('.', '_')}_{language}_{len(picked)}_seed{seed}"
     out = Path(out_dir) / f"{name}.jsonl"
     with open(out, "w", encoding="utf-8") as f:
         for r in picked:
