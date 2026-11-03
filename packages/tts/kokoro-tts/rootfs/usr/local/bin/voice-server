@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
 import onnxruntime as rt
+from kokoro_onnx import Kokoro
 
 ENGINE = "kokoro"
 VERSION = "0.2.0"

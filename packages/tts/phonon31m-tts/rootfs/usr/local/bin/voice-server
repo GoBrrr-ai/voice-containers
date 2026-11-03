@@ -141,8 +141,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "audio/wav")
             self.send_header("Transfer-Encoding", "chunked")
             self.end_headers()
+            tts = get_tts()  # resolve BEFORE the lock (Lock is not reentrant)
             with _TTS_LOCK:
-                with get_tts().stream(text) as audio:
+                with tts.stream(text) as audio:
                     self._write_chunk(_wav_header(0, audio.sample_rate))
                     for pcm in audio:
                         self._write_chunk(_int16(pcm).tobytes())
@@ -189,8 +190,9 @@ class Handler(BaseHTTPRequestHandler):
         if req.get("speed"):
             pass  # phonon-31m has no speed knob — politely ignored
         try:
+            tts = get_tts()  # resolve BEFORE the lock (Lock is not reentrant)
             with _TTS_LOCK:
-                with get_tts().stream(text) as audio:
+                with tts.stream(text) as audio:
                     sr = audio.sample_rate
                     if fmt == "pcm":
                         self._start_chunked(sr)

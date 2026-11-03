@@ -77,7 +77,7 @@ JSON body (OpenAI subset):
 | image | serves | `response_format` | streaming | voices / model id |
 |---|---|---|---|---|
 | `parakeet-tdt-cpp-stt` | STT | json/text/verbose_json | — | `parakeet-tdt-0.6b-v3-q4_k` (parakeet-server, C++ route patch) |
-| `parakeet-redux-stt` | STT | 〃 | — | `parakeet-redux-178m-q8_0` |
+| `parakeet-redux-stt` | STT | 〃 | — | `redux-q8_0` |
 | `phonon2-stt` | STT | 〃 | — | `phonon-2.5-q8_0` |
 | `nemotron-unified-asr` | STT | 〃 | — (CLI presets 0.16–2.08 s; SSE partials fast-follow) | `nemotron-labs-unified-asr-0.6b-q8_0` |
 | `canary-flash-stt` | STT | 〃 | — | `canary-180m-flash-int8` (en/de/es/fr + X↔EN translation via `CANARY_SRC_LANG`/`CANARY_TGT_LANG`) |
@@ -88,6 +88,14 @@ JSON body (OpenAI subset):
 | `paradee-tts` | TTS | wav/pcm | — (single chunk) | af_heart, bf_isabella, am_puck, bm_fable (24 kHz) |
 | `phonon31m-tts` | TTS | wav/pcm | pcm chunked (true frames) | `default` (24 kHz, CPU by design); legacy `GET /say` kept |
 | `pocket-tts` | TTS | wav/pcm | pcm chunked | alba, marius, javert, jean, fantine, cosette, eponine, azelma (24 kHz; cloning stays on the official `pocket-tts serve`) |
+
+**Known deviation (deferred — needs a C++ rebuild, forbidden while vllm
+serves):** the four parakeet-server images (tdt-cpp, redux, phonon2,
+nemotron) return `400 missing required field 'file'` for **raw WAV bodies**
+— multipart only, everything else compliant. Tracked in
+`builders/parakeet-cpp/files/server-model-routes.patch` (accept
+`Content-Type: audio/wav` / `application/octet-stream` as the file when no
+multipart `file` is present). Bench adapters are unaffected (multipart).
 
 ## Implementation notes
 

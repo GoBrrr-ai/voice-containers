@@ -25,6 +25,17 @@ COPY --from=wheels /wheels/piper_tts-1.8.0-cp39-abi3-linux_aarch64.whl /tmp/
 COPY --from=wheels /wheels/wyoming_piper-2.5.2-py3-none-any.whl /tmp/
 COPY rootfs/ /
 
+# Bake the default voice: the server must never phone HF at boot (airgap
+# rule) and a cold download delays Ready past any sane health window.
+# TODO(post-vllm): the 0.1.0 tag currently carries this as an overlay layer
+# (see task/wiki/experiments.md 2026-11-03); until the wheels builder is
+# rebuilt, refresh it with:
+#   docker cp <warmed wyp container>:/data/models/piper/*.onnx* /tmp/bake/
+#   FROM narandill/wyoming-piper1-tts:0.1.0  +  COPY *.onnx* /data/models/piper/
+RUN mkdir -p /data/models/piper \
+    && python3 -c "import urllib.request as u; [u.urlretrieve(f'https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/libritts_r/medium/{f}', f'/data/models/piper/{f}') for f in ('en_US-libritts_r-medium.onnx','en_US-libritts_r-medium.onnx.json')]" \
+    && python3 -c "import urllib.request as u; u.urlretrieve('https://huggingface.co/rhasspy/piper-voices/resolve/main/voices.json', '/data/models/piper/voices.json')"
+
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
     && /opt/venv/bin/pip install --no-cache-dir "wyoming[zeroconf]==1.10.2" \
