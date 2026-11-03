@@ -135,33 +135,37 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 <img src="assets/benchmarks/stt/stt-edge.png" alt="Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM; profile orin-nano-8gb-v2)" width="100%">
 </p>
 
-> **How the score is calculated.** Each vector is scored against *absolute* edge
-> anchors — never against the other engines — so adding a config never rewrites a
-> historical score. Per vector $i$ with target $T_i$, worst-acceptable $W_i$ and
-> weight $w_i$, the vector score $S_i$ is 1.0 at/better than the target, 0.0
-> at/beyond the worst-acceptable bound, log-linear in between (log because
-> RTF/latency/memory are heavy-tailed — the last halving must count as much as
-> the first). The deployment score is the weighted mean ×100 of the four vectors:
-> **WER** ($T$=2%, $W$=10%, $w$=0.30) · **latency p95**: 0.3 s, 1.5 s, 0.20 ·
-> **RTF p95**: 0.1, 1.0, 0.15 · **VRAM (anon peak)**: 1 GiB, 3 GiB, 0.35.
-> Latency and RTF bind the *tail* — averages hide the spikes that make an
-> assistant feel broken; the latency vector is a conservative final-latency
-> proxy (streaming engines' true final latency is their chunk lookahead).
-> Memory scores **anon peak** — the true process footprint — because cgroup
-> peak counts reclaimable file cache (the model was just read from disk): on
-> this 8 GB *unified*-memory board the stack must fit alongside llama.cpp
-> weights and KV cache, so an engine's anon footprint is what's actually left
-> for the LLM. **Hard gates are separate from the score**: a red ✗ row breaches
-> any $W$-class bound (here: p95 latency above 1.5 s or anon peak above 4 GiB)
-> and is undeployable for the target regardless of its aggregate. Profile
-> `orin-nano-8gb-v2` — retuned anchors or weights ship as v3, never a silent
-> rewrite of history.
+<details>
+<summary>How the edge deployment score is calculated (profile orin-nano-8gb-v2)</summary>
+
+Each vector is scored against *absolute* anchors — never against the other engines — so
+adding a config never rewrites a historical score. A vector scores 1.0 at/better than its
+target, 0.0 at its worst-acceptable bound, log-linear in between (RTF, latency and memory
+are heavy-tailed: the last halving counts as much as the first). The score is the
+weighted mean ×100 of **WER** (target 2%, worst 10%, weight 0.30) · **latency p95**
+(0.3 s, 1.5 s, 0.20) · **RTF p95** (0.1, 1.0, 0.15) · **VRAM, anon peak** (1 GiB,
+3 GiB, 0.35).
+
+</details>
 
 $$
 S_i=\text{clip}\left(\frac{\ln(W_i/x_i)}{\ln(W_i/T_i)}, 0, 1\right)
 \qquad
 \text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
 $$
+
+<details>
+<summary>Why p95 & anon peak — and the hard gates</summary>
+
+Latency and RTF bind the *tail* (p95 — averages hide the spikes that make an assistant
+feel broken). Memory scores the *anon peak*, the true process footprint: cgroup peak
+counts reclaimable file cache, and on this 8 GB *unified*-memory board the stack must
+leave room for llama.cpp weights and KV cache. **Hard gates are separate from the
+score**: a red ✗ row breaches a worst-class bound (p95 latency above 1.5 s or anon peak
+above 4 GiB) and is undeployable regardless of its aggregate. Retuned anchors or weights
+ship as v3 — never a silent rewrite of history.
+
+</details>
 
 <p align="center">
 <img src="assets/benchmarks/stt/stt-wer-vs-rtf.png" alt="Speech recognition — accuracy vs speed with Pareto front" width="100%">
@@ -213,16 +217,16 @@ their TTFA equals the synth p50/p90.*
 <img src="assets/benchmarks/tts/tts-edge.png" alt="Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending; profile orin-nano-8gb-v2)" width="100%">
 </p>
 
-> **How the score is calculated.** Same anchor scheme as the STT score above:
-> the vector score $S_i$ is 1.0 at/better than the target, 0.0 at/beyond the
-> worst-acceptable bound, log-linear in between; the deployment score is the
-> weighted mean ×100. Vectors — **TTFA p90**: 0.3 s, 1.5 s, 0.25 · **RTF p95**:
-> 0.1, 1.0, 0.15 · **VRAM (anon peak)**: 1 GiB, 3 GiB, 0.35 · **quality
-> (MOS)**: 4.0, 2.5, 0.25. Synth latency is deliberately excluded — it is RTF
-> re-measured per sentence and would double-count throughput; VRAM scores the
-> *anon* peak (true process footprint — see the STT note) because on this 8 GB
-> unified-memory board the stack shares the budget with llama.cpp weights and
-> KV cache.
+<details>
+<summary>How the synthesis deployment-performance score is calculated (profile orin-nano-8gb-v2)</summary>
+
+Same scheme as the STT score: 1.0 at the target, 0.0 at the worst bound, log-linear in
+between, weighted mean ×100. Vectors — **TTFA p90** (0.3 s, 1.5 s, 0.25) · **RTF p95**
+(0.1, 1.0, 0.15) · **VRAM, anon peak** (see the STT note; 1 GiB, 3 GiB, 0.35) ·
+**quality, MOS** (4.0, 2.5, 0.25). Synth latency is excluded — it is RTF re-measured
+per sentence and would double-count throughput.
+
+</details>
 
 $$
 S_i=\text{clip}\left(\frac{\ln(x_i/W_i)}{\ln(T_i/W_i)}, 0, 1\right)
@@ -230,12 +234,15 @@ S_i=\text{clip}\left(\frac{\ln(x_i/W_i)}{\ln(T_i/W_i)}, 0, 1\right)
 \text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
 $$
 
-> The quality vector is *higher-is-better* — hence the inverted log ratio — and
-> is pending a listening test: weights renormalize over *measured* vectors and
-> every label reports its coverage (· 75%) — these are provisional
-> **deployment-performance** scores (efficiency + responsiveness), not yet
-> naturalness. ✗ rows breach a hard gate (TTFA p90 above 1.5 s or anon peak
-> above 4 GiB). Profile `orin-nano-8gb-v2`.
+<details>
+<summary>Design notes — quality vector, coverage, hard gates</summary>
+
+Quality is *higher-is-better* — hence the inverted log ratio. Weights renormalize over
+*measured* vectors and every label reports its coverage (· 75%): these are provisional
+**deployment-performance** scores (efficiency + responsiveness), not yet naturalness.
+✗ rows breach a hard gate (TTFA p90 above 1.5 s or anon peak above 4 GiB).
+
+</details>
 
 <p align="center">
 <img src="assets/benchmarks/tts/tts-ranking.png" alt="Speech synthesis — real-time factor ranking" width="100%">
