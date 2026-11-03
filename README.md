@@ -135,6 +135,25 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 <img src="assets/benchmarks/stt/stt-edge.png" alt="Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM; profile orin-nano-8gb-v1)" width="100%">
 </p>
 
+> **How the score is calculated.** Each vector is scored against *absolute* edge
+> anchors — never against the other engines — so adding a config never rewrites a
+> historical score. Per vector $i$ with target $T_i$, worst-acceptable $W_i$ and
+> weight $w_i$: $S_i=\mathrm{clip}\!\left(\ln(W_i/x_i)\big/\ln(W_i/T_i),\,0,\,1\right)$,
+> i.e. 1.0 at/better than the target, 0.0 at/beyond the worst-acceptable bound,
+> log-linear in between (log because RTF/latency/memory are heavy-tailed — the
+> last halving must count as much as the first). The deployment score is the
+> weighted mean ×100: $\text{score}=100\cdot\sum_i w_i S_i\big/\sum_i w_i$.
+> Vectors: **WER** ($T{=}2\%,W{=}10\%,w{=}.35$) · **latency p95**
+> $(0.3\,\mathrm{s},1.5\,\mathrm{s},.20)$ · **RTF p95** $(0.1,1.0,.20)$ ·
+> **peak VRAM** $(1,4\,\mathrm{GiB},.25)$. Latency and RTF bind the *tail* —
+> averages hide the spikes that make an assistant feel broken; the latency
+> vector is a conservative final-latency proxy (streaming engines' true final
+> latency is their chunk lookahead). **Hard gates are separate from the score**:
+> a red ✗ row breaches any $W$ bound (here: p95 latency $>1.5$ s) and is
+> undeployable for the target regardless of its aggregate. Profile
+> `orin-nano-8gb-v1` — retuned anchors or weights ship as v2, never a silent
+> rewrite of history.
+
 <p align="center">
 <img src="assets/benchmarks/stt/stt-wer-vs-rtf.png" alt="Speech recognition — accuracy vs speed with Pareto front" width="100%">
 </p>
@@ -184,6 +203,20 @@ their TTFA equals the synth p50/p90.*
 <p align="center">
 <img src="assets/benchmarks/tts/tts-edge.png" alt="Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending)" width="100%">
 </p>
+
+> **How the score is calculated.** Same anchor scheme as the STT score above:
+> $S_i=\mathrm{clip}\!\left(\ln(W_i/x_i)\big/\ln(W_i/T_i),\,0,\,1\right)$ per
+> lower-is-better vector, weighted mean ×100. For the *higher-is-better* quality
+> vector the ratio inverts: $S_i=\mathrm{clip}\!\left(\ln(x_i/W_i)\big/\ln(T_i/W_i),\,0,\,1\right)$.
+> Vectors: **TTFA p90** $(0.3\,\mathrm{s},1.5\,\mathrm{s},.25)$ · **RTF p95**
+> $(0.1,1.0,.25)$ · **peak VRAM** $(1,4\,\mathrm{GiB},.25)$ · **quality (MOS)**
+> $(4.0,2.5,.25)$. Synth latency is deliberately excluded — it is RTF
+> re-measured per sentence and would double-count throughput. The MOS vector is
+> pending a listening test: weights renormalize over *measured* vectors and
+> every label reports its coverage (· 75%) — these are provisional
+> **deployment-performance** scores (efficiency + responsiveness), not yet
+> naturalness. ✗ rows breach a hard gate (TTFA p90 $>1.5$ s or VRAM
+> $>4\,\mathrm{GiB}$). Profile `orin-nano-8gb-v1`.
 
 <p align="center">
 <img src="assets/benchmarks/tts/tts-ranking.png" alt="Speech synthesis — real-time factor ranking" width="100%">
