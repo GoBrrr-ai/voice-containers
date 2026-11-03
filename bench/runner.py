@@ -257,15 +257,36 @@ def _free_port() -> int:
 
 
 def _wait_served(transport: str, host_port: int, timeout_s: float = 300.0) -> bool:
-    """Poll until the voice-server answers: HTTP /health (openai) or TCP
-    connect (wyoming — no HTTP by design)."""
+    """Poll until the voice-server answers: HTTP /health (openai) or a
+    wyoming Describe->Info handshake (TCP).
+
+    The wyoming probe must be protocol-level: docker's userland proxy ACCEPTS
+    the host-side TCP connect before the container server is listening, so a
+    bare connect() succeeds during model load and every early request gets
+    connection-reset (seen live: 500 instant resets racing a whisper load).
+    """
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         if transport == "wyoming":
             try:
-                with socket.create_connection(("127.0.0.1", host_port), timeout=2):
+                import asyncio
+
+                from wyoming.client import AsyncTcpClient
+                from wyoming.info import Describe, Info
+
+                async def _probe() -> bool:
+                    async with AsyncTcpClient("127.0.0.1", host_port) as client:
+                        await client.write_event(Describe().event())
+                        while True:
+                            ev = await asyncio.wait_for(client.read_event(), 10)
+                            if ev is None:
+                                return False
+                            if Info.is_type(ev.type):
+                                return True
+
+                if asyncio.run(asyncio.wait_for(_probe(), timeout=15)):
                     return True
-            except OSError:
+            except Exception:
                 pass
         else:
             try:
