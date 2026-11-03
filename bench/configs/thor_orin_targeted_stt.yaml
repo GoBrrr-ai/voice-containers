@@ -1,0 +1,45 @@
+# Thor Orin-targeted STT — LibriSpeech test-clean 500 utts, seed 42
+# Focused run: q4_k GGUF rows (Orin Nano 8 GB voice budget variants).
+# Explicit ids pin the baseline config's index-space (appended after 0-13);
+# the baseline yaml computes those same ids by position — never renumber.
+run_name: thor_orin_targeted_stt
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 500
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: parakeet_cpp            # parakeet-tdt-0.6b-v3 q4_k GGUF (675 MB, Orin budget)
+    id: parakeet_cpp_14
+    image: narandill/parakeet-tdt-cpp-stt:0.1.0
+    backends: [cuda]
+    opts:
+      model: /models/tdt-0.6b-v3-q4_k.gguf
+  - name: parakeet_cpp            # nemotron-unified q4_k GGUF (674 MB, Orin budget)
+    id: parakeet_cpp_15
+    image: narandill/nemotron-unified-asr:0.2.0
+    backends: [cuda]
+    opts:
+      model: /models/nemotron-labs-unified-asr-0.6b-q4_k.gguf
+      lang: en
+  - name: parakeet_cpp            # phonon-2.5-english q4_k GGUF (675 MB, Orin budget)
+    id: parakeet_cpp_16
+    image: narandill/phonon2-stt:0.2.0
+    backends: [cuda]
+    opts:
+      model: /models/phonon-2.5-english-q4_k.gguf
+streaming: {chunk_ms: 160, realtime_pass: false}
+warmup_n: 5
+repeats: 1
+cooldown_s: 60
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+publish_raw: true
+output_dir: results

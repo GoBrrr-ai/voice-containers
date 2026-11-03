@@ -1,8 +1,15 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# kokoro-tts 0.1.0 — hexgrad/Kokoro-82M v1.0 via kokoro-onnx 0.6.1 (Apache-2.0)
+# kokoro-tts 0.2.0 — hexgrad/Kokoro-82M v1.0 via kokoro-onnx 0.6.1 (Apache-2.0)
 #
-# ONNX int8 (model_uint8, 169 MB) + voices-v1.0.bin on OUR onnxruntime-gpu
+# Two baked graphs, selected by opts.model / KOKE_MODEL:
+#   model_uint8.onnx  (177 MB — static QLinear int8; quant nodes CPU-partition
+#     even on GPU — this is the 0.1.0 default)
+#   model_q4f16.onnx  (155 MB — MatMulNBits int4 weights + fp16 compute; the
+#     CUDA-native variant for GPU rows; quality: thehwh1teagle fp16 export
+#     measures 0.994–0.999 spectral corr vs fp32; int4 slightly below that)
+#
+# ONNX graphs + voices-v1.0.bin on OUR onnxruntime-gpu
 # 1.31.1 build (sm_87 + sm_90a + sm_110a SASS, sm_110a PTX). CUDA EP first,
 # CPU EP fallback. Streaming: kokoro.create_stream() async generator
 # (phoneme-chunked); RAM ~0.15-0.25 GB.
@@ -28,6 +35,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && mkdir -p /opt/kokoro \
     && curl -fL --retry 5 -o /opt/kokoro/model_uint8.onnx \
         "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/onnx/model_uint8.onnx" \
+    && curl -fL --retry 5 -o /opt/kokoro/model_q4f16.onnx \
+        "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231/onnx/model_q4f16.onnx" \
+    && echo "d1a508a6a29671ead84fac99c7401fbd3c21a583fc6ed1406d1ec974d53bf45f  /opt/kokoro/model_q4f16.onnx" | sha256sum --check - \
     && curl -fL --retry 5 -o /opt/kokoro/voices-v1.0.bin \
         "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin" \
     && echo "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d  /opt/kokoro/voices-v1.0.bin" | sha256sum --check -

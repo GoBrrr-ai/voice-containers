@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# phonon2-stt 0.1.0 — Fermion Research Phonon line via parakeet.cpp (GGML)
+# phonon2-stt 0.2.0 — Fermion Research Phonon line via parakeet.cpp (GGML)
 #
 # Bakes the successor-generation Phonon-2.5 English GGUFs (the exact Phonon-2
 # container has no GGUF; see README for the exact-Phonon-2 CPU fallback path):
-#   phonon-2.5-english-q8_0.gguf     (~897 MB — GPU/CUDA0, default)
+#   phonon-2.5-english-q8_0.gguf     (~940 MB — GPU/CUDA0, default)
+#   phonon-2.5-english-q4_k.gguf     (~675 MB — the Orin Nano 8 GB budget variant)
 #   phonon-2.5-english-packed.gguf   (~230 MB — CPU dotprod, PARAKEET_DEVICE=cpu)
 # Runs on mudler/parakeet.cpp with native sm_87 + sm_110a cubins + compute_110 PTX.
 #
@@ -24,6 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && mkdir -p /models \
     && curl -fL --retry 5 -o /models/phonon-2.5-english-q8_0.gguf \
         "${GGUF_BASE_URL}/phonon-2.5-english-q8_0.gguf" \
+    && curl -fL --retry 5 -o /models/phonon-2.5-english-q4_k.gguf \
+        "${GGUF_BASE_URL}/phonon-2.5-english-q4_k.gguf" \
     && curl -fL --retry 5 -o /models/phonon-2.5-english-packed.gguf \
         "${GGUF_BASE_URL}/phonon-2.5-english-packed.gguf" \
     && curl -fL --retry 5 -o /models/silero-vad-f16.gguf \

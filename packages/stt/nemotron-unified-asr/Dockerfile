@@ -1,6 +1,12 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# nemotron-unified-asr 0.1.0 — nvidia/nemotron-labs-unified-asr-0.6b (OpenMDW)
+# nemotron-unified-asr 0.2.0 — nvidia/nemotron-labs-unified-asr-0.6b (OpenMDW)
+#
+# Two baked variants, selected by env/opts.model:
+#   nemotron-labs-unified-asr-0.6b-q8_0.gguf  (939 MB — GPU/CUDA0, default)
+#   nemotron-labs-unified-asr-0.6b-q4_k.gguf  (674 MB — the Orin Nano 8 GB
+#     voice-budget variant; env-swap only, same binary; mudler validates
+#     the NVIDIA quants at WER 0 against NeMo)
 #
 # Runs on mudler/parakeet.cpp (GGML) with native sm_87 (AGX Orin) + sm_110a
 # (AGX Thor) cubins + compute_110 PTX baked by the shared builder image.
@@ -24,6 +30,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && mkdir -p /models \
     && curl -fL --retry 5 -o /models/nemotron-labs-unified-asr-0.6b-q8_0.gguf \
         "${GGUF_BASE_URL}/nemotron-labs-unified-asr-0.6b-q8_0.gguf" \
+    && curl -fL --retry 5 -o /models/nemotron-labs-unified-asr-0.6b-q4_k.gguf \
+        "${GGUF_BASE_URL}/nemotron-labs-unified-asr-0.6b-q4_k.gguf" \
     && curl -fL --retry 5 -o /models/silero-vad-f16.gguf \
         "${GGUF_BASE_URL}/silero-vad-f16.gguf"
 

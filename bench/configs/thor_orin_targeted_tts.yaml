@@ -1,0 +1,49 @@
+# Thor Orin-targeted TTS — LibriSpeech test-clean text, 444 sentences (seed 42 manifest)
+# Focused run: kokoro q4f16 (CUDA-native int4) + pocket-tts 18M (both backends).
+# Explicit ids pin the baseline config's index-space (appended after 0-5).
+run_name: thor_orin_targeted_tts
+task: tts
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/tts_librispeech_test-clean_en_500_seed42.jsonl
+  n: 444
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: kokoro                  # q4f16: MatMulNBits int4 weights + fp16 compute
+    id: kokoro_6
+    image: narandill/kokoro-tts:0.2.0
+    backends: [cuda]
+    opts:
+      model: /opt/kokoro/model_q4f16.onnx
+      voices: /opt/kokoro/voices-v1.0.bin
+      voice: af_heart
+  - name: pocket_tts              # 18M official model on GPU
+    id: pocket_tts_7
+    image: narandill/pocket-tts:0.3.0
+    backends: [cuda]
+    opts:
+      language: english_18m_2026-10
+      voice: alba
+      device: cuda
+  - name: pocket_tts              # 18M official model on CPU (Orin Option A path)
+    id: pocket_tts_8
+    image: narandill/pocket-tts:0.3.0
+    backends: [cpu]
+    opts:
+      language: english_18m_2026-10
+      voice: alba
+      device: cpu
+streaming: {chunk_ms: 160, realtime_pass: true}
+warmup_n: 5
+repeats: 1
+cooldown_s: 60
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+publish_raw: true
+output_dir: results
