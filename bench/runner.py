@@ -34,6 +34,7 @@ KNOWN_KEYS = {
     "cooldown_s",
     "soak_minutes",
     "probes",
+    "publish_raw",
     "drop_caches",
     "output_dir",
     "gpu_free_threshold_mib",

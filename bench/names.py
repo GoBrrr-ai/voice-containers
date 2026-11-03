@@ -21,6 +21,7 @@ FAMILY_OF_PROJECT = {
     "canary-flash-stt": "canary",
     "parakeet-tdt-stt": "parakeet-tdt",
     "parakeet-tdt-cpp-stt": "parakeet-tdt",
+    "parakeet-tdt-ort-stt": "parakeet-tdt",
     "nemotron-streaming-stt": "nemotron-streaming",
     "pocket-tts": "pocket-tts",
 }
@@ -64,6 +65,7 @@ MODEL_COLORS = {
     "canary-180m-flash int8": "#F0E442",  # Okabe-Ito yellow (canary!)
     "parakeet-tdt 0.6B v3 int8": "#CC79A7",  # Okabe-Ito pink
     "parakeet-tdt 0.6B v3 q4_k (cpp)": "#CC79A7",  # same model — quant variant
+    "parakeet-tdt 0.6B v3 int4 (ORT)": "#CC79A7",  # same model — quant variant
     "nemotron-streaming 0.6B int8 (160 ms)": "#0072B2",  # Okabe-Ito blue
     # TTS
     "kokoro 82M int8": "#009E73",  # Okabe-Ito green
@@ -121,6 +123,10 @@ PACKAGES = {
     },
     "parakeet-tdt-cpp-stt": {
         "what": "nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp",
+        "streaming": "VAD-chunked (opt-in)",
+    },
+    "parakeet-tdt-ort-stt": {
+        "what": "nvidia parakeet-tdt-0.6b-v3 int4 MatMulNBits (391 MB, featurizer incl.) on our onnxruntime-gpu",
         "streaming": "VAD-chunked (opt-in)",
     },
     "wyoming-piper1-tts": {
@@ -207,6 +213,8 @@ def display(row: dict) -> str:
         return "phonon-2.5 q4_k" if "q4_k" in model else "phonon-2.5 q8_0"
     if proj == "parakeet-tdt-cpp-stt":
         return "parakeet-tdt 0.6B v3 q4_k (cpp)"
+    if proj == "parakeet-tdt-ort-stt":
+        return "parakeet-tdt 0.6B v3 int4 (ORT)"
     if proj == "parakeet-redux-stt":
         return "redux packed (CPU)" if "packed" in model else "parakeet-redux 178M q8_0"
     if proj == "wyoming-faster-whisper":

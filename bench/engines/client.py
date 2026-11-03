@@ -12,6 +12,7 @@ Usage: python client.py <job.json>
 from __future__ import annotations
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -457,6 +458,128 @@ class NemotronStreaming:
         return (result if isinstance(result, str) else result.text).strip()
 
 
+class ParakeetTdtOrt:
+    """NVIDIA parakeet-tdt-0.6b-v3 int4 — plain-ONNX on our ORT wheel.
+
+    efederici pack: MatMulNBits int4 encoder (CUDA EP; block_size 64),
+    dynamic-int8 decoder_joint (CPU EP — no CUDA kernels for QOperator
+    dynamic), nemo128 featurizer. TDT greedy loop per
+    task/research/parakeet-int4-ort-driver/ (verified vs jfk.flac).
+    """
+
+    name = "parakeet_tdt_ort"
+    backends = {"cpu", "cuda"}
+    supports_streaming = False
+    required_sample_rate = 16000
+
+    BLANK_ID = 8192
+    VOCAB_SIZE = 8193
+    DURATIONS = [0, 1, 2, 3, 4]
+    MAX_TOKENS_PER_STEP = 10
+
+    def __init__(self, opts):
+        import onnxruntime as ort
+
+        self.device = opts.get("device", "cpu")
+        self.model_dir = opts.get("model_dir", "/models/parakeet-int4")
+        enc_prov = (
+            ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            if self.device == "cuda"
+            else ["CPUExecutionProvider"]
+        )
+        so = ort.SessionOptions()
+        so.log_severity_level = 3
+        self._feat = ort.InferenceSession(
+            os.path.join(self.model_dir, "nemo128.onnx"),
+            so,
+            providers=["CPUExecutionProvider"],
+        )
+        self._enc = ort.InferenceSession(
+            os.path.join(self.model_dir, "encoder-model.int4.onnx"),
+            so,
+            providers=enc_prov,
+        )
+        self._dec = ort.InferenceSession(
+            os.path.join(self.model_dir, "decoder_joint-model.int8.onnx"),
+            so,
+            providers=["CPUExecutionProvider"],
+        )
+        if (
+            self.device == "cuda"
+            and self._enc.get_providers()[0] != "CUDAExecutionProvider"
+        ):
+            raise RuntimeError("CUDA EP not active on the int4 encoder")
+        self._vocab = {}
+        with open(os.path.join(self.model_dir, "vocab.txt"), encoding="utf-8") as f:
+            for line in f:
+                line = line.rstrip("\n")
+                if line:
+                    tok, idx = line.rsplit(" ", 1)
+                    self._vocab[int(idx)] = tok
+
+    def load(self, opts):
+        pass
+
+    def actual_backend(self) -> str:
+        return self.device
+
+    def transcribe(self, pcm, sr: int, wav_path: str | None = None):
+        import numpy as np
+
+        raw = (
+            np.frombuffer(pcm, np.int16) if isinstance(pcm, (bytes, bytearray)) else pcm
+        )
+        wave = np.concatenate(
+            [raw.astype(np.float32) / 32768.0, np.zeros(16000, dtype=np.float32)]
+        )
+        w = wave[None, :]
+        wl = np.array([w.shape[1]], dtype=np.int64)
+
+        features, features_lens = self._feat.run(
+            ["features", "features_lens"], {"waveforms": w, "waveforms_lens": wl}
+        )
+        enc, enc_lens = self._enc.run(
+            ["outputs", "encoded_lengths"],
+            {"audio_signal": features, "length": features_lens},
+        )
+        enc_t = enc.transpose(0, 2, 1)
+        T = int(enc_lens[0])
+
+        state1 = np.zeros((2, 1, 640), dtype=np.float32)
+        state2 = np.zeros((2, 1, 640), dtype=np.float32)
+        tokens = []
+        t = 0
+        emitted = 0
+        while t < T:
+            frame = enc_t[0, t][None, :, None]
+            outputs, _, s1, s2 = self._dec.run(
+                ["outputs", "prednet_lengths", "output_states_1", "output_states_2"],
+                {
+                    "encoder_outputs": frame,
+                    "targets": np.array(
+                        [[tokens[-1] if tokens else self.BLANK_ID]], dtype=np.int32
+                    ),
+                    "target_length": np.array([1], dtype=np.int32),
+                    "input_states_1": state1,
+                    "input_states_2": state2,
+                },
+            )
+            logits = np.squeeze(outputs)
+            token = int(logits[: self.VOCAB_SIZE].argmax())
+            step = self.DURATIONS[int(logits[self.VOCAB_SIZE :].argmax())]
+            if token != self.BLANK_ID:
+                state1, state2 = s1, s2
+                tokens.append(token)
+            if step > 0:
+                t += step
+                emitted = 0
+            elif token == self.BLANK_ID or emitted == self.MAX_TOKENS_PER_STEP:
+                t += 1
+                emitted = 0
+        text = "".join(self._vocab[i].replace("\u2581", " ") for i in tokens)
+        return re.sub(r"\s+", " ", text).strip()
+
+
 # ---------------------------------------------------------------- TTS engines
 class Kokoro:
     name = "kokoro"
@@ -717,6 +840,7 @@ STT_ENGINES = {
         MoonshineOrt,
         CanaryFlash,
         ParakeetTdt,
+        ParakeetTdtOrt,
         NemotronStreaming,
     )
 }
