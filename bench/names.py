@@ -69,7 +69,6 @@ MODEL_COLORS = {
     "nemotron-streaming 0.6B int8 (160 ms)": "#0072B2",  # Okabe-Ito blue
     # TTS
     "kokoro 82M int8": "#009E73",  # Okabe-Ito green
-    "kokoro 82M q4f16": "#009E73",  # same model — quant variant
     "paradee 8M int8 (GPU)": "#F0E442",  # Okabe-Ito yellow
     "paradee 8M int8 (CPU)": "#F0E442",  # same model — backend variant
     "piper1-tts libritts-r medium": "#41BDF5",  # Home Assistant blue (brand)
@@ -134,7 +133,7 @@ PACKAGES = {
         "streaming": "wyoming streaming",
     },
     "kokoro-tts": {
-        "what": "Kokoro-82M v1.0 ONNX (uint8 + q4f16 CUDA-native) on onnxruntime-gpu (sm_87+sm_110a)",
+        "what": "Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a)",
         "streaming": "`create_stream()`",
     },
     "phonon31m-tts": {
@@ -220,7 +219,7 @@ def display(row: dict) -> str:
     if proj == "wyoming-faster-whisper":
         return "faster-whisper tiny int8"
     if proj == "kokoro-tts":
-        return "kokoro 82M q4f16" if "q4f16" in model else "kokoro 82M int8"
+        return "kokoro 82M int8"
     if proj == "phonon31m-tts":
         return "phonon-31m (CPU)"
     if proj == "paradee-tts":

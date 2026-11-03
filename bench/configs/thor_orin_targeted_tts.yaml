@@ -15,14 +15,6 @@ dataset:
 normalizer: whisper_english
 cache_dir: datasets/cache
 engines:
-  - name: kokoro                  # q4f16: MatMulNBits int4 weights + fp16 compute
-    id: kokoro_6
-    image: narandill/kokoro-tts:0.2.0
-    backends: [cuda]
-    opts:
-      model: /opt/kokoro/model_q4f16.onnx
-      voices: /opt/kokoro/voices-v1.0.bin
-      voice: af_heart
   - name: pocket_tts              # 18M official model on GPU
     id: pocket_tts_7
     image: narandill/pocket-tts:0.3.0
