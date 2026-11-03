@@ -145,7 +145,7 @@ def drop_caches():
 
 
 @app.command()
-def plot(readme: bool = True, include: str = "baseline,gpu_variants"):
+def plot(readme: bool = True, include: str = "baseline,gpu_variants,orin_targeted"):
     """Render all charts (+ README.md with --readme) from benchmarks/history.jsonl.
 
     ``include``: comma-separated run_name substrings — the published matrix

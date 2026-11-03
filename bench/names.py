@@ -20,6 +20,7 @@ FAMILY_OF_PROJECT = {
     "moonshine-streaming-stt": "moonshine",
     "canary-flash-stt": "canary",
     "parakeet-tdt-stt": "parakeet-tdt",
+    "parakeet-tdt-cpp-stt": "parakeet-tdt",
     "nemotron-streaming-stt": "nemotron-streaming",
     "pocket-tts": "pocket-tts",
 }
@@ -51,7 +52,9 @@ FAMILY_COLORS = {**DEFAULT_FAMILY_COLORS, **BRAND_COLORS}
 MODEL_COLORS = {
     # STT
     "nemotron-unified 0.6B q8_0": "#76B900",  # NVIDIA green (brand)
+    "nemotron-unified 0.6B q4_k": "#76B900",  # same model — quant variant
     "phonon-2.5 q8_0": "#56B4E9",  # Okabe-Ito sky blue
+    "phonon-2.5 q4_k": "#56B4E9",  # same model — quant variant
     "parakeet-redux 178M q8_0": "#D55E00",  # Okabe-Ito vermillion
     "redux packed (CPU)": "#D55E00",  # same model as above — CPU variant
     "faster-whisper tiny int8": "#E69F00",  # Okabe-Ito orange
@@ -60,14 +63,18 @@ MODEL_COLORS = {
     "moonshine-streaming medium fp32 (ORT)": "#009E73",  # same family, GPU driver
     "canary-180m-flash int8": "#F0E442",  # Okabe-Ito yellow (canary!)
     "parakeet-tdt 0.6B v3 int8": "#CC79A7",  # Okabe-Ito pink
+    "parakeet-tdt 0.6B v3 q4_k (cpp)": "#CC79A7",  # same model — quant variant
     "nemotron-streaming 0.6B int8 (160 ms)": "#0072B2",  # Okabe-Ito blue
     # TTS
     "kokoro 82M int8": "#009E73",  # Okabe-Ito green
+    "kokoro 82M q4f16": "#009E73",  # same model — quant variant
     "paradee 8M int8 (GPU)": "#F0E442",  # Okabe-Ito yellow
     "paradee 8M int8 (CPU)": "#F0E442",  # same model — backend variant
     "piper1-tts libritts-r medium": "#41BDF5",  # Home Assistant blue (brand)
     "phonon-31m (CPU)": "#CC79A7",  # Okabe-Ito pink
     "pocket-tts 100M": "#E69F00",  # Okabe-Ito orange
+    "pocket-tts 18M": "#E69F00",  # same family — size variant
+    "pocket-tts 7M": "#E69F00",  # same family — size variant
 }
 
 
@@ -101,7 +108,7 @@ PACKAGES = {
         "streaming": "wyoming streaming",
     },
     "nemotron-unified-asr": {
-        "what": "nvidia nemotron-unified-asr 0.6B (q8_0) on parakeet.cpp",
+        "what": "nvidia nemotron-unified-asr 0.6B (q8_0 GPU + q4_k Orin-budget) on parakeet.cpp",
         "streaming": "**true buffered** (0.16–2.08 s)",
     },
     "parakeet-redux-stt": {
@@ -109,7 +116,11 @@ PACKAGES = {
         "streaming": "VAD-chunked (opt-in)",
     },
     "phonon2-stt": {
-        "what": "fermion phonon-2.5 (q8_0) GPU + packed CPU",
+        "what": "fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU)",
+        "streaming": "VAD-chunked (opt-in)",
+    },
+    "parakeet-tdt-cpp-stt": {
+        "what": "nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp",
         "streaming": "VAD-chunked (opt-in)",
     },
     "wyoming-piper1-tts": {
@@ -117,7 +128,7 @@ PACKAGES = {
         "streaming": "wyoming streaming",
     },
     "kokoro-tts": {
-        "what": "Kokoro-82M v1.0 int8 ONNX on onnxruntime-gpu (sm_87+sm_110a)",
+        "what": "Kokoro-82M v1.0 ONNX (uint8 + q4f16 CUDA-native) on onnxruntime-gpu (sm_87+sm_110a)",
         "streaming": "`create_stream()`",
     },
     "phonon31m-tts": {
@@ -145,7 +156,7 @@ PACKAGES = {
         "streaming": "**true native** (cache-aware, graph-chunked)",
     },
     "pocket-tts": {
-        "what": "Kyutai Pocket TTS 100M (official pkg) — streaming + voice cloning, 7 languages",
+        "what": "Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning",
         "streaming": "**true streaming** (~200 ms TTFA)",
     },
 }
@@ -187,15 +198,21 @@ def display(row: dict) -> str:
     model = str(row.get("model") or "").lower()
     backend = (row.get("requested_backend") or "").lower()
     if proj == "nemotron-unified-asr":
-        return "nemotron-unified 0.6B q8_0"
+        return (
+            "nemotron-unified 0.6B q4_k"
+            if "q4_k" in model
+            else "nemotron-unified 0.6B q8_0"
+        )
+    if proj == "phonon2-stt":
+        return "phonon-2.5 q4_k" if "q4_k" in model else "phonon-2.5 q8_0"
+    if proj == "parakeet-tdt-cpp-stt":
+        return "parakeet-tdt 0.6B v3 q4_k (cpp)"
     if proj == "parakeet-redux-stt":
         return "redux packed (CPU)" if "packed" in model else "parakeet-redux 178M q8_0"
-    if proj == "phonon2-stt":
-        return "phonon-2.5 q8_0"
     if proj == "wyoming-faster-whisper":
         return "faster-whisper tiny int8"
     if proj == "kokoro-tts":
-        return "kokoro 82M int8"
+        return "kokoro 82M q4f16" if "q4f16" in model else "kokoro 82M int8"
     if proj == "phonon31m-tts":
         return "phonon-31m (CPU)"
     if proj == "paradee-tts":
@@ -213,6 +230,11 @@ def display(row: dict) -> str:
     if proj == "nemotron-streaming-stt":
         return "nemotron-streaming 0.6B int8 (160 ms)"
     if proj == "pocket-tts":
+        lang = str((row.get("opts") or {}).get("language") or "")
+        if "18m" in lang:
+            return "pocket-tts 18M"
+        if "7m" in lang:
+            return "pocket-tts 7M"
         return "pocket-tts 100M"
     base = _model_base(row) or proj
     return f"{proj} · {base}"

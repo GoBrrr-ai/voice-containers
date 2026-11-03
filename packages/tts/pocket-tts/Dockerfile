@@ -47,8 +47,12 @@ RUN printf '%s\n' \
     '    pass' \
     > /usr/lib/python3.12/sitecustomize.py
 
-# Bake the model: a real generation downloads + caches weights and voices
-# under HF_HOME (offline OK afterwards). Default language bundle: english.
+# Bake the models: a real generation downloads + caches weights and voices
+# under HF_HOME (offline OK afterwards). Two language bundles:
+#   english             — the 100M flagship (RTF 0.13 GPU / 0.39 CPU on Thor)
+#   english_18m_2026-10 — the Orin-budget find: 111.7 MB fp32 safetensors,
+#     "up to 25× realtime on one CPU thread" (kyutai 2026-10-20); 7m/2m
+#     exist but 18m is the quality/speed sweet spot for the 0.8 GB budget.
 # The shipped english.yaml pins the HF revisions (model.safetensors@
 # db04f0e6…, without-voice-cloning a7056f50…, tokenizer@00eac05e…) — a
 # pocket-tts version bump ships a new yaml, which is the re-pin signal.
@@ -58,8 +62,10 @@ ENV HF_HOME=/opt/hf-cache \
     XDG_CACHE_HOME=/opt/hf-cache/xdg
 RUN /opt/venv/bin/pocket-tts generate --text "Warm up the Pocket TTS cache." \
         --output-path /tmp/warm.wav --language english --voice alba \
+    && /opt/venv/bin/pocket-tts generate --text "Warm up the eighteen million cache." \
+        --output-path /tmp/warm18.wav --language english_18m_2026-10 --voice alba \
     && find /opt/hf-cache -type f -exec sha256sum {} + | sort -k2 > /opt/hf-cache/BAKE_MANIFEST.sha256 \
-    && du -sh /opt/hf-cache && rm -f /tmp/warm.wav
+    && du -sh /opt/hf-cache && rm -f /tmp/warm.wav /tmp/warm18.wav
 
 # GPU-capable: the torch cu132 wheel ships sm_110 SASS (Thor) and sm_80
 # cubins (native on Orin sm_87 via within-major 8.0→8.7 binary compat —
