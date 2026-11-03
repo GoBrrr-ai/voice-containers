@@ -872,42 +872,52 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "audio").mkdir(exist_ok=True)
     task = job["task"]
-    reg = STT_ENGINES if task == "stt" else TTS_ENGINES
-    requested = job.get("requested_backend") or job.get("opts", {}).get(
-        "device", "cuda"
-    )
-    # unsupported (engine, backend) pair: honest skip rows, never a silent
-    # no-op — decided from the class attribute BEFORE any model is loaded
-    if requested not in reg[job["engine"]].backends:
-        utt_path = Path(job["out_dir"]) / "utterances.jsonl"
-        for i, s in enumerate(job["samples"]):
+    serve = job.get("serve")
+    if serve:
+        # serve mode: the image runs its own voice-server (`docker run -d`);
+        # this client drives it over loopback (bench/engines/remote.py,
+        # docs/voice-api.md). No model loads here — the server did already.
+        import remote
+
+        eng = remote.build(task, serve, job["engine"], job.get("opts", {}))
+        requested = job.get("requested_backend") or "cuda"
+    else:
+        reg = STT_ENGINES if task == "stt" else TTS_ENGINES
+        requested = job.get("requested_backend") or job.get("opts", {}).get(
+            "device", "cuda"
+        )
+        # unsupported (engine, backend) pair: honest skip rows, never a silent
+        # no-op — decided from the class attribute BEFORE any model is loaded
+        if requested not in reg[job["engine"]].backends:
+            utt_path = Path(job["out_dir"]) / "utterances.jsonl"
+            for i, s in enumerate(job["samples"]):
+                jsonl_append(
+                    utt_path,
+                    {
+                        "engine": job["engine"],
+                        "engine_id": job.get("engine_id", job["engine"]),
+                        "task": task,
+                        "utt_id": s["utt_id"],
+                        "run_position": i,
+                        "status": "skipped",
+                        "reason": (
+                            f"backend {requested!r} unsupported by {job['engine']} "
+                            f"(supports {sorted(reg[job['engine']].backends)})"
+                        ),
+                    },
+                )
             jsonl_append(
-                utt_path,
+                Path(job["out_dir"]) / "run_meta.jsonl",
                 {
                     "engine": job["engine"],
-                    "engine_id": job.get("engine_id", job["engine"]),
-                    "task": task,
-                    "utt_id": s["utt_id"],
-                    "run_position": i,
-                    "status": "skipped",
-                    "reason": (
-                        f"backend {requested!r} unsupported by {job['engine']} "
-                        f"(supports {sorted(reg[job['engine']].backends)})"
-                    ),
+                    "engine_id": job.get("engine_id"),
+                    "actual_backend": "skipped",
+                    "requested_backend": requested,
                 },
             )
-        jsonl_append(
-            Path(job["out_dir"]) / "run_meta.jsonl",
-            {
-                "engine": job["engine"],
-                "engine_id": job.get("engine_id"),
-                "actual_backend": "skipped",
-                "requested_backend": requested,
-            },
-        )
-        return
+            return
 
-    eng = reg[job["engine"]](job.get("opts", {}))
+        eng = reg[job["engine"]](job.get("opts", {}))
     eng.load(job.get("opts", {}))
     t_load0 = _now_ns()
 

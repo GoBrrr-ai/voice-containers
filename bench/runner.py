@@ -8,9 +8,12 @@ and the aggregated summary.json / summary.csv.
 
 from __future__ import annotations
 import json
+import socket
 import subprocess
+import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 from .common import jsonl_read
@@ -244,6 +247,156 @@ def docker_stats_sampler(
             stop_evt.wait(interval)
 
 
+def _free_port() -> int:
+    """Grab an ephemeral loopback port for the server container's -p mapping."""
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def _wait_served(transport: str, host_port: int, timeout_s: float = 300.0) -> bool:
+    """Poll until the voice-server answers: HTTP /health (openai) or TCP
+    connect (wyoming — no HTTP by design)."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if transport == "wyoming":
+            try:
+                with socket.create_connection(("127.0.0.1", host_port), timeout=2):
+                    return True
+            except OSError:
+                pass
+        else:
+            try:
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{host_port}/health", timeout=2
+                ) as r:
+                    if r.status == 200:
+                        return True
+            except Exception:
+                pass
+        time.sleep(1.0)
+    return False
+
+
+def _run_served(
+    engine_img: str,
+    job: dict,
+    run_dir: Path,
+    bench_dir: Path,
+    gpu: bool,
+    name: str,
+    serve: dict,
+) -> dict:
+    """Serve-mode job (docs/voice-api.md; server-api-audit plan §Runner).
+
+    The image runs its own voice-server (`docker run -d`, CMD serves);
+    client.py drives it from the HOST over loopback — no code mounts, host
+    paths stay host paths. Samplers wrap the server container, matching the
+    container-mode measurement window (tegrastats is run-level).
+    """
+    eid = job["engine_id"]
+    run_dir = Path(run_dir).resolve()
+    bench_dir = Path(bench_dir).resolve()
+    t0 = time.perf_counter_ns()
+    cid = ""
+    try:
+        host_port = _free_port()
+        cmd = ["docker", "run", "-d", "--name", name]
+        if gpu:
+            cmd += ["--runtime", "nvidia", "-e", "NVIDIA_DISABLE_REQUIRE=1"]
+        # per-engine server env (e.g. DEVICE=cpu / PARAKEET_DEVICE=cpu rows);
+        # "{backend}" in a value expands to the job's requested_backend so one
+        # entry can serve both device rows (paradee/pocket [cuda, cpu])
+        for k, v in (serve.get("env") or {}).items():
+            cmd += [
+                "-e",
+                f"{k}={str(v).replace('{backend}', str(job.get('requested_backend') or ''))}",
+            ]
+        for vol in job.pop("volumes", []):
+            cmd += ["-v", vol]
+        cmd += ["-p", f"127.0.0.1:{host_port}:{int(serve['port'])}", engine_img]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            return {
+                "engine": job["engine"],
+                "engine_id": eid,
+                "image": engine_img,
+                "container": name,
+                "exit": r.returncode,
+                "served": True,
+                "tail": (r.stderr or r.stdout).strip().splitlines()[-5:],
+            }
+        cid = (r.stdout or "").strip().splitlines()[-1]
+        # job for the HOST client: untouched host audio paths + endpoint info
+        job = {
+            **job,
+            "serve": {**serve, "host": "127.0.0.1", "host_port": host_port},
+            "out_dir": str(run_dir),
+        }
+        job_path = run_dir / f"job_{eid}.json"
+        job_path.write_text(json.dumps(job, ensure_ascii=False))
+        if not _wait_served(serve["transport"], host_port):
+            logs = subprocess.run(
+                ["docker", "logs", name], capture_output=True, text=True
+            ).stdout
+            return {
+                "engine": job["engine"],
+                "engine_id": eid,
+                "image": engine_img,
+                "container": name,
+                "exit": 1,
+                "served": True,
+                "tail": ("server never became healthy: " + logs)
+                .strip()
+                .splitlines()[-8:],
+            }
+        stop_evt = threading.Event()
+        stats_t = threading.Thread(
+            target=docker_stats_sampler,
+            args=(name, run_dir / f"docker_stats_{eid}.csv", stop_evt),
+            daemon=True,
+        )
+        stats_t.start()
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(bench_dir / "client.py"), str(job_path)],
+                capture_output=True,
+                text=True,
+            )
+        finally:
+            stop_evt.set()
+            stats_t.join(timeout=10)
+            subprocess.run(["docker", "rm", "-f", name], capture_output=True)
+        (run_dir / f"logs_{eid}.txt").write_text(
+            (proc.stdout or "") + (proc.stderr or "")
+        )
+        meta = {
+            "engine": job["engine"],
+            "engine_id": eid,
+            "image": engine_img,
+            "requested_backend": job.get("requested_backend"),
+            "container": name,
+            "exit": proc.returncode,
+            "wall_ns": time.perf_counter_ns() - t0,
+            "served": True,
+            "host_port": host_port,
+        }
+        if proc.returncode != 0:
+            meta["tail"] = (
+                ((proc.stdout or "") + (proc.stderr or "")).strip().splitlines()[-5:]
+            )
+            print(
+                f"[runner] WARNING: served engine {eid} client exited "
+                f"{proc.returncode}; see logs_{eid}.txt in the run dir"
+            )
+        return meta
+    finally:
+        if cid:
+            subprocess.run(["docker", "rm", "-f", cid], capture_output=True)
+
+
 def _container_audio_path(host_path: str, cache_root: Path) -> str:
     """Map a manifest audio_path to its container mount (/data/bench-cache/...).
 
@@ -273,7 +426,11 @@ def run_container_job(
     cache_dir: str,
     gpu: bool = True,
 ) -> dict:
-    """Spawn the engine container with the client mounted; wait; return meta."""
+    """Spawn the engine container with the client mounted; wait; return meta.
+
+    Serve mode (job["serve"] = {port, transport}): the image runs its own
+    voice-server and the client drives it from the host — see _run_served.
+    """
     eid = job["engine_id"]
     name = f"bench-{job['task']}-{eid}-{int(time.time())}"
     # container-side paths; work on a copy — run_config reuses the same job dict
@@ -281,6 +438,15 @@ def run_container_job(
 
     job = _copy.deepcopy(job)
     cache_root = Path(cache_dir).resolve()
+    if serve := job.pop("serve", None):
+        # host client: manifests store cache-RELATIVE audio paths — resolve
+        # against the real cache dir (container mode maps to /data/bench-cache)
+        for s in job["samples"]:
+            if s.get("audio_path"):
+                p = Path(s["audio_path"])
+                if not p.is_absolute():
+                    s["audio_path"] = str(cache_root / p)
+        return _run_served(engine_img, job, run_dir, bench_dir, gpu, name, serve)
     run_dir = Path(run_dir).resolve()
     bench_dir = Path(bench_dir).resolve()
     for s in job["samples"]:
@@ -365,6 +531,21 @@ def run_config(config_path: str) -> str:
         _fail("probes.tegrastats must be auto/true/false")
     if int(cfg.get("repeats", 1)) != 1:
         _fail("repeats > 1 is not implemented yet — set repeats: 1")
+    # serve mode validation (docs/voice-api.md): per-engine voice-server flag
+    for eng in cfg["engines"]:
+        if serve := eng.get("serve"):
+            if (
+                not isinstance(serve, dict)
+                or not serve.get("port")
+                or serve.get("transport") not in ("openai", "wyoming")
+                or not isinstance(serve.get("env", {}), dict)
+            ):
+                _fail(
+                    "engines[].serve must be {port: <container port>, "
+                    "transport: openai|wyoming, env?: {K: V}} — the runner "
+                    "docker-runs the image's own server and drives it from "
+                    "the host"
+                )
     # co-tenancy gate BEFORE touching anything: if the GPU is busy, wait for a
     # clean window or defer (never measure contaminated, never kill tenants)
     gpu_backends = [
@@ -446,6 +627,7 @@ def run_config(config_path: str) -> str:
                     "warmup_n": warmup_n,
                     "streaming": realtime_pass,
                     "volumes": eng.get("volumes", []),
+                    "serve": eng.get("serve"),
                 }
                 img = eng["image"]  # engine image for this adapter
                 meta = run_container_job(

@@ -1,4 +1,11 @@
 # Thor STT baseline — LibriSpeech test-clean 500 utts, seed 42 (spec 9.2)
+# 2026-11-03: serve-mode flip (D20) — every image with a voice-api v1 server
+# is benched through it (`serve:`); the runner docker-runs the image's own
+# server and drives it from the host over loopback (uniform transport
+# overhead → RTF comparable across the roster). nemotron-streaming has no
+# HTTP server (streaming-first, CLI only) and stays in-process. Old tags
+# were superseded by the one-version-each policy; old runs keep their
+# env.json provenance.
 run_name: thor_stt_baseline
 task: stt
 device_label: jetson-agx-thor-128gb
@@ -14,43 +21,47 @@ normalizer: whisper_english
 cache_dir: datasets/cache
 engines:
   - name: parakeet_cpp            # nemotron-unified-asr (GPU q8_0)
-    image: narandill/nemotron-unified-asr:0.1.0
+    image: narandill/nemotron-unified-asr:0.2.0
     backends: [cuda]
+    serve: {port: 8080, transport: openai}
     opts:
       model: /models/nemotron-labs-unified-asr-0.6b-q8_0.gguf
       lang: en
   - name: parakeet_cpp            # moondream parakeet-redux (GPU q8_0)
     image: narandill/parakeet-redux-stt:0.1.0
     backends: [cuda]
+    serve: {port: 8080, transport: openai}
     opts:
       model: /models/redux-q8_0.gguf
   - name: parakeet_cpp            # Phonon-2.5-english (GPU q8_0)
-    image: narandill/phonon2-stt:0.1.0
+    image: narandill/phonon2-stt:0.2.0
     backends: [cuda]
+    serve: {port: 8080, transport: openai}
     opts:
       model: /models/phonon-2.5-english-q8_0.gguf
   - name: parakeet_cpp            # redux packed on CPU (the ultra-light tier)
     image: narandill/parakeet-redux-stt:0.1.0
     backends: [cpu]
+    serve: {port: 8080, transport: openai, env: {PARAKEET_DEVICE: cpu}}
     opts:
       model: /models/redux-packed.gguf
-      device: cpu
-  - name: faster_whisper          # the wave-1 baseline (tiny-int8)
+  - name: faster_whisper          # the wave-1 baseline (tiny-int8), wyoming-native
     image: narandill/wyoming-faster-whisper:0.1.0
     backends: [cuda]
+    serve: {port: 10300, transport: wyoming}
     opts:
-      model: rhasspy/faster-whisper-tiny-int8  # wyoming "tiny-int8" alias resolved
-      device: cuda
-      compute_type: default
+      model: rhasspy/faster-whisper-tiny-int8
   - name: moonshine               # Streaming Medium 245M (official runtime, CPU)
-    image: narandill/moonshine-streaming-stt:0.1.0
+    image: narandill/moonshine-streaming-stt:0.2.0
     backends: [cpu]
+    serve: {port: 8080, transport: openai, env: {DEVICE: cpu}}
     opts:
       model_dir: /models/moonshine-streaming-en
       model_arch: 5
-  - name: canary                  # Canary-180M-Flash int8 (CPU; GPU path later)
-    image: narandill/canary-flash-stt:0.1.0
+  - name: canary                  # Canary-180M-Flash int8 (CPU)
+    image: narandill/canary-flash-stt:0.2.0
     backends: [cpu]
+    serve: {port: 8080, transport: openai, env: {DEVICE: cpu}}
     opts:
       encoder: /models/canary-flash/encoder.int8.onnx
       decoder: /models/canary-flash/decoder.int8.onnx
@@ -58,16 +69,17 @@ engines:
       src_lang: en
       tgt_lang: en
   - name: parakeet_tdt            # TDT 0.6B v3 int8 (25 languages, CPU)
-    image: narandill/parakeet-tdt-stt:0.1.0
+    image: narandill/parakeet-tdt-stt:0.2.0
     backends: [cpu]
+    serve: {port: 8080, transport: openai, env: {DEVICE: cpu}}
     opts:
       encoder: /models/parakeet-tdt-v3/encoder.int8.onnx
       decoder: /models/parakeet-tdt-v3/decoder.int8.onnx
       joiner: /models/parakeet-tdt-v3/joiner.int8.onnx
       tokens: /models/parakeet-tdt-v3/tokens.txt
   - name: nemotron_streaming      # Streaming EN 0.6B int8 (160 ms baked, CPU)
-    image: narandill/nemotron-streaming-stt:0.1.0
-    backends: [cpu]
+    image: narandill/nemotron-streaming-stt:0.2.0
+    backends: [cpu]               # no voice-api server — in-process (CLI image)
     opts:
       encoder: /models/nemotron-streaming-160ms/encoder.int8.onnx
       decoder: /models/nemotron-streaming-160ms/decoder.int8.onnx
@@ -79,6 +91,7 @@ engines:
   - name: canary                  # Canary-180M-Flash int8 on CUDA EP
     image: narandill/canary-flash-stt:0.2.0
     backends: [cuda]
+    serve: {port: 8080, transport: openai}
     opts:
       encoder: /models/canary-flash/encoder.int8.onnx
       decoder: /models/canary-flash/decoder.int8.onnx
@@ -89,6 +102,7 @@ engines:
   - name: parakeet_tdt            # TDT 0.6B v3 int8 on CUDA EP (25 languages)
     image: narandill/parakeet-tdt-stt:0.2.0
     backends: [cuda]
+    serve: {port: 8080, transport: openai}
     opts:
       encoder: /models/parakeet-tdt-v3/encoder.int8.onnx
       decoder: /models/parakeet-tdt-v3/decoder.int8.onnx
@@ -97,24 +111,24 @@ engines:
       device: cuda
   - name: nemotron_streaming      # Streaming EN 0.6B int8 on CUDA EP
     image: narandill/nemotron-streaming-stt:0.2.0
-    backends: [cuda]
+    backends: [cuda]              # no voice-api server — in-process (CLI image)
     opts:
       encoder: /models/nemotron-streaming-160ms/encoder.int8.onnx
       decoder: /models/nemotron-streaming-160ms/decoder.int8.onnx
       joiner: /models/nemotron-streaming-160ms/joiner.int8.onnx
       tokens: /models/nemotron-streaming-160ms/tokens.txt
-      device: cuda
   # moonshine on our ORT wheel (fp32 5-graph Masterx export): the cpu row
   # doubles as the WER-parity gate vs the official runtime (moonshine_5).
   - name: moonshine_ort           # Moonshine Medium fp32, CPU EP (parity ref)
     image: narandill/moonshine-streaming-stt:0.2.0
     backends: [cpu]
+    serve: {port: 8080, transport: openai, env: {DEVICE: cpu}}
     opts:
       model_dir: /models/moonshine-onnx-fp32
-      device: cpu
   - name: moonshine_ort           # Moonshine Medium fp32 on CUDA EP
     image: narandill/moonshine-streaming-stt:0.2.0
     backends: [cuda]
+    serve: {port: 8080, transport: openai}
     opts:
       model_dir: /models/moonshine-onnx-fp32
       device: cuda

@@ -1,4 +1,10 @@
 # Thor TTS baseline — LibriTTS-R test.clean text, 500 sentences, seed 42
+# 2026-11-03: serve-mode flip (D20) — every image with a voice-api v1 server
+# is benched through it; piper stays wyoming-native (HA pair). Engine ids and
+# order are PRESERVED from the pre-serve baseline (matrix dedup keys on
+# (cohort, engine_id, backend); names.py maps images to display names).
+# pocket-tts: 0.1.0/0.2.0 superseded by the one-version-each 0.3.0 image
+# (DEVICE env picks the row's device).
 run_name: thor_tts_baseline
 task: tts
 device_label: jetson-agx-thor-128gb
@@ -16,6 +22,7 @@ engines:
   - name: kokoro                  # int8 ONNX on our ORT-GPU build
     image: narandill/kokoro-tts:0.1.0
     backends: [cuda]
+    serve: {port: 8880, transport: openai}
     opts:
       model: /opt/kokoro/model_uint8.onnx
       voices: /opt/kokoro/voices-v1.0.bin
@@ -23,6 +30,7 @@ engines:
   - name: ptts                    # phonon-31m (CPU-only by design; TTFA champ)
     image: narandill/phonon31m-tts:0.1.0
     backends: [cpu]
+    serve: {port: 8880, transport: openai}
     opts:
       model: /models/phonon-31m-en
       lang: en
@@ -30,29 +38,29 @@ engines:
   - name: paradee                 # 8.5MB int8 Kokoro distillation (v1.2, 4 voices)
     image: narandill/paradee-tts:0.2.0
     backends: [cuda, cpu]
+    serve: {port: 8880, transport: openai, env: {DEVICE: "{backend}"}}
     opts:
       version: "1.2"
       quantized: true
-  - name: piper                   # the wave-1 TTS baseline
+  - name: piper                   # the wave-1 TTS baseline, wyoming-native
     image: narandill/wyoming-piper1-tts:0.1.0
     backends: [cuda]
-    volumes:
-      - /home/narandill/edge-containers/task/voice-data:/data
+    serve: {port: 10200, transport: wyoming}   # voice baked in-image; no HF at boot
     opts:
-      model_dir: /data/models/piper
       voice: en_US-libritts_r-medium
-      device: cuda
   - name: pocket_tts              # Kyutai Pocket TTS 100M (official pkg, CPU)
-    image: narandill/pocket-tts:0.1.0
+    image: narandill/pocket-tts:0.3.0
     backends: [cpu]
+    serve: {port: 8000, transport: openai, env: {DEVICE: cpu}}
     opts:
       language: english
       voice: alba
   # --- GPU variant (2026-11-02): torch cu132 wheel, sm_110 SASS native on
   # Thor (sm_80 cubins cover Orin sm_87 within-major); measured RTF 0.13.
   - name: pocket_tts              # Kyutai Pocket TTS 100M on CUDA
-    image: narandill/pocket-tts:0.2.0
+    image: narandill/pocket-tts:0.3.0
     backends: [cuda]
+    serve: {port: 8000, transport: openai}
     opts:
       language: english
       voice: alba
