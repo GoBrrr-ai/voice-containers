@@ -84,20 +84,26 @@ def grant_permissions(yes: bool = typer.Option(False, "--yes", "-y")):
 @app.command()
 def prune(
     keep: int = typer.Option(1, "--keep", "-k", help="raw run dirs to keep per task"),
+    include: str = typer.Option(
+        "baseline,gpu_variants,orin_targeted",
+        "--include",
+        help="run_name substrings whose matrix rows protect their raw dirs",
+    ),
     dry_run: bool = typer.Option(True, "--dry-run/--yes"),
 ):
     """Delete superseded benchmarks/raw/<run_id> dirs (latest --keep per task).
 
     Retention policy: history.jsonl stays append-only (it is tiny); raw dirs
-    are the bulk. Protected: every run_id referenced by a matrix row (latest
-    complete per engine — e.g. the pocket row living in an older run dir),
-    plus the newest `keep` dirs per task; everything else is superseded.
+    are the bulk. Protected: every run_id referenced by a matrix row within
+    INCLUDE (latest complete per engine — e.g. the pocket row living in an
+    older run dir) — the same selection the charts render from — plus the
+    newest `keep` dirs per task; everything else is superseded.
     """
     import shutil
 
     from .matrix import select_rows
 
-    protected = {r.get("run_id") for r in select_rows(BENCH)}
+    protected = {r.get("run_id") for r in select_rows(BENCH, include)}
     root = BENCH / "benchmarks" / "raw"
     if not root.exists():
         raise typer.Exit(0)
