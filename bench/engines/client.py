@@ -592,6 +592,25 @@ class Kokoro:
         import onnxruntime as rt
         from kokoro_onnx import Kokoro
 
+        # kokoro-onnx 0.6.1 pauses.py crashes on sub-frame chunks
+        # ("zero-size array to reduction operation maximum") — the fp16/q4f16
+        # graphs emit near-empty clause audio where the uint8 graph emits a
+        # frame of noise. Guard it: a chunk shorter than one frame cannot
+        # contain a pause anyway. (Verified 2026-11-03: both previously
+        # failing utterances synthesize with this guard.)
+        import kokoro_onnx.pauses as _pauses
+
+        _orig_quiet = _pauses._quiet_frames
+
+        def _quiet_frames_guarded(audio, frame):
+            import numpy as np
+
+            if len(audio) < frame:
+                return np.zeros(0, dtype=np.bool_)
+            return _orig_quiet(audio, frame)
+
+        _pauses._quiet_frames = _quiet_frames_guarded
+
         providers = (
             ["CUDAExecutionProvider", "CPUExecutionProvider"]
             if opts.get("device", "cuda") == "cuda"
