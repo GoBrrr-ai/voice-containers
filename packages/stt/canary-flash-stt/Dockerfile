@@ -55,7 +55,7 @@ RUN python3 -m venv /opt/venv \
     && mkdir -p /opt/ort/lib \
     && cp -a /tmp/sherpa/libonnxruntime*.so* /opt/ort/lib/ \
     && rm -rf /tmp/sherpa \
-    && chmod +x /usr/local/bin/canary-transcribe
+    && chmod +x /usr/local/bin/canary-transcribe /usr/local/bin/voice-server
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     LD_LIBRARY_PATH=/opt/ort/lib \
@@ -67,4 +67,6 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     CANARY_SRC_LANG=en \
     CANARY_TGT_LANG=en
 
-CMD ["canary-transcribe", "--help"]
+# voice-api v1 (docs/voice-api.md); the transcribe CLI stays available
+EXPOSE 8080
+CMD ["voice-server"]

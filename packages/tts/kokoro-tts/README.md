@@ -45,3 +45,15 @@ async for samples, sr in kokoro.create_stream(text, voice="af_heart", lang="en-u
 **Note:** kokoro-onnx is installed `--no-deps` and our GPU ort wheel is
 force-installed LAST — the `[gpu]` extra can never clobber the sm_87/sm_110
 build (same pattern as piper in the former combined wyoming image).
+
+## Server (voice-api v1)
+
+```sh
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8880:8880 narandill/kokoro-tts:0.2.0
+curl -s localhost:8880/v1/voices | jq        # 5 voices, 24 kHz, streaming
+curl -s localhost:8880/health
+curl -s localhost:8880/v1/audio/speech -H 'Content-Type: application/json' \
+  -d '{"input":"Hello from Jetson Thor.","voice":"af_heart","response_format":"wav"}' -o /tmp/k.wav
+```
+`response_format`: `wav` (complete) or `pcm` (chunked — audio starts before
+synthesis ends); `speed` 0.25–4.0 honored. Fully in-memory.

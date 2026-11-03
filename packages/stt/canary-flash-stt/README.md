@@ -29,3 +29,13 @@ docker run --rm -v /data:/data --entrypoint canary-transcribe \
 
 **Positioning (report rank #4):** best GPU option once an FP16 bake lands;
 as shipped (CPU int8) it is a fast accurate offline transcriber.
+
+## Server (voice-api v1)
+
+```sh
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8080:8080 narandill/canary-flash-stt:0.2.0
+curl -s localhost:8080/v1/voices | jq        # canary-180m-flash-int8, en/de/es/fr
+curl -s localhost:8080/v1/audio/transcriptions -F file=@/audio/x.wav -F model=canary-180m-flash-int8
+```
+`src_lang`/`tgt_lang` (bidirectional X↔EN translation) via
+`CANARY_SRC_LANG`/`CANARY_TGT_LANG` env (fixed at startup).

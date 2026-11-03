@@ -1,0 +1,222 @@
+diff --git a/wyoming_piper/handler.py b/wyoming_piper/handler.py
+index 98652a0..730275f 100644
+--- a/wyoming_piper/handler.py
++++ b/wyoming_piper/handler.py
+@@ -5,7 +5,7 @@ import asyncio
+ import contextlib
+ import logging
+ import math
+-import tempfile
++import io
+ import wave
+ from typing import Any, Callable, Dict, Optional
+ 
+@@ -269,89 +269,130 @@ class PiperEventHandler(AsyncEventHandler):
+             voice_name = voice_info.get("key", voice_name)
+             assert voice_name is not None
+ 
+-        with tempfile.NamedTemporaryFile(mode="wb+", suffix=".wav") as output_file:
++        if self.cli_args.backend == "piper":
++            # (narandill voice-api patch) piper1-gpl yields in-memory,
++            # per-sentence int16 chunks — stream them straight onto the
++            # socket with zero temp files; TTFA = first sentence's synthesis.
++            # --sentence-silence is honored BETWEEN sentences (its documented
++            # semantic), not appended once at the end.
+             async with _VOICE_LOCK:
+-                wav_writer: wave.Wave_write = wave.open(output_file, "wb")
+-                try:
+-                    if self.cli_args.backend == "omnivoice":
+-                        req_voice = req_language = None
+-                        if synthesize.voice is not None:
+-                            req_voice = synthesize.voice.name
+-                            req_language = synthesize.voice.language
+-                        self._synthesize_omnivoice(
+-                            text, wav_writer, req_voice, req_language
+-                        )
+-                    else:
+-                        assert voice_name is not None
+-                        self._synthesize_piper(
+-                            text, wav_writer, voice_name, voice_speaker
++                syn_config = self._ensure_piper_voice(voice_name, voice_speaker)
++                sent_start = False
++                for result in _VOICE.synthesize(text, syn_config):
++                    if send_start and not sent_start:
++                        await self.write_event(
++                            AudioStart(
++                                rate=result.sample_rate,
++                                width=result.sample_width,
++                                channels=result.sample_channels,
++                            ).event(),
+                         )
+-
+-                    if add_silence and self.cli_args.sentence_silence:
+-                        wav_writer.writeframes(
+-                            _silence_bytes(wav_writer, self.cli_args.sentence_silence)
+-                        )
+-                except BaseException:
+-                    # Closing a writer that never got its parameters set raises
+-                    # "# channels not specified", which would replace whatever
+-                    # actually went wrong -- a missing phonemizer, say -- with a
+-                    # meaningless error. Let the real one through.
+-                    with contextlib.suppress(Exception):
+-                        wav_writer.close()
+-                    raise
+-
+-                wav_writer.close()
+-
+-            output_file.seek(0)
+-
+-            wav_file: wave.Wave_read = wave.open(output_file, "rb")
+-            with wav_file:
+-                rate = wav_file.getframerate()
+-                width = wav_file.getsampwidth()
+-                channels = wav_file.getnchannels()
+-
+-                if send_start:
++                        sent_start = True
+                     await self.write_event(
+-                        AudioStart(
+-                            rate=rate,
+-                            width=width,
+-                            channels=channels,
++                        AudioChunk(
++                            audio=result.audio_int16_bytes,
++                            rate=result.sample_rate,
++                            width=result.sample_width,
++                            channels=result.sample_channels,
+                         ).event(),
+                     )
++                    if add_silence and self.cli_args.sentence_silence:
++                        bytes_per_frame = result.sample_width * result.sample_channels
++                        silence_frames = int(
++                            result.sample_rate * self.cli_args.sentence_silence
++                        )
++                        await self.write_event(
++                            AudioChunk(
++                                audio=bytes(silence_frames * bytes_per_frame),
++                                rate=result.sample_rate,
++                                width=result.sample_width,
++                                channels=result.sample_channels,
++                            ).event(),
++                        )
++            if send_stop:
++                await self.write_event(AudioStop().event())
+ 
+-                # Audio
+-                audio_bytes = wav_file.readframes(wav_file.getnframes())
+-                bytes_per_sample = width * channels
+-                bytes_per_chunk = bytes_per_sample * self.cli_args.samples_per_chunk
+-                num_chunks = int(math.ceil(len(audio_bytes) / bytes_per_chunk))
+-
+-                # Split into chunks
+-                for i in range(num_chunks):
+-                    offset = i * bytes_per_chunk
+-                    chunk = audio_bytes[offset : offset + bytes_per_chunk]
++            return True
+ 
+-                    await self.write_event(
+-                        AudioChunk(
+-                            audio=chunk,
+-                            rate=rate,
+-                            width=width,
+-                            channels=channels,
+-                        ).event(),
++        # omnivoice backend: synthesize into an in-memory buffer (never the
++        # filesystem) and chunk as before.
++        output_buffer = io.BytesIO()
++        async with _VOICE_LOCK:
++            wav_writer: wave.Wave_write = wave.open(output_buffer, "wb")
++            try:
++                req_voice = req_language = None
++                if synthesize.voice is not None:
++                    req_voice = synthesize.voice.name
++                    req_language = synthesize.voice.language
++                self._synthesize_omnivoice(text, wav_writer, req_voice, req_language)
++
++                if add_silence and self.cli_args.sentence_silence:
++                    wav_writer.writeframes(
++                        _silence_bytes(wav_writer, self.cli_args.sentence_silence)
+                     )
++            except BaseException:
++                # Closing a writer that never got its parameters set raises
++                # "# channels not specified", which would replace whatever
++                # actually went wrong -- a missing phonemizer, say -- with a
++                # meaningless error. Let the real one through.
++                with contextlib.suppress(Exception):
++                    wav_writer.close()
++                raise
++
++            wav_writer.close()
++
++        output_buffer.seek(0)
++
++        wav_file: wave.Wave_read = wave.open(output_buffer, "rb")
++        with wav_file:
++            rate = wav_file.getframerate()
++            width = wav_file.getsampwidth()
++            channels = wav_file.getnchannels()
++
++            if send_start:
++                await self.write_event(
++                    AudioStart(
++                        rate=rate,
++                        width=width,
++                        channels=channels,
++                    ).event(),
++                )
+ 
+-            if send_stop:
+-                await self.write_event(AudioStop().event())
++            # Audio
++            audio_bytes = wav_file.readframes(wav_file.getnframes())
++            bytes_per_sample = width * channels
++            bytes_per_chunk = bytes_per_sample * self.cli_args.samples_per_chunk
++            num_chunks = int(math.ceil(len(audio_bytes) / bytes_per_chunk))
++
++            # Split into chunks
++            for i in range(num_chunks):
++                offset = i * bytes_per_chunk
++                chunk = audio_bytes[offset : offset + bytes_per_chunk]
++
++                await self.write_event(
++                    AudioChunk(
++                        audio=chunk,
++                        rate=rate,
++                        width=width,
++                        channels=channels,
++                    ).event(),
++                )
++
++        if send_stop:
++            await self.write_event(AudioStop().event())
+ 
+         return True
+ 
+-    def _synthesize_piper(
++    def _ensure_piper_voice(
+         self,
+-        text: str,
+-        wav_writer: wave.Wave_write,
+-        voice_name: str,
++        voice_name: Optional[str],
+         voice_speaker: Optional[str],
+-    ) -> None:
+-        """Synthesize with the piper backend into ``wav_writer``."""
++    ) -> SynthesisConfig:
++        """Load the requested piper voice and build its synthesis config.
++
++        (narandill voice-api patch: split from the former _synthesize_piper —
++        synthesis itself now streams via PiperVoice.synthesize().)
++        """
+         global _VOICE, _VOICE_NAME
+ 
+         if voice_name != _VOICE_NAME:
+@@ -398,7 +439,7 @@ class PiperEventHandler(AsyncEventHandler):
+         if self.cli_args.noise_w_scale is not None:
+             syn_config.noise_w_scale = self.cli_args.noise_w_scale
+ 
+-        _VOICE.synthesize_wav(text, wav_writer, syn_config)
++        return syn_config
+ 
+     def _synthesize_omnivoice(
+         self,

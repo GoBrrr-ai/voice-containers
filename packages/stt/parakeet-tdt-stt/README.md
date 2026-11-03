@@ -21,3 +21,11 @@ docker run --rm -v /data:/data --entrypoint parakeet-tdt-transcribe \
 
 **Positioning (report rank #5):** accuracy + language-coverage pick when
 multilingual ASR is needed and memory is tight; batch-after-VAD only.
+
+## Server (voice-api v1)
+
+```sh
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8080:8080 narandill/parakeet-tdt-stt:0.2.0
+curl -s localhost:8080/v1/voices | jq        # parakeet-tdt-0.6b-v3-int8, 25 languages
+curl -s localhost:8080/v1/audio/transcriptions -F file=@/audio/x.wav -F model=parakeet-tdt-0.6b-v3-int8
+```

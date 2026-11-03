@@ -97,7 +97,7 @@ RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir "tokenizers>=0.20,<1" \
     && /opt/venv/bin/pip install --no-cache-dir /tmp/onnxruntime_gpu-*.whl \
     && rm -rf /tmp/onnxruntime_gpu-*.whl \
-    && chmod +x /usr/local/bin/moonshine-transcribe /usr/local/bin/moonshine-ort-transcribe
+    && chmod +x /usr/local/bin/moonshine-transcribe /usr/local/bin/moonshine-ort-transcribe /usr/local/bin/voice-server
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     NVIDIA_VISIBLE_DEVICES=all \
@@ -106,4 +106,6 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     MOONSHINE_MODEL_ARCH=5 \
     MOONSHINE_ONNX_DIR=/models/moonshine-onnx-fp32
 
-CMD ["moonshine-transcribe", "--help"]
+# voice-api v1 (docs/voice-api.md); the transcribe CLI stays available
+EXPOSE 8080
+CMD ["voice-server"]

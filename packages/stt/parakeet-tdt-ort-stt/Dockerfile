@@ -55,7 +55,7 @@ RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir "numpy<3" soundfile \
     && /opt/venv/bin/pip install --no-cache-dir /tmp/onnxruntime_gpu-*.whl \
     && rm -rf /tmp/onnxruntime_gpu-*.whl \
-    && chmod +x /usr/local/bin/tdt-ort-transcribe
+    && chmod +x /usr/local/bin/tdt-ort-transcribe /usr/local/bin/voice-server
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     NVIDIA_VISIBLE_DEVICES=all \
@@ -63,4 +63,6 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     TDT_ORT_MODEL_DIR=/models/parakeet-int4 \
     TDT_ORT_PROVIDER=cuda
 
-CMD ["tdt-ort-transcribe", "--help"]
+# voice-api v1 (docs/voice-api.md); the transcribe CLI stays available
+EXPOSE 8080
+CMD ["voice-server"]

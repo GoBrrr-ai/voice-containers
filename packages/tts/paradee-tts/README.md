@@ -49,3 +49,13 @@ minimum-footprint voice (reply caching, tiny pods). Not a kokoro-onnx
 drop-in: its graph takes `input_ids int64 [1,T≤512]` + `speed` + `voice`
 and returns `waveform [1,samples] @ 24 kHz` — the `paradee` package wraps
 that.
+
+## Server (voice-api v1)
+
+```sh
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8880:8880 narandill/paradee-tts:0.2.0
+curl -s localhost:8880/v1/voices | jq        # 4 voices (v1.2), 24 kHz
+curl -s localhost:8880/v1/audio/speech -H 'Content-Type: application/json' \
+  -d '{"input":"Hello from Jetson Thor.","voice":"bf_isabella"}' -o /tmp/p.wav
+```
+Single-chunk engine: `pcm` arrives as one chunk. Fully in-memory.

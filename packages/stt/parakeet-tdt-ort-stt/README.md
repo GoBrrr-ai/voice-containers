@@ -31,3 +31,13 @@ docker run --rm --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 \
 
 Weights CC-BY-4.0 (nvidia/parakeet-tdt-0.6b-v3); export Apache-2.0
 (efederici); onnxruntime MIT.
+
+## Server (voice-api v1)
+
+```sh
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8080:8080 narandill/parakeet-tdt-ort-stt:0.1.0
+curl -s localhost:8080/v1/voices | jq        # parakeet-tdt-0.6b-v3-int4 (MatMulNBits)
+curl -s localhost:8080/v1/audio/transcriptions --data-binary @/audio/x.wav \
+  -H 'Content-Type: audio/wav' -H 'X-Model: parakeet-tdt-0.6b-v3-int4'
+```
+16 kHz mono input required (raw-ORT driver, no resampler).

@@ -46,3 +46,15 @@ chunked WAV on `/say?text=...&voice=...` and answers `/health`.
 ([phonon-home-assistant](https://github.com/gradium-ai/phonon-home-assistant),
 port 10200) built from their Rust source — wire it to the same baked
 `/models` dir if you want HA-native TTS.
+
+## Server (voice-api v1)
+
+```sh
+docker run -d -p 8880:8880 narandill/phonon31m-tts:0.1.0
+curl -s localhost:8880/v1/voices | jq        # default voice, true frame streaming
+curl -s localhost:8880/v1/audio/speech -H 'Content-Type: application/json' \
+  -d '{"input":"Hello.","response_format":"pcm"}' --raw-output -o /tmp/f.pcm
+```
+Legacy `GET /say?text=...` (streamed WAV) is kept; the old standalone
+`tts-stream-server` is superseded by `voice-server` (same binary set). CPU
+by design; one request at a time.

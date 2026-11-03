@@ -1,0 +1,41 @@
+diff --git a/examples/server/main.cpp b/examples/server/main.cpp
+index 7a7ec6b..4415d48 100644
+--- a/examples/server/main.cpp
++++ b/examples/server/main.cpp
+@@ -156,6 +156,36 @@ int main(int argc, char** argv) {
+         res.set_content("{\"status\":\"ok\"}", "application/json");
+     });
+ 
++    // GET /v1/voices + /v1/models — the ONE model this server serves (the
++    // `model` field of a request is accepted but ignored). The id is the
++    // resolved model file's basename without extension, so each image reports
++    // exactly what it baked. (narandill patch — voice-api v1 discovery.)
++    svr.Get("/v1/voices",
++            [&model_path](const httplib::Request&, httplib::Response& res) {
++        std::string base = model_path;
++        auto slash = base.find_last_of('/');
++        if (slash != std::string::npos) base = base.substr(slash + 1);
++        auto dot = base.rfind('.');
++        if (dot != std::string::npos) base = base.substr(0, dot);
++        res.set_content(
++            "{\"object\":\"list\",\"data\":[{\"id\":\"" + base +
++            "\",\"object\":\"voice\",\"task\":\"stt\","
++            "\"served_by\":\"parakeet-server\"}]}",
++            "application/json");
++    });
++    svr.Get("/v1/models",
++            [&model_path](const httplib::Request&, httplib::Response& res) {
++        std::string base = model_path;
++        auto slash = base.find_last_of('/');
++        if (slash != std::string::npos) base = base.substr(slash + 1);
++        auto dot = base.rfind('.');
++        if (dot != std::string::npos) base = base.substr(0, dot);
++        res.set_content(
++            "{\"object\":\"list\",\"data\":[{\"id\":\"" + base +
++            "\",\"object\":\"model\",\"owned_by\":\"narandill\"}]}",
++            "application/json");
++    });
++
+     svr.Post("/v1/audio/transcriptions",
+              [&](const httplib::Request& req, httplib::Response& res) {
+         using namespace pkserver;
