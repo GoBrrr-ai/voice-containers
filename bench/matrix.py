@@ -75,6 +75,21 @@ WEIGHTS = {
     },
 }
 
+# metric -> weight component. WEIGHTS are keyed by review rubric component
+# ("accuracy", "latency", ...) while METRICS are raw metric names — without
+# this map every lookup missed and scored 0 (rank degenerated to input
+# order: the TTS heatmap starred the SLOWEST engine). Metrics absent here
+# (cer/ser/hallucination_rate) are diagnostics and carry no composite weight.
+_WEIGHT_KEY = {
+    "wer": "accuracy",
+    "rtf": "throughput",
+    "offline_latency_s": "latency",
+    "synth_latency_s": "latency",
+    "ttfa_s": "ttfa",
+    "mem_peak_mib": "memory",
+    "gpu_power_w_mean": "power",
+}
+
 # direction: True = lower is better
 METRICS = {
     "stt": [
@@ -192,7 +207,7 @@ def score_cohort(rows: list[dict], task: str, preset: str = "default") -> list[d
         if mname in LOG_METRICS:
             vals = [math.log10(max(v, 1e-9)) for v in vals]
         normed = _norm(vals, lower)
-        w = weights.get(mname if mname != "wer" else "accuracy", 0)
+        w = weights.get(_WEIGHT_KEY.get(mname, mname), 0)
         for r, nv in zip(rows, normed):
             contrib.setdefault(id(r), 0.0)
             contrib[id(r)] += w * nv
