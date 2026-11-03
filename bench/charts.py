@@ -212,6 +212,7 @@ def _lollipop(
     xlabel: str,
     ticks: list | None = None,
     log: bool | None = None,
+    value_labels: list | None = None,
 ):
     """Stem + dot chart — the one honest form for any roster size: on a log
     axis a bar starts at an arbitrary minimum and reads as length anyway,
@@ -253,7 +254,8 @@ def _lollipop(
                 zorder=4,
             )
     for i, v in enumerate(values):
-        _value_label(ax, label_x[i], i, fmt.format(v), mode)
+        txt = value_labels[i] if value_labels else fmt.format(v)
+        _value_label(ax, label_x[i], i, txt, mode)
     ax.set_yticks(y, names)
     ax.invert_yaxis()
     _style_medals(ax, names)
@@ -826,78 +828,154 @@ def tts_heatmap(rows: list[dict], mode: Mode = DARK):
 
 
 # -------------------------------------------------------------- shared
-# Edge deployment vectors: metric -> (target, worst, weight). The score is
-# ABSOLUTE (not cohort-relative): 1.0 at/better than the target, 0.0 at the
-# worst-acceptable bound, log-linear in between — an engine's score does not
-# shift when other engines are added, and the anchors are deployment facts
-# (HA's 300 ms gate, the Orin Nano 8 GB voice budget), not chart artifacts.
-# Vectors map to what each task actually measures: an STT engine's TTFA is
-# its offline latency, a TTS engine's throughput is its synth latency.
-EDGE_VECTORS = {
-    "stt": {
-        # quality: ≤2% WER is production grade, ≥10% unusable for voice
-        "wer": (0.02, 0.10, 0.35),
-        # responsiveness: instant follow-ups … 1.5 s before the user hangs up
-        "offline_latency_s": (0.3, 1.5, 0.20),
-        # throughput headroom: 10× realtime … barely realtime
-        "rtf": (0.10, 1.0, 0.20),
-        # VRAM: fits the Orin Nano 8 GB voice budget … half the board
-        "mem_peak_mib": (1024, 4096, 0.25),
-    },
-    "tts": {
-        # responsiveness: the 300 ms assistant gate … 1.5 s
-        "ttfa_s": (0.3, 1.5, 0.30),
-        # per-sentence throughput: half-second sentences … 2.5 s
-        "synth_latency_s": (0.5, 2.5, 0.20),
-        "rtf": (0.10, 1.0, 0.25),
-        "mem_peak_mib": (1024, 4096, 0.25),
+# -------------------------------------------------------------- shared
+# Edge deployment profiles — VERSIONED. Changing anchors, weights, gates or
+# methodology means a NEW profile name (orin-nano-8gb-v2), never a silent
+# edit: a 98-point engine must stay a meaningful 98 six months and twenty
+# engines later.
+#
+# Vector tuple: (target, worst, weight). Score is ABSOLUTE, not
+# cohort-relative — 1.0 at/beyond the target, 0.0 at the worst-acceptable
+# bound, log-linear in between — so adding engines never rewrites history
+# and the anchors are deployment facts (HA's 300 ms gate, the Orin Nano
+# 8 GB voice budget), not chart artifacts. target > worst marks a
+# higher-is-better metric (e.g. MOS).
+#
+# Latency/RTF vectors bind the TAIL (p95; TTFA p90 is the only percentile
+# recorded) — averages hide the multi-second spikes that make an
+# interactive voice assistant feel broken. Memory is the measured peak.
+#
+# Coverage: weights renormalize over the vectors a row MEASURES, and the
+# chart reports coverage next to the score — an unmeasured vector makes a
+# score provisional, it is never silently treated as irrelevant. The TTS
+# quality vector (MOS) is pending a listening test: until then every TTS
+# score is a deployment-PERFORMANCE score at 75% coverage.
+#
+# Hard gates are separate from the score: violating one means UNDEPLOYABLE
+# for the target regardless of the aggregate (a 99-quality engine that
+# does not fit in memory must not outrank one that fits). Passing engines
+# rank by score; failures sink below them, marked ✗.
+#
+# The synth-latency vector was dropped from TTS: it is RTF re-measured per
+# sentence (same measurement, same bottleneck) and double-counted
+# throughput. RTF + TTFA + (pending) MOS capture different aspects.
+EDGE_PROFILES = {
+    "orin-nano-8gb-v1": {
+        "stt": {
+            "vectors": {
+                # quality: corpus WER; ≤2% production grade, ≥10% unusable
+                "wer": (0.02, 0.10, 0.35),
+                # responsiveness, p95 tail: instant follow-ups … lost user.
+                # Conservative final-latency proxy: true streaming engines'
+                # final latency is their chunk lookahead (160 ms), so this
+                # over-penalizes them until a streaming-latency probe lands.
+                "offline_latency_s_p95": (0.3, 1.5, 0.20),
+                # throughput headroom, p95 tail: 10× realtime … barely realtime
+                "rtf_p95": (0.10, 1.0, 0.20),
+                # VRAM: fits the Orin Nano 8 GB voice budget … half the board
+                "mem_peak_mib": (1024, 4096, 0.25),
+            },
+            "gates": {  # hard upper bounds (lower-is-better metrics)
+                "wer": 0.10,
+                "offline_latency_s_p95": 1.5,
+                "mem_peak_mib": 4096,
+            },
+        },
+        "tts": {
+            "vectors": {
+                # naturalness: MOS ≥4.0 good, ≤2.5 unusable — PENDING a
+                # listening test (drives the 75% coverage on TTS scores)
+                "tts_mos": (4.0, 2.5, 0.25),
+                # responsiveness on the tail (p90 = only percentile recorded)
+                "ttfa_s_p90": (0.3, 1.5, 0.25),
+                # sustained generation efficiency, p95 tail
+                "rtf_p95": (0.10, 1.0, 0.25),
+                "mem_peak_mib": (1024, 4096, 0.25),
+            },
+            "gates": {
+                "ttfa_s_p90": 1.5,
+                "mem_peak_mib": 4096,
+            },
+        },
     },
 }
+EDGE_PROFILE = "orin-nano-8gb-v1"
 
 
-def _edge_score(row: dict, task: str) -> float | None:
-    """Weighted edge-deployment score in [0, 1]; weights renormalized over
-    the vectors the row actually has, so a missing probe never penalizes."""
+def _edge_vector_score(v: float, target: float, worst: float) -> float:
+    """Log-linear anchor score in [0, 1]; direction from target/worst order."""
     import math
 
-    total = wsum = 0.0
-    for metric, (target, worst, weight) in EDGE_VECTORS[task].items():
+    if target > worst:  # higher is better (MOS)
+        if v >= target:
+            return 1.0
+        if v <= worst:
+            return 0.0
+        return math.log(v / worst) / math.log(target / worst)
+    if v <= target:
+        return 1.0
+    if v >= worst:
+        return 0.0
+    return math.log(worst / v) / math.log(worst / target)
+
+
+def _edge_eval(row: dict, task: str) -> tuple[float, float, list[str]]:
+    """(score 0-100, coverage 0-1, failed gate descriptions)."""
+    prof = EDGE_PROFILES[EDGE_PROFILE][task]
+    total = wsum = total_weight = 0.0
+    for metric, (target, worst, weight) in prof["vectors"].items():
+        total_weight += weight
         v = _matrix._metric(row, metric)
         if v is None:
             continue
         wsum += weight
-        if v <= target:
-            total += weight
-        elif v < worst:
-            total += weight * math.log(worst / v) / math.log(worst / target)
-    return total / wsum if wsum else None
+        total += weight * _edge_vector_score(v, target, worst)
+    score = 100 * total / wsum if wsum else None
+    failed = []
+    for metric, limit in prof["gates"].items():
+        v = _matrix._metric(row, metric)
+        if v is not None and v > limit:
+            failed.append(f"{metric}={v:.4g}>{limit:g}")
+    return score, (wsum / total_weight if total_weight else 0.0), failed
 
 
 def _edge_chart(rows: list[dict], task: str, mode: Mode):
-    scored = [(r, _edge_score(r, task)) for r in rows]
-    scored = [(r, s) for r, s in scored if s is not None]
-    if len(scored) < 2:
+    evals = []
+    for r in rows:
+        score, cov, failed = _edge_eval(r, task)
+        if score is not None:
+            evals.append((r, score, cov, failed))
+    if len(evals) < 2:
         return None
-    scored.sort(key=lambda x: -x[1])
+    # passing engines rank by score; gate failures sink below, marked ✗
+    evals.sort(key=lambda e: (bool(e[3]), -e[1]))
     plt = _plt()
-    fig, ax = plt.subplots(figsize=_figsize(len(scored), 4.2, 0.27))
+    fig, ax = plt.subplots(figsize=_figsize(len(evals), 4.2, 0.27))
     apply(fig, ax)
-    names = _labels(
-        [r for r, _ in scored],
-        ranks={id(r): i for i, (r, _) in enumerate(scored[:3], 1)},
-    )
-    vals = [s * 100 for _, s in scored]
-    colors = [row_color(r) for r, _ in scored]
+    passing = [e for e in evals if not e[3]]
+    ranks = {id(e[0]): i for i, e in enumerate(passing[:3], 1)}
+    labels_raw = _labels([e[0] for e in evals], ranks=ranks)
+    names = [("✗ " if e[3] else "") + b for e, b in zip(evals, labels_raw)]
+    vals = [e[1] for e in evals]
+    colors = [row_color(e[0]) for e in evals]
+    value_labels = [
+        f"{s:.0f}" + ("" if cov > 0.999 else f" · {cov:.0%}") for _, s, cov, _f in evals
+    ]
     if task == "stt":
         xlabel = (
-            "edge deployment score (0–100; WER 35% · latency 20% · RTF 20% · "
-            "VRAM 25% — targets ≤2% / ≤0.3 s / ≤0.1 / ≤1 GiB)"
+            "edge deployment score (0–100; WER 35% · latency p95 20% · RTF p95 "
+            "20% · VRAM 25% — targets ≤2% / ≤0.3 s / ≤0.1 / ≤1 GiB)"
         )
+        title = "Speech recognition — edge deployment score"
+        footer = f" · profile {EDGE_PROFILE} · ✗ = hard-gate FAIL"
     else:
         xlabel = (
-            "edge deployment score (0–100; TTFA 30% · synth 20% · RTF 25% · "
-            "VRAM 25% — targets ≤0.3 s / ≤0.5 s / ≤0.1 / ≤1 GiB)"
+            "edge deployment-performance score (0–100; TTFA p90 25% · RTF p95 "
+            "25% · VRAM 25% · quality 25% pending MOS — targets ≤0.3 s / "
+            "≤0.1 / ≤1 GiB)"
         )
+        title = "Speech synthesis — edge deployment-performance score"
+        footer = f" · profile {EDGE_PROFILE} · ✗ = hard-gate FAIL · MOS pending"
     _lollipop(
         ax,
         names,
@@ -907,19 +985,20 @@ def _edge_chart(rows: list[dict], task: str, mode: Mode):
         "{:.0f}",
         xlabel,
         log=False,
+        value_labels=value_labels,
     )
-    _title(
-        ax,
-        "Speech "
-        + ("recognition" if task == "stt" else "synthesis")
-        + " — edge deployment score",
-    )
+    for t, lab in zip(ax.get_yticklabels(), names):
+        if lab.startswith("✗"):
+            t.set_color(mode.red)
+            t.set_fontweight("bold")
+        else:
+            for rank, medal in _MEDAL.items():
+                if lab.startswith(medal):
+                    t.set_fontweight("bold")
+                    t.set_color(MEDAL_COLORS[rank])
+    _title(ax, title)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(
-        fig,
-        rows,
-        extra=" · absolute score vs edge targets (1.0 = meets all) · ❶❷❸ = top-3",
-    )
+    _footer_common(fig, rows, extra=footer)
     return fig
 
 
