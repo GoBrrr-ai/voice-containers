@@ -3,7 +3,9 @@
 set -euo pipefail
 
 flags=()
-[ "${PIPER_UPDATE_VOICES:-true}" = "true" ] && flags+=("--update-voices")
+# voice is BAKED into the image (/data/models/piper) — default OFF so boot
+# never phones HF; set true to refresh the index/voices from HF
+[ "${PIPER_UPDATE_VOICES:-false}" = "true" ] && flags+=("--update-voices")
 [ "${PIPER_DEBUG:-}" = "true" ] && flags+=("--debug")
 [ "${PIPER_USE_CUDA:-true}" = "true" ] && flags+=("--use-cuda")
 [ -n "${PIPER_SPEAKER:-}" ] && flags+=("--speaker" "${PIPER_SPEAKER}")

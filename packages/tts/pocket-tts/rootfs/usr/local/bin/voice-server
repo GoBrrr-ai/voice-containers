@@ -41,6 +41,8 @@ def _state(voice):
 
 
 def _int16(audio):
+    if hasattr(audio, "detach"):  # torch tensor, possibly on cuda:0
+        audio = audio.detach().cpu()
     a = np.asarray(audio, dtype=np.float32)
     if a.ndim > 1:
         a = a.reshape(-1)
