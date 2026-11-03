@@ -120,6 +120,10 @@ RUN git clone --depth 1 --branch "${WYOMING_WHISPER_REF}" \
 RUN git clone --depth 1 --branch "${WYOMING_PIPER_REF}" \
         https://github.com/OHF-Voice/wyoming-piper /src/wyp \
     && cd /src/wyp && git apply --verbose /tmp/patches/0002-*.patch \
+    # voice-api: stream piper1-gpl's in-memory sentence chunks straight onto
+    # the wyoming socket — the tempfile WAV roundtrip is gone entirely (and
+    # --sentence-silence now sits between sentences, its documented semantic).
+    && git apply --verbose /tmp/patches/0003-*.patch \
     && uv build --wheel --out-dir /wheels .
 
 # --- pre-build pysilero-vad wheel (compiled ggml ext; avoid compiling in the

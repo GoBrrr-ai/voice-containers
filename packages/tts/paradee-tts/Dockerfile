@@ -56,7 +56,7 @@ RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip uninstall -y onnxruntime onnxruntime-gpu \
     && /opt/venv/bin/pip install --no-cache-dir --force-reinstall /tmp/onnxruntime_gpu-*.whl \
     && rm -rf /tmp/onnxruntime* /tmp/paradee \
-    && chmod +x /usr/local/bin/paradee-say /usr/local/bin/paradee-stream
+    && chmod +x /usr/local/bin/paradee-say /usr/local/bin/paradee-stream /usr/local/bin/voice-server
 
 # Bake the model: warm-run real syntheses for Paradee-8M-v1.2 (int8) so the
 # onnx weights AND misaki's G2P dictionary data land in the caches (offline
@@ -74,4 +74,6 @@ RUN /opt/venv/bin/paradee "Warm up the Paradee cache." -o /tmp/warm1.wav --model
 ENV PATH="/opt/venv/bin:${PATH}"
 
 # Library image: use paradee-say / paradee-stream, or import paradee.
-CMD ["paradee-say", "--help"]
+# voice-api v1 (docs/voice-api.md); see the package README for the CLIs
+EXPOSE 8880
+CMD ["voice-server"]

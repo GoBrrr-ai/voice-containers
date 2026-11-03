@@ -30,3 +30,14 @@ docker run --rm -p 8000:8000 narandill/pocket-tts:0.1.0 serve
 
 **Positioning (report rank #2):** the top CPU TTS pick — native streaming
 plus voice cloning; torch runtime is the footprint price.
+
+## Server (voice-api v1)
+
+```sh
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8000:8000 narandill/pocket-tts:0.3.0
+curl -s localhost:8000/v1/voices | jq        # 8 voices, 24 kHz, chunked streaming
+curl -s localhost:8000/v1/audio/speech -H 'Content-Type: application/json' \
+  -d '{"input":"Hello from Jetson Thor.","voice":"alba","response_format":"pcm"}' -o /tmp/pk.pcm
+```
+Voice cloning stays on the official CLI server (`--entrypoint pocket-tts`,
+`serve`, `POST /tts` with `voice_wav`). No speed knob upstream.

@@ -31,3 +31,13 @@ docker run --rm -v /data:/data --entrypoint moonshine-transcribe \
 **Positioning (report rank #1):** the top streaming ASR pick for Orin —
 fits comfortably, official ORT-based runtime, live partial text. GPU FP16
 via the community five-graph export is untested (E-queue).
+
+## Server (voice-api v1)
+
+```sh
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8080:8080 narandill/moonshine-streaming-stt:0.2.0
+curl -s localhost:8080/v1/voices | jq   # served variant: ort (CUDA) or streaming (CPU)
+```
+Two baked engines — `MOONSHINE_ENGINE=ort|streaming` picks one (default:
+`ort` when `DEVICE=cuda`, else the CPU bundle); the model id reflects the
+active variant.

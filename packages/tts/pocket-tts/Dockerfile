@@ -77,5 +77,8 @@ ENV NVIDIA_VISIBLE_DEVICES=all \
 
 ENV PATH="/opt/venv/bin:${PATH}"
 
+# voice-api v1 (docs/voice-api.md); the official CLI (pocket-tts serve =
+# cloning via POST /tts) stays available via --entrypoint pocket-tts
+COPY --chmod=0755 rootfs/ /
 EXPOSE 8000
-CMD ["pocket-tts", "--help"]
+CMD ["voice-server"]

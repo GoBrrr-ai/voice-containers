@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+"""voice-api v1 STT server — Moonshine Streaming Medium 245M (in-memory; no temp files).
+
+POST /v1/audio/transcriptions  multipart ('file' required) or raw WAV body
+GET  /v1/voices | /v1/models | /health     — docs/voice-api.md
+
+Adapter core from bench/engines/client.py (MoonshineStreaming / MoonshineOrt).
+"""
+import email
+import io
+import json
+import os
+import threading
+import wave
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import numpy as np
+
+ENGINE = "moonshine"           # adapter name (client.py registry)
+VERSION = "0.2.0"
+PORT = int(os.environ.get("PORT", "8080"))
+DEVICE = os.environ.get("DEVICE", "cuda")
+MODEL_ID = os.environ.get("MODEL_ID", "moonshine-streaming-medium")
+LANGUAGES = ['en']
+REQUIRE_16K = False
+
+# two baked engines: the official CPU .ort bundle and the fp32 5-graph set on
+# our ORT wheel (CUDA EP) — auto-select by available providers (spec-honest).
+MOONSHINE_VARIANT = os.environ.get(
+    "MOONSHINE_ENGINE",
+    "ort" if "cuda" == os.environ.get("DEVICE", "cuda") else "streaming",
+)
+if MOONSHINE_VARIANT not in ("ort", "streaming"):
+    raise RuntimeError("MOONSHINE_ENGINE must be 'ort' or 'streaming'")
+
+_MODEL_ID = {
+    "streaming": "moonshine-streaming-medium",
+    "ort": "moonshine-streaming-medium-ort",
+}[MOONSHINE_VARIANT]
+# the voices payload must advertise the ACTIVE variant's id
+MODEL_ID = os.environ.get("MODEL_ID", _MODEL_ID)
+
+if MOONSHINE_VARIANT == "streaming":
+    _DEVICE_ACTUAL = "cpu"  # the official bundle is fused to CPU operators
+    from moonshine_voice import ModelArch, Transcriber
+
+    _T = Transcriber(
+        model_path=os.environ.get("MOONSHINE_MODEL_DIR", "/models/moonshine-streaming-en"),
+        model_arch=ModelArch(int(os.environ.get("MOONSHINE_ARCH", "5"))),
+    )
+
+    def _engine_transcribe(sr, pcm):
+        samples = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768.0
+        if sr != 16000:
+            import soxr
+
+            samples = soxr.resample(samples, sr, 16000)
+            sr = 16000
+        res = _T.transcribe_without_streaming(samples.tolist(), 16000)
+        return " ".join(
+            getattr(line, "text", "") for line in getattr(res, "lines", [])
+        ).strip()
+else:
+    import onnxruntime as _ort
+
+    _MODEL_DIR = os.environ.get("MOONSHINE_ORT_DIR", "/models/moonshine-onnx-fp32")
+    _GPU = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+    _so = _ort.SessionOptions()
+    _so.log_severity_level = 3
+    _S = {}
+    for _n in ("frontend", "encoder", "adapter", "cross_kv", "decoder_kv"):
+        # mixed EP: the frontend reduces over an EMPTY carried buffer (CUDA
+        # rejects it) and is ~1.5% of compute — CPU stays for the frontend.
+        _prov = (
+            ["CPUExecutionProvider"]
+            if _n == "frontend"
+            else (_GPU if DEVICE == "cuda" else ["CPUExecutionProvider"])
+        )
+        _S[_n] = _ort.InferenceSession(
+            os.path.join(_MODEL_DIR, f"{_n}.onnx"), _so, providers=_prov
+        )
+    if (
+        DEVICE == "cuda"
+        and _S["encoder"].get_providers()[0] != "CUDAExecutionProvider"
+    ):
+        raise RuntimeError("CUDA EP not active — refusing to silently serve CPU")
+    _DEVICE_ACTUAL = (
+        "cuda" if _S["encoder"].get_providers()[0] == "CUDAExecutionProvider" else "cpu"
+    )
+    _CFG = json.load(open(os.path.join(_MODEL_DIR, "streaming_config.json")))
+    from tokenizers import Tokenizer
+
+    _TOK = Tokenizer.from_file(os.path.join(_MODEL_DIR, "tokenizer.json"))
+
+    def _engine_transcribe(sr, pcm):
+        if sr != 16000:
+            raise ValueError("this engine requires 16 kHz mono input")
+        raw = np.frombuffer(pcm, np.int16)
+        data = raw.astype(np.float32) / 32768.0
+        data = np.pad(data, (0, (-len(data)) % 640))[None, :]
+        shp = _CFG["frontend_state_shapes"]
+
+        def z(key, dtype):
+            return np.zeros(
+                shp[key], np.int64 if key in ("sample_len", "frame_count") else dtype
+            )
+
+        feats = _S["frontend"].run(
+            None,
+            {
+                "audio_chunk": data,
+                "sample_buffer": z("sample_buffer", np.float32),
+                "sample_len": z("sample_len", np.int64),
+                "conv1_buffer": z("conv1_buffer", np.float32),
+                "conv2_buffer": z("conv2_buffer", np.float32),
+                "frame_count": z("frame_count", np.int64),
+            },
+        )[0]
+        if feats.shape[1] == 0:
+            return ""
+        max_pos = _CFG.get("max_position_embeddings", 4096)
+        assert feats.shape[1] < max_pos, "segment too long"
+        enc = _S["encoder"].run(None, {"features": feats})[0]
+        memory = _S["adapter"].run(
+            None, {"encoded": enc, "pos_offset": np.array([0], np.int64)}
+        )[0]
+        k_cross, v_cross = _S["cross_kv"].run(None, {"memory": memory})
+        d, h, hd = _CFG["depth"], _CFG["nheads"], _CFG["head_dim"]
+        empty = np.zeros((d, 1, h, 0, hd), np.float32)
+        token = np.array([[_CFG["bos_id"]]], np.int64)
+        k_self, v_self = empty, empty
+        budget = min(-(-len(data[0]) * 13 // (2 * 16000)), 448)  # ceil(sec*6.5)
+        ids = []
+        while len(ids) < budget:
+            logits, k_self, v_self, _, _ = _S["decoder_kv"].run(
+                None,
+                {
+                    "token": token,
+                    "k_self": k_self,
+                    "v_self": v_self,
+                    "out_k_cross": k_cross,
+                    "out_v_cross": v_cross,
+                },
+            )
+            nxt = int(logits[0, -1].argmax())
+            if nxt == _CFG["eos_id"]:
+                break
+            ids.append(nxt)
+            token = np.array([[nxt]], np.int64)
+        return _TOK.decode(ids).strip()
+
+_LOCK = threading.Lock()
+
+
+def _decode_wav(body):
+    with wave.open(io.BytesIO(body), "rb") as w:
+        sr, sw, ch = w.getframerate(), w.getsampwidth(), w.getnchannels()
+        pcm = w.readframes(w.getnframes())
+    if sw != 2 or ch != 1:
+        raise ValueError(f"expected 16-bit mono WAV, got {sw * 8}-bit x{ch}")
+    return sr, pcm
+
+
+def _multipart(body, ct):
+    msg = email.message_from_bytes(b"Content-Type: " + ct.encode() + b"\r\n\r\n" + body)
+    fields, files = {}, {}
+    for part in msg.walk():
+        name = part.get_param("name", header="content-disposition")
+        if not name:
+            continue
+        payload = part.get_payload(decode=True) or b""
+        if part.get_filename():
+            files[name] = payload
+        else:
+            fields[name] = payload.decode("utf-8", "replace")
+    return fields, files
+
+
+def _voices_payload():
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": MODEL_ID,
+                "object": "voice",
+                "task": "stt",
+                "sample_rate": 16000,
+                "languages": LANGUAGES,
+                "streaming": False,
+                "engine": ENGINE,
+                "version": VERSION,
+            }
+        ],
+    }
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *a):
+        pass
+
+    def _json(self, code, obj):
+        body = json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _fail(self, code, msg):
+        self._json(code, {"error": {"message": msg, "type": "invalid_request_error"}})
+
+    def do_GET(self):
+        p = self.path.split("?")[0]
+        if p == "/health":
+            self._json(
+                200,
+                {"status": "ok", "engine": ENGINE, "version": VERSION,
+                 "device": _DEVICE_ACTUAL, "model": MODEL_ID},
+            )
+        elif p in ("/v1/voices", "/v1/models"):
+            self._json(200, _voices_payload())
+        else:
+            self._json(404, {"error": {"message": "not found"}})
+
+    def do_POST(self):
+        if self.path.split("?")[0] != "/v1/audio/transcriptions":
+            self._json(404, {"error": {"message": "not found"}})
+            return
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        ct = self.headers.get("Content-Type", "")
+        fmt, model = "json", self.headers.get("X-Model")
+        if "multipart/form-data" in ct:
+            fields, files = _multipart(body, ct)
+            wav = files.get("file")
+            if wav is None:
+                self._fail(400, "missing required field 'file'")
+                return
+            model = fields.get("model") or model
+            fmt = fields.get("response_format") or "json"
+        else:
+            wav = body  # raw WAV body fallback
+        if fmt not in ("json", "text", "verbose_json"):
+            self._fail(400, "response_format must be json, text or verbose_json")
+            return
+        if model and model != MODEL_ID:
+            self._fail(400, f"unknown model {model!r}; supported: ['{MODEL_ID}']")
+            return
+        try:
+            sr, pcm = _decode_wav(wav)
+        except ValueError as e:
+            self._fail(400, str(e))
+            return
+        try:
+            with _LOCK:
+                text = _engine_transcribe(sr, pcm)
+        except ValueError as e:
+            self._fail(400, str(e))
+            return
+        except Exception as e:
+            self._json(500, {"error": {"message": repr(e)[:300]}})
+            return
+        if fmt == "text":
+            payload = text.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        elif fmt == "verbose_json":
+            self._json(200, {"task": "transcribe", "text": text,
+                             "duration": len(pcm) / 2 / sr})
+        else:
+            self._json(200, {"text": text})
+
+
+if __name__ == "__main__":
+    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

@@ -40,3 +40,14 @@ Chunked pseudo-streaming: `-e PARAKEET_VAD_MODEL=/models/silero-vad-f16.gguf`
 
 Weights CC-BY-4.0 (nvidia/parakeet-tdt-0.6b-v3); parakeet.cpp MIT;
 silero-vad MIT. GGUF conversion by mudler/parakeet-cpp-gguf.
+
+## Server (voice-api v1)
+
+```sh
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8080:8080 <image>
+curl -s localhost:8080/v1/voices | jq   # the baked model (parakeet-server route)
+curl -s localhost:8080/v1/audio/transcriptions -F file=@/audio/x.wav -F model=<id>
+```
+`GET /v1/models` is an alias. `--concurrency K` / `--threads N` via
+`PARAKEET_CONCURRENCY` / `PARAKEET_THREADS`. Batch-only: streaming partials
+are a CLI feature (`stt-transcribe --stream-latency`), not served yet.

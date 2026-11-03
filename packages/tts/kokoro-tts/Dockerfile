@@ -69,7 +69,7 @@ RUN python3 -m venv /opt/venv \
     # GPU runtime LAST so it wins over anything above
     && /opt/venv/bin/pip install --no-cache-dir --force-reinstall /tmp/onnxruntime_gpu-*.whl \
     && rm -rf /tmp/onnxruntime* \
-    && chmod +x /usr/local/bin/kokoro-say /usr/local/bin/kokoro-stream-demo
+    && chmod +x /usr/local/bin/kokoro-say /usr/local/bin/kokoro-stream-demo /usr/local/bin/voice-server
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     KOKORO_MODEL=/opt/kokoro/model_uint8.onnx \
@@ -79,4 +79,6 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     KOKORO_SPEED=1.0
 
 # Library image: use kokoro-say / kokoro-stream-demo, or import kokoro_onnx.
-CMD ["kokoro-say", "--help"]
+# voice-api v1 (docs/voice-api.md); see the package README for the CLIs
+EXPOSE 8880
+CMD ["voice-server"]

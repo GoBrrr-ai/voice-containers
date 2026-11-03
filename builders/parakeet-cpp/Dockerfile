@@ -38,6 +38,11 @@ RUN git clone --recursive https://github.com/mudler/parakeet.cpp /src/parakeet.c
 # Upstream-unreported as of 2026-10-31 — file with a link to this patch.
 COPY files/mel-kernel-dangling-tensor.patch /tmp/patches/
 RUN patch -p1 -d /src/parakeet.cpp < /tmp/patches/mel-kernel-dangling-tensor.patch
+# voice-api v1 discovery: GET /v1/voices + /v1/models report the ONE model the
+# server was started with (basename of the resolved model file) — each GGUF
+# image then answers with exactly its baked model.
+COPY files/server-model-routes.patch /tmp/patches/
+RUN patch -p1 -d /src/parakeet.cpp < /tmp/patches/server-model-routes.patch
 
 RUN cmake -B /src/parakeet.cpp/build -S /src/parakeet.cpp \
         -DCMAKE_BUILD_TYPE=Release \

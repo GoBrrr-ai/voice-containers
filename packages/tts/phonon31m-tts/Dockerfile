@@ -36,7 +36,7 @@ COPY rootfs/ /
 # A78AE (Orin) and Thor both run this; the wheel is manylinux-generic.
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir ptts==0.6.0 \
-    && chmod +x /usr/local/bin/tts-stream-server /usr/local/bin/ptts-say
+    && chmod +x /usr/local/bin/tts-stream-server /usr/local/bin/ptts-say /usr/local/bin/voice-server
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     PTTS_MODEL=/models/phonon-31m-en \
@@ -45,4 +45,5 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     TTS_PORT=8880
 
 EXPOSE 8880
-CMD ["tts-stream-server"]
+# voice-api v1 (docs/voice-api.md); see the package README for the CLIs
+CMD ["voice-server"]

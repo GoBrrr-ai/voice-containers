@@ -47,3 +47,14 @@ docker run ... -e PARAKEET_DEVICE=cpu -e PARAKEET_MODEL=/models/phonon-2.5-engli
 
 Same env contract as the other parakeet.cpp images. RAM: q8 GPU ≈ 1.0 GB,
 packed CPU ≈ 0.35 GB.
+
+## Server (voice-api v1)
+
+```sh
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8080:8080 <image>
+curl -s localhost:8080/v1/voices | jq   # the baked model (parakeet-server route)
+curl -s localhost:8080/v1/audio/transcriptions -F file=@/audio/x.wav -F model=<id>
+```
+`GET /v1/models` is an alias. `--concurrency K` / `--threads N` via
+`PARAKEET_CONCURRENCY` / `PARAKEET_THREADS`. Batch-only: streaming partials
+are a CLI feature (`stt-transcribe --stream-latency`), not served yet.
