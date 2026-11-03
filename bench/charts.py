@@ -333,7 +333,9 @@ def _legend_panel(axl, entries: list[tuple[dict, str]], mode: Mode) -> None:
             )
 
 
-def _rank_text(ax, x, y, rank: int, face: str | None, mode: Mode) -> None:
+def _rank_text(
+    ax, x, y, rank: int, face: str | None, mode: Mode, fontsize: float = 6
+) -> None:
     """Rank number centered on a marker; top-3 keep their medal colors
     (with a bg-colored stroke so gold/silver/bronze survive any fill)."""
     if rank < 1:
@@ -349,7 +351,7 @@ def _rank_text(ax, x, y, rank: int, face: str | None, mode: Mode) -> None:
         x,
         y,
         txt,
-        fontsize=6,
+        fontsize=fontsize,
         fontweight="bold",
         ha="center",
         va="center",
@@ -357,6 +359,123 @@ def _rank_text(ax, x, y, rank: int, face: str | None, mode: Mode) -> None:
         zorder=4,
         path_effects=effects,
     )
+
+
+def _add_lens(fig, ax, pts, mode: Mode, pareto=None, xlog: bool = False) -> None:
+    """Magnifier lens over the densest marker cluster.
+
+    Rank numbers stay readable even where markers pile up: the lens
+    re-renders the crowded region at ~4x with uniform marker size and
+    larger rank texts, wired to the source region by indicate_inset_zoom
+    connectors. ``pts``: [(x, y, rank, face_or_None)]; ``pareto``:
+    optional (xs, ys) step arrays drawn through the lens for context.
+    """
+    import numpy as np
+
+    if len(pts) < 5:
+        return
+    fig.canvas.draw()
+    disp = np.array([ax.transData.transform((x, y)) for x, y, _rk, _f in pts])
+    d = np.sqrt(((disp[:, None, :] - disp[None, :, :]) ** 2).sum(-1))
+    np.fill_diagonal(d, np.inf)
+    # density seed: the point with the most neighbors within 45 px — a
+    # min-distance seed locks onto duplicate-position twins (cpu/cuda pairs
+    # of one engine sit at nearly identical coords) far from the real crowd
+    R = 45.0
+    counts = (d <= R).sum(axis=1)
+    seed = int(counts.argmax())
+    if counts[seed] < 3:  # no meaningful crowd anywhere
+        return
+    axw = ax.get_window_extent().width
+    sx, sy = disp[seed]
+    half = 60.0
+    for _ in range(4):  # widen just enough to hold the whole crowd
+        inside = ((abs(disp[:, 0] - sx) <= half) & (abs(disp[:, 1] - sy) <= half)).sum()
+        if inside >= counts[seed] or half >= 0.24 * axw:
+            break
+        half *= 1.3
+    inv = ax.transData.inverted()
+    dx0, dy0 = inv.transform((sx - half, sy - half))
+    dx1, dy1 = inv.transform((sx + half, sy + half))
+    xmin, xmax = min(dx0, dx1), max(dx0, dx1)
+    ymin, ymax = min(dy0, dy1), max(dy0, dy1)
+    src = (sx - half, sy - half, 2 * half, 2 * half)
+
+    def _inter(a, b) -> float:
+        ix = max(0.0, min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0]))
+        iy = max(0.0, min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1]))
+        return ix * iy
+
+    lw, lh = 0.42, 0.46
+    best = None  # (covered, src overlap, preference) -> position; a lens may
+    # graze its source region when every free slot does — least overlap wins
+    for pref, (px, py) in enumerate(
+        (
+            (0.52, 0.48),
+            (0.06, 0.48),
+            (0.52, 0.06),
+            (0.06, 0.06),
+            (0.29, 0.48),
+            (0.29, 0.06),
+        )
+    ):
+        c0 = ax.transAxes.transform((px, py))
+        c1 = ax.transAxes.transform((px + lw, py + lh))
+        crect = (c0[0], c0[1], c1[0] - c0[0], c1[1] - c0[1])
+        covered = int(
+            (
+                (disp[:, 0] >= crect[0])
+                & (disp[:, 0] <= crect[0] + crect[2])
+                & (disp[:, 1] >= crect[1])
+                & (disp[:, 1] <= crect[1] + crect[3])
+            ).sum()
+        )
+        key = (covered, _inter(crect, src), pref)
+        if best is None or key < best[0]:
+            best = (key, (px, py))
+    if best is None:
+        return
+
+    axins = ax.inset_axes([best[1][0], best[1][1], lw, lh])
+    apply(fig, axins)
+    axins.set_facecolor("#202a36")  # lighter than the panel behind it
+    if xlog:
+        axins.set_xscale("log")
+    axins.set_xlim(xmin, xmax)
+    axins.set_ylim(ymin, ymax)
+    axins.set_xticks([])
+    axins.set_yticks([])
+    # log axes grow minor tick labels ("2 × 10⁻¹") inside the lens — kill all
+    axins.tick_params(
+        which="both", bottom=False, left=False, labelbottom=False, labelleft=False
+    )
+    if pareto:
+        axins.step(
+            pareto[0],
+            pareto[1],
+            where="post",
+            color=mode.green,
+            linewidth=1.4,
+            linestyle="--",
+            alpha=0.8,
+            zorder=2,
+        )
+    for x, y, rank, face in pts:
+        if not (xmin <= x <= xmax and ymin <= y <= ymax):
+            continue
+        cpu = face is None
+        axins.scatter(
+            x,
+            y,
+            s=70,
+            facecolor="none" if cpu else face,
+            edgecolor=face if cpu else mode.text_dim,
+            linewidth=1.4 if cpu else 0.6,
+            marker="o" if cpu else "s",
+            zorder=3,
+        )
+        _rank_text(axins, x, y, rank, face, mode, fontsize=7.5)
+    ax.indicate_inset_zoom(axins, edgecolor=mode.text_dim, alpha=0.6)
 
 
 # --------------------------------------------------------------------- STT
@@ -415,6 +534,7 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
 
     for r, wer, rtf in pts:
         _whisker(wer, rtf, _matrix._metric(r, "rtf_p90"))
+    lens_pts = []
     for (r, wer, rtf), mem in zip(pts, mems):
         face = None if _is_cpu(r) else row_color(r)
         ax.scatter(
@@ -428,6 +548,7 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
             zorder=3,
         )
         _rank_text(ax, rtf, wer, r.get("rank") or 0, face, mode)
+        lens_pts.append((rtf, wer, r.get("rank") or 0, face))
 
     # Pareto front (minimize WER then RTF) drawn as a step line
     front = sorted(
@@ -438,10 +559,13 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
         [r for r in front if r.get("pareto")],
         key=lambda r: _matrix._metric(r, "rtf") or 0,
     )
+    pf_xy = None
     if len(pf) > 1:
+        pf_x = [_matrix._metric(r, "rtf") for r in pf]
+        pf_y = [_matrix._metric(r, "wer") * 100 for r in pf]
         ax.step(
-            [_matrix._metric(r, "rtf") for r in pf],
-            [_matrix._metric(r, "wer") * 100 for r in pf],
+            pf_x,
+            pf_y,
             where="post",
             color=mode.green,
             linewidth=1.4,
@@ -449,6 +573,7 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
             alpha=0.8,
             zorder=2,
         )
+        pf_xy = (pf_x, pf_y)
         ax.annotate(
             "Pareto front",
             (0.99, 0.03),
@@ -457,6 +582,7 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
             fontsize=8.5,
             color=mode.green,
         )
+    _add_lens(fig, ax, lens_pts, mode, pareto=pf_xy, xlog=True)
     ax.set_xlabel("RTF p50 — audio-s per s (lower is better ↓, log)")
     ax.set_ylabel("corpus WER % (lower is better ↓)")
     _title(ax, "Speech recognition — accuracy vs speed")
@@ -542,6 +668,7 @@ def stt_power(rows: list[dict], mode: Mode = DARK):
     wers = [(p[2] or 0) * 100 for p in pts]
     ax.set_xlim(w_lo * 0.8, w_hi * 1.3)
     ax.set_ylim(min(wers) - 0.5, max(wers) + 0.5)
+    lens_pts = []
     for r, w, wer in pts:
         face = None if _is_cpu(r) else row_color(r)
         ax.scatter(
@@ -555,6 +682,8 @@ def stt_power(rows: list[dict], mode: Mode = DARK):
             zorder=3,
         )
         _rank_text(ax, w, (wer or 0) * 100, r.get("rank") or 0, face, mode)
+        lens_pts.append((w, (wer or 0) * 100, r.get("rank") or 0, face))
+    _add_lens(fig, ax, lens_pts, mode)
     ax.set_xlabel(
         "mean GPU power over the engine window (W) — hollow = CPU engine (idle draw)"
     )
@@ -697,6 +826,111 @@ def tts_heatmap(rows: list[dict], mode: Mode = DARK):
 
 
 # -------------------------------------------------------------- shared
+# Edge deployment vectors: metric -> (target, worst, weight). The score is
+# ABSOLUTE (not cohort-relative): 1.0 at/better than the target, 0.0 at the
+# worst-acceptable bound, log-linear in between — an engine's score does not
+# shift when other engines are added, and the anchors are deployment facts
+# (HA's 300 ms gate, the Orin Nano 8 GB voice budget), not chart artifacts.
+# Vectors map to what each task actually measures: an STT engine's TTFA is
+# its offline latency, a TTS engine's throughput is its synth latency.
+EDGE_VECTORS = {
+    "stt": {
+        # quality: ≤2% WER is production grade, ≥10% unusable for voice
+        "wer": (0.02, 0.10, 0.35),
+        # responsiveness: instant follow-ups … 1.5 s before the user hangs up
+        "offline_latency_s": (0.3, 1.5, 0.20),
+        # throughput headroom: 10× realtime … barely realtime
+        "rtf": (0.10, 1.0, 0.20),
+        # VRAM: fits the Orin Nano 8 GB voice budget … half the board
+        "mem_peak_mib": (1024, 4096, 0.25),
+    },
+    "tts": {
+        # responsiveness: the 300 ms assistant gate … 1.5 s
+        "ttfa_s": (0.3, 1.5, 0.30),
+        # per-sentence throughput: half-second sentences … 2.5 s
+        "synth_latency_s": (0.5, 2.5, 0.20),
+        "rtf": (0.10, 1.0, 0.25),
+        "mem_peak_mib": (1024, 4096, 0.25),
+    },
+}
+
+
+def _edge_score(row: dict, task: str) -> float | None:
+    """Weighted edge-deployment score in [0, 1]; weights renormalized over
+    the vectors the row actually has, so a missing probe never penalizes."""
+    import math
+
+    total = wsum = 0.0
+    for metric, (target, worst, weight) in EDGE_VECTORS[task].items():
+        v = _matrix._metric(row, metric)
+        if v is None:
+            continue
+        wsum += weight
+        if v <= target:
+            total += weight
+        elif v < worst:
+            total += weight * math.log(worst / v) / math.log(worst / target)
+    return total / wsum if wsum else None
+
+
+def _edge_chart(rows: list[dict], task: str, mode: Mode):
+    scored = [(r, _edge_score(r, task)) for r in rows]
+    scored = [(r, s) for r, s in scored if s is not None]
+    if len(scored) < 2:
+        return None
+    scored.sort(key=lambda x: -x[1])
+    plt = _plt()
+    fig, ax = plt.subplots(figsize=_figsize(len(scored), 4.2, 0.27))
+    apply(fig, ax)
+    names = _labels(
+        [r for r, _ in scored],
+        ranks={id(r): i for i, (r, _) in enumerate(scored[:3], 1)},
+    )
+    vals = [s * 100 for _, s in scored]
+    colors = [row_color(r) for r, _ in scored]
+    if task == "stt":
+        xlabel = (
+            "edge deployment score (0–100; WER 35% · latency 20% · RTF 20% · "
+            "VRAM 25% — targets ≤2% / ≤0.3 s / ≤0.1 / ≤1 GiB)"
+        )
+    else:
+        xlabel = (
+            "edge deployment score (0–100; TTFA 30% · synth 20% · RTF 25% · "
+            "VRAM 25% — targets ≤0.3 s / ≤0.5 s / ≤0.1 / ≤1 GiB)"
+        )
+    _lollipop(
+        ax,
+        names,
+        vals,
+        colors,
+        mode,
+        "{:.0f}",
+        xlabel,
+        log=False,
+    )
+    _title(
+        ax,
+        "Speech "
+        + ("recognition" if task == "stt" else "synthesis")
+        + " — edge deployment score",
+    )
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    _footer_common(
+        fig,
+        rows,
+        extra=" · absolute score vs edge targets (1.0 = meets all) · ❶❷❸ = top-3",
+    )
+    return fig
+
+
+def stt_edge(rows: list[dict], mode: Mode = DARK):
+    return _edge_chart(rows, "stt", mode)
+
+
+def tts_edge(rows: list[dict], mode: Mode = DARK):
+    return _edge_chart(rows, "tts", mode)
+
+
 def _memory_chart(rows: list[dict], mode: Mode):
     pts = [
         (r, _matrix._metric(r, "mem_peak_mib"))
@@ -835,6 +1069,7 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
 TASK_CHARTS = {
     "stt": {
         "stt-ranking": stt_ranking,
+        "stt-edge": stt_edge,
         "stt-wer-vs-rtf": stt_wer_vs_rtf,
         "stt-latency-box": stt_latency_box,
         "stt-memory": stt_memory,
@@ -843,6 +1078,7 @@ TASK_CHARTS = {
     },
     "tts": {
         "tts-ranking": tts_ranking,
+        "tts-edge": tts_edge,
         "tts-ttfa": tts_ttfa,
         "tts-synth-box": tts_synth_box,
         "tts-memory": tts_memory,
