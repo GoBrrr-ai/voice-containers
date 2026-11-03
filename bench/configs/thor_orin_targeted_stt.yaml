@@ -35,6 +35,13 @@ engines:
     backends: [cuda]
     opts:
       model: /models/phonon-2.5-english-q4_k.gguf
+  - name: parakeet_tdt_ort        # efederici int4 (MatMulNBits) on our ORT CUDA EP
+    id: parakeet_tdt_ort_17
+    image: narandill/parakeet-tdt-ort-stt:0.1.0
+    backends: [cuda]
+    opts:
+      model_dir: /models/parakeet-int4
+      device: cuda
 streaming: {chunk_ms: 160, realtime_pass: false}
 warmup_n: 5
 repeats: 1
