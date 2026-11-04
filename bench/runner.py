@@ -340,6 +340,9 @@ def _run_served(
         cmd += ["-p", f"127.0.0.1:{host_port}:{int(serve['port'])}", engine_img]
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode != 0:
+            # a start-failure can still leave a Created-state container holding
+            # the name — tear down by name unconditionally
+            subprocess.run(["docker", "rm", "-f", name], capture_output=True)
             return {
                 "engine": job["engine"],
                 "engine_id": eid,
@@ -347,32 +350,12 @@ def _run_served(
                 "container": name,
                 "exit": r.returncode,
                 "served": True,
+                "requested_backend": job.get("requested_backend"),
                 "tail": (r.stderr or r.stdout).strip().splitlines()[-5:],
             }
         cid = (r.stdout or "").strip().splitlines()[-1]
-        # job for the HOST client: untouched host audio paths + endpoint info
-        job = {
-            **job,
-            "serve": {**serve, "host": "127.0.0.1", "host_port": host_port},
-            "out_dir": str(run_dir),
-        }
-        job_path = run_dir / f"job_{eid}.json"
-        job_path.write_text(json.dumps(job, ensure_ascii=False))
-        if not _wait_served(serve["transport"], host_port):
-            logs = subprocess.run(
-                ["docker", "logs", name], capture_output=True, text=True
-            ).stdout
-            return {
-                "engine": job["engine"],
-                "engine_id": eid,
-                "image": engine_img,
-                "container": name,
-                "exit": 1,
-                "served": True,
-                "tail": ("server never became healthy: " + logs)
-                .strip()
-                .splitlines()[-8:],
-            }
+        # sampler covers the LOAD window too (container mode's window does) —
+        # starting it after health would make cross-mode RSS/CPU apples-to-oranges
         stop_evt = threading.Event()
         stats_t = threading.Thread(
             target=docker_stats_sampler,
@@ -381,12 +364,37 @@ def _run_served(
         )
         stats_t.start()
         try:
+            # job for the HOST client: untouched host audio paths + endpoint info
+            job = {
+                **job,
+                "serve": {**serve, "host": "127.0.0.1", "host_port": host_port},
+                "out_dir": str(run_dir),
+            }
+            job_path = run_dir / f"job_{eid}.json"
+            job_path.write_text(json.dumps(job, ensure_ascii=False))
+            if not _wait_served(serve["transport"], host_port):
+                logs = subprocess.run(
+                    ["docker", "logs", name], capture_output=True, text=True
+                ).stdout
+                return {
+                    "engine": job["engine"],
+                    "engine_id": eid,
+                    "image": engine_img,
+                    "container": name,
+                    "exit": 1,
+                    "served": True,
+                    "requested_backend": job.get("requested_backend"),
+                    "tail": ("server never became healthy: " + logs)
+                    .strip()
+                    .splitlines()[-8:],
+                }
             proc = subprocess.run(
                 [sys.executable, str(bench_dir / "client.py"), str(job_path)],
                 capture_output=True,
                 text=True,
             )
         finally:
+            # every path after the container exists: stop sampler + container
             stop_evt.set()
             stats_t.join(timeout=10)
             subprocess.run(["docker", "rm", "-f", name], capture_output=True)
