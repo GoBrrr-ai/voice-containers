@@ -31,6 +31,22 @@ STT_IMAGE=narandill/parakeet-tdt-cpp-stt:0.1.0
 kokoro GPU (24 kHz, pcm streaming) as TTS:
 `TTS_IMAGE=narandill/kokoro-tts:0.1.0` + `TTS_DEVICE=cuda`.
 
+### Streaming STT (SSE partials, profile `stream`)
+
+The `stt-stream` service adds the nemotron-streaming voice-server — SSE
+partials on `POST /v1/audio/transcriptions?stream=true` (`partial` events
+at the 160 ms slice cadence, then one `final`), ~394 MiB VRAM on cuda
+(smallest GPU footprint in the roster):
+
+```sh
+docker compose --profile stream --profile llm up -d
+# STT_STREAM_PROVIDER=cpu in .env for the CPU-only budget
+# STT_STREAM_PORT (default 8081) keeps the default stt service free
+```
+
+Pairs with the `tts` service over the same voice-api contract
+(`docs/voice-api.md`); `VOICE_API_TOKEN` applies identically.
+
 ### Home Assistant (wyoming, HA-native)
 
 ```sh
