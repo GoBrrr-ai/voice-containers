@@ -1,0 +1,40 @@
+# S7 A/B: kokoro CUDA-graph capture (env KOKORO_CUDA_GRAPH=1, just wired in
+# the voice-server) vs the default provider path — same run, back-to-back,
+# 100-sentence slice of the frozen tts manifest. Kill-or-keep on TTFA p50/p90
+# and rtfs; shape errors or dud deltas kill it (E7-style cheap experiment).
+run_name: thor_tts_kokoro_graph
+task: tts
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/tts_librispeech_test-clean_en_444_seed42.jsonl
+  n: 100
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: kokoro                 # default path (re-run for same-run parity)
+    id: kokoro_default_ab
+    image: narandill/kokoro-tts:0.1.0
+    backends: [cuda]
+    serve: {port: 8880, transport: openai}
+    opts: {}
+  - name: kokoro                 # CUDA-graph capture variant
+    id: kokoro_cudagraph_ab
+    image: narandill/kokoro-tts:0.1.0
+    backends: [cuda]
+    serve:
+      port: 8880
+      transport: openai
+      env: {KOKORO_CUDA_GRAPH: "1"}
+    opts: {}
+streaming: {chunk_ms: 160, realtime_pass: true}
+warmup_n: 3
+repeats: 1
+cooldown_s: 30
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+output_dir: results

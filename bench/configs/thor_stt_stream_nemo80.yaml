@@ -1,0 +1,60 @@
+# S8-shave A/B: nemotron-streaming 160 ms (image default) vs 80 ms profile
+# (files volume-mounted from the workspace; same image, env-retargeted). The
+# 160 leg re-runs here for same-run back-to-back comparability; ids are
+# explicit and distinct from the published stream cohort. Kill-or-keep: the
+# 80 ms profile should cut TTFP if the lookahead dominates; RTF/wer must
+# stay within noise for the keep.
+run_name: thor_stt_stream_nemo80
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 100
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: nemotron_streaming     # 160 ms — the published profile, re-run
+    id: nemostream160_ab
+    image: narandill/nemotron-streaming-stt:0.2.0
+    backends: [cuda]
+    serve:
+      port: 8080
+      transport: openai
+      env: {NEMOSTREAM_PROVIDER: cuda}
+    opts:
+      encoder: /models/nemotron-streaming-160ms/encoder.int8.onnx
+      decoder: /models/nemotron-streaming-160ms/decoder.int8.onnx
+      joiner: /models/nemotron-streaming-160ms/joiner.int8.onnx
+      tokens: /models/nemotron-streaming-160ms/tokens.txt
+  - name: nemotron_streaming     # 80 ms — workspace-mounted variant
+    id: nemostream80_ab
+    image: narandill/nemotron-streaming-stt:0.2.0
+    backends: [cuda]
+    volumes:
+      - /home/narandill/edge-containers/task/models/nemotron-streaming-80ms:/models-nemo80:ro
+    serve:
+      port: 8080
+      transport: openai
+      env:
+        NEMOSTREAM_PROVIDER: cuda
+        NEMOSTREAM_ENCODER: /models-nemo80/encoder.int8.onnx
+        NEMOSTREAM_DECODER: /models-nemo80/decoder.int8.onnx
+        NEMOSTREAM_JOINER: /models-nemo80/joiner.int8.onnx
+        NEMOSTREAM_VOCAB: /models-nemo80/tokens.txt
+    opts:
+      encoder: /models-nemo80/encoder.int8.onnx
+      decoder: /models-nemo80/decoder.int8.onnx
+      joiner: /models-nemo80/joiner.int8.onnx
+      tokens: /models-nemo80/tokens.txt
+streaming: {chunk_ms: 160, realtime_pass: true}
+warmup_n: 2
+repeats: 1
+cooldown_s: 30
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+output_dir: results
