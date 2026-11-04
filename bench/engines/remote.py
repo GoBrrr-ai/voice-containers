@@ -72,9 +72,10 @@ class OpenAISTTRemote:
         from openai import OpenAI
 
         self._client = OpenAI(base_url=self.base + "/v1", api_key="local")
-        if not self._model:
-            # /v1/models is the documented alias of /v1/voices (single model)
-            self._model = self._client.models.list().data[0].id
+        # always resolve server-side (authoritative): config opts.model is the
+        # IN-PROCESS adapter's model path/alias — meaningless over the API and
+        # rejected by the server's model check
+        self._model = self._client.models.list().data[0].id
 
     def actual_backend(self) -> str:
         return "remote:openai"
@@ -128,10 +129,12 @@ class OpenAITTSRemote:
 
         with _ur.urlopen(self.base + "/v1/voices", timeout=30) as r:
             voices = _json.loads(r.read())["data"]
-        if not self._model:
-            # voice entries carry the engine id == the `model` the server
-            # validates against (docs/voice-api.md)
-            self._model = voices[0].get("engine") or voices[0]["id"]
+        # server-authoritative model (opts.model is the in-process adapter's
+        # path — the API model check rejects it, see kokoro run 013439)
+        self._model = voices[0].get("engine") or voices[0]["id"]
+        # the SDK requires a voice string; default to the server's first voice
+        # when the config has none (ptts/paradee rows)
+        self.voice = self.voice or voices[0]["id"]
         self.output_sample_rate = int(voices[0].get("sample_rate") or 24000)
 
     def actual_backend(self) -> str:
