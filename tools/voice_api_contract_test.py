@@ -3,8 +3,9 @@
 Serves a reference implementation of docs/voice-api.md on 127.0.0.1:<ephemeral>
 and asserts the wire behaviors the GPU conformance suite (task/voice-api/)
 expects: discovery shapes, multipart + raw-WAV transcriptions
-(json/text/verbose_json), stream-ignored, wav/pcm speech with X-Sample-Rate,
-the 400 paths, and the optional VOICE_API_TOKEN gate (/health exempt).
+(json/text/verbose_json), sse partials on stream=true (partial + final
+events), wav/pcm speech with X-Sample-Rate, the 400 paths, and the
+optional VOICE_API_TOKEN gate (/health exempt).
 
 Pure stdlib, no docker, no GPU — this is the CI job. Exit 0 = contract holds.
 The stub is also the readable reference for integrators; when you change
@@ -16,7 +17,6 @@ from __future__ import annotations
 import io
 import json
 import math
-import socket
 import struct
 import sys
 import threading
@@ -25,7 +25,7 @@ import urllib.request
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-TOKEN = ""  # set by the token-mode leg
+TOKEN = ""  # set by the token-mode leg; a test fixture, not a secret  # nosec B105
 VOICE = "test_voice"
 MODEL = "test_model"
 SR = 24000
@@ -130,12 +130,19 @@ class ReferenceHandler(BaseHTTPRequestHandler):
         return self._json(404, {"error": {"message": f"no route {p}"}})
 
     def _transcribe(self, body, ctype):
+        path, _, query = self.path.partition("?")
+        qv = {
+            k: v for k, _, v in (seg.partition("=") for seg in query.split("&") if seg)
+        }
+        want_stream = qv.get("stream", "").lower() in ("true", "1")
         model = fmt = None
         raw = False
         if ctype.startswith("multipart/form-data"):
             fields = _parse_multipart(body, ctype)
             model = fields.get("model")
             fmt = fields.get("response_format", "json")
+            if fields.get("stream", "").lower() in ("true", "1"):
+                want_stream = True
             audio = fields.get("file")
         else:
             model = None  # single-model server: the field may be absent on raw
@@ -163,6 +170,11 @@ class ReferenceHandler(BaseHTTPRequestHandler):
                 },
             )
         text = "reference transcript"
+        if want_stream:
+            # reference = a partial-capable STT (moonshine-streaming variant):
+            # SSE partials then one final. Incapable engines accept-and-ignore
+            # stream (JSON final) — that path is per-engine, see the roster.
+            return self._sse_transcribe(text)
         if fmt == "text":
             payload, ct = text.encode(), "text/plain"
         elif fmt == "verbose_json":
@@ -179,6 +191,22 @@ class ReferenceHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
+
+    def _sse_transcribe(self, text):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+
+        def evt(name, obj):
+            b = f"event: {name}\ndata: {json.dumps(obj)}\n\n".encode()
+            self.wfile.write(f"{len(b):x}\r\n".encode() + b + b"\r\n")
+
+        for partial in ("reference", "reference transcript"):
+            evt("partial", {"text": partial})
+        evt("final", {"text": text, "duration": 0.2})
+        self.wfile.write(b"0\r\n\r\n")
 
     def _speech(self, body, ctype):
         try:
@@ -249,24 +277,39 @@ def _parse_multipart(body, ctype):
     return fields
 
 
-def _get(base, path, token=""):
+def _parse_sse(body: bytes):
+    """[(event, data_str)] from a chunk-decoded text/event-stream body."""
+    events = []
+    for block in body.decode("utf-8", "replace").split("\n\n"):
+        ev, data = None, None
+        for line in block.strip().splitlines():
+            if line.startswith("event: "):
+                ev = line[7:].strip()
+            elif line.startswith("data: "):
+                data = line[6:]
+        if ev and data:
+            events.append((ev, data))
+    return events
+
+
+def _get(base, path, token=""):  # nosec B107 - localhost contract test
     req = urllib.request.Request(base + path)
     if token:
         req.add_header("Authorization", f"Bearer {token}")
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=10) as r:  # nosec B310 - 127.0.0.1 only
             return r.status, dict(r.headers), r.read()
     except urllib.error.HTTPError as e:
         return e.code, dict(e.headers), e.read()
 
 
-def _post(base, path, data, ctype, token=""):
+def _post(base, path, data, ctype, token=""):  # nosec B107 - localhost contract test
     req = urllib.request.Request(base + path, data=data, method="POST")
     req.add_header("Content-Type", ctype)
     if token:
         req.add_header("Authorization", f"Bearer {token}")
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=10) as r:  # nosec B310 - 127.0.0.1 only
             return r.status, dict(r.headers), r.read()
     except urllib.error.HTTPError as e:
         return e.code, dict(e.headers), e.read()
@@ -278,7 +321,7 @@ def _multipart(fields):
     for k, v in fields.items():
         body += (
             f'--{b}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n'.encode()
-            + v.encode()
+            + (v if isinstance(v, bytes) else v.encode())
             + b"\r\n"
         )
     return body + f"--{b}--\r\n".encode(), f"multipart/form-data; boundary={b}"
@@ -339,12 +382,29 @@ def _(base):
     assert s == 200 and j["task"] == "transcribe" and "duration" in j, (s, b)
 
 
-@check("transcribe raw wav + stream ignored")
+@check("transcribe stream=true sse partials (raw wav + query param)")
 def _(base):
-    s, _, b = _post(
+    s, h, b = _post(
         base, "/v1/audio/transcriptions?stream=true", _wav(_sine()), "audio/wav"
     )
-    assert s == 200 and json.loads(b)["text"], (s, b[:80])
+    assert s == 200 and h.get("Content-Type") == "text/event-stream", (s, h)
+    events = _parse_sse(b)
+    partials = [json.loads(d) for n, d in events if n == "partial"]
+    finals = [json.loads(d) for n, d in events if n == "final"]
+    assert partials and finals, events
+    assert all("text" in p for p in partials)
+    assert finals[0]["text"] == "reference transcript" and finals[0]["duration"] == 0.2
+
+
+@check("transcribe stream=true sse via multipart field, final matches plain")
+def _(base):
+    body, ctype = _multipart({"stream": "true", "file": _wav(_sine())})
+    s, h, b = _post(base, "/v1/audio/transcriptions", body, ctype)
+    assert s == 200 and h.get("Content-Type") == "text/event-stream", (s, h)
+    finals = [json.loads(d) for n, d in _parse_sse(b) if n == "final"]
+    body2, ctype2 = _multipart({"file": _wav(_sine())})
+    s2, _, b2 = _post(base, "/v1/audio/transcriptions", body2, ctype2)
+    assert s2 == 200 and json.loads(b2)["text"] == finals[0]["text"], (s2, b2[:80])
 
 
 @check("transcribe raw octet-stream")
@@ -413,16 +473,16 @@ def _(base):
 @check("token gate: /health exempt, routes 401/200")
 def _(base):
     global TOKEN
-    TOKEN = "s3cret"
+    TOKEN = "s3cret"  # nosec B105 - the token-mode fixture
     try:
         s, _, _b = _get(base, "/health")
         assert s == 200, s  # exempt by design
         s, _, _b = _get(base, "/v1/voices")
         assert s == 401, s
-        s, _, _b = _get(base, "/v1/voices", token="s3cret")
+        s, _, _b = _get(base, "/v1/voices", token="s3cret")  # nosec B106
         assert s == 200, s
     finally:
-        TOKEN = ""
+        TOKEN = ""  # nosec B105 - reset to the open default
 
 
 def main() -> int:

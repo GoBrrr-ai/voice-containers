@@ -70,7 +70,10 @@ paths:
       description: >-
         multipart/form-data (OpenAI subset) or a raw WAV body
         (Content-Type: audio/wav or application/octet-stream). `stream=true`
-        is accepted and ignored on engines without partial support.
+        (multipart field or ?stream=true query param) on a partial-capable
+        engine returns text/event-stream partials; engines without partial
+        support accept-and-ignore it and return the settled response.
+        Capability is advertised in /v1/voices ("streaming": true|false).
       requestBody:
         content:
           multipart/form-data:
@@ -87,13 +90,19 @@ paths:
                   description: must equal the /v1/voices id (400 otherwise)
                 response_format: {type: string, default: json, enum: [json, text, verbose_json]}
                 language: {type: string, description: honored where the model supports it}
+                stream:
+                  type: boolean
+                  description: >-
+                    true -> text/event-stream partials on partial-capable
+                    engines (partial events on text change, then one final
+                    with text + duration); ignored elsewhere
           audio/wav:
             schema: {type: string, format: binary}
           application/octet-stream:
             schema: {type: string, format: binary}
       responses:
         '200':
-          description: Transcription (shape depends on response_format)
+          description: Transcription (shape depends on response_format / stream)
           content:
             application/json:
               schema:
@@ -107,6 +116,15 @@ paths:
                 type: object
                 properties:
                   task: {type: string, example: transcribe}
+                  text: {type: string}
+                  duration: {type: number}
+            text/event-stream:
+              schema:
+                description: >-
+                  SSE: event: partial {text} (on text change), then one
+                  event: final {text, duration}
+                type: object
+                properties:
                   text: {type: string}
                   duration: {type: number}
         '400': {description: invalid model / missing file / undecodable audio}
