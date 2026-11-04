@@ -59,11 +59,11 @@ RUN python3 -m venv /opt/venv \
     # against OUR CUDA-13 ORT (sm_87+sm_110a SASS in providers_cuda.so), so
     # ONE image serves provider=cpu and provider=cuda. cuBLAS ships with the
     # CUDA runtime base; cuDNN 9 via apt; ORT .so files on LD_LIBRARY_PATH.
-    && /opt/venv/bin/pip install --no-cache-dir /tmp/sherpa/sherpa_onnx-*.whl soundfile \
+    && /opt/venv/bin/pip install --no-cache-dir /tmp/sherpa/sherpa_onnx-*.whl soundfile soxr \
     && mkdir -p /opt/ort/lib \
     && cp -a /tmp/sherpa/libonnxruntime*.so* /opt/ort/lib/ \
     && rm -rf /tmp/sherpa \
-    && chmod +x /usr/local/bin/nemotron-stream-transcribe
+    && chmod +x /usr/local/bin/nemotron-stream-transcribe /usr/local/bin/voice-server
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     LD_LIBRARY_PATH=/opt/ort/lib \
@@ -74,4 +74,7 @@ ENV PATH="/opt/venv/bin:${PATH}" \
     NEMOSTREAM_JOINER=/models/nemotron-streaming-160ms/joiner.int8.onnx \
     NEMOSTREAM_VOCAB=/models/nemotron-streaming-160ms/tokens.txt
 
-CMD ["nemotron-stream-transcribe", "--help"]
+# Default: the voice-api v1 server (serve-mode benches + deployment drive
+# this). The CLI stays for in-process container-mode runs — the runner
+# overrides --entrypoint python3 there, and humans call it explicitly.
+CMD ["voice-server"]

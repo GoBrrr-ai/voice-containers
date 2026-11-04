@@ -54,11 +54,23 @@ def _wav_read(data: bytes):
 
 
 # ------------------------------------------------------------------- OpenAI
+def _iter_sse(resp):
+    """Yield (event, data_json_str) progressively from a chunk-decoded
+    text/event-stream response (http.client dechunks on readline)."""
+    ev = None
+    for raw in resp:
+        line = raw.decode("utf-8", "replace").rstrip("\r\n")
+        if line.startswith("event: "):
+            ev = line[7:].strip()
+        elif line.startswith("data: ") and ev:
+            yield ev, line[6:]
+
+
 class OpenAISTTRemote:
     """voice-api v1 STT over the OpenAI python SDK (multipart upload)."""
 
     backends = {"cuda", "cpu"}
-    supports_streaming = False
+    supports_streaming = False  # corrected in load() from /v1/voices
     required_sample_rate = 16000
 
     def __init__(self, engine: str, host: str, port: int, opts: dict):
@@ -76,6 +88,14 @@ class OpenAISTTRemote:
         # IN-PROCESS adapter's model path/alias — meaningless over the API and
         # rejected by the server's model check
         self._model = self._client.models.list().data[0].id
+        # partial capability is per-engine (contract "streaming" flag)
+        import json as _json
+        import urllib.request as _ur
+
+        with _ur.urlopen(self.base + "/v1/voices", timeout=30) as r:  # nosec B310 - loopback server
+            self.supports_streaming = bool(
+                _json.loads(r.read())["data"][0].get("streaming")
+            )
 
     def actual_backend(self) -> str:
         return "remote:openai"
@@ -93,6 +113,52 @@ class OpenAISTTRemote:
                 kwargs["language"] = self.lang
             r = self._client.audio.transcriptions.create(**kwargs)
             return (r.text if hasattr(r, "text") else str(r)).strip()
+        finally:
+            fh.close()
+
+    def transcribe_stream(self, pcm, sr: int, wav_path: str | None = None):
+        """Yield (text, is_final, t_ns) SSE partials (contract §STT).
+
+        stream=true on a partial-capable engine; on an incapable one the
+        server accept-and-ignores and this degrades to a single final event
+        (the caller records feed_mode accordingly). t_ns is perf_counter_ns
+        at each event's arrival — loopback transport included, matching
+        proc_ns semantics.
+        """
+        import json
+        import urllib.request
+
+        if wav_path:
+            fh = open(wav_path, "rb")
+            name = Path(wav_path).name
+        else:
+            fh = io.BytesIO(_wav_bytes(pcm, sr))
+            name = "audio.wav"
+        try:
+            boundary = "xXbenchStreamXx"
+            body = b""
+            for k, v in (("model", self._model), ("stream", "true")):
+                body += (
+                    f"--{boundary}\r\nContent-Disposition: form-data; "
+                    f'name="{k}"\r\n\r\n{v}\r\n'.encode()
+                )
+            body += (
+                f"--{boundary}\r\nContent-Disposition: form-data; "
+                f'name="file"; filename="{name}"\r\n\r\n'.encode()
+                + fh.read()
+                + f"\r\n--{boundary}--\r\n".encode()
+            )
+            req = urllib.request.Request(
+                self.base + "/v1/audio/transcriptions", data=body, method="POST"
+            )
+            req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+            with urllib.request.urlopen(req, timeout=600) as r:  # nosec B310 - loopback server
+                if "text/event-stream" not in r.headers.get("Content-Type", ""):
+                    # accept-and-ignore engine: one settled final event
+                    yield json.loads(r.read())["text"], True, _now_ns()
+                    return
+                for ev, data in _iter_sse(r):
+                    yield json.loads(data)["text"], ev == "final", _now_ns()
         finally:
             fh.close()
 
@@ -127,7 +193,7 @@ class OpenAITTSRemote:
         import json as _json
         import urllib.request as _ur
 
-        with _ur.urlopen(self.base + "/v1/voices", timeout=30) as r:
+        with _ur.urlopen(self.base + "/v1/voices", timeout=30) as r:  # nosec B310 - loopback server
             voices = _json.loads(r.read())["data"]
         # server-authoritative model (opts.model is the in-process adapter's
         # path — the API model check rejects it, see kokoro run 013439)

@@ -292,7 +292,7 @@ def _wait_served(transport: str, host_port: int, timeout_s: float = 300.0) -> bo
             try:
                 with urllib.request.urlopen(
                     f"http://127.0.0.1:{host_port}/health", timeout=2
-                ) as r:
+                ) as r:  # nosec B310 - loopback health poll
                     if r.status == 200:
                         return True
             except Exception:
@@ -731,6 +731,13 @@ def _engine_summary(rows: list[dict], task: str) -> dict:
                 )
             )
         s.update(dist_stats([r["proc_ns"] / 1e9 for r in ok], "offline_latency_s"))
+        # realtime pass (M8): time-to-first-partial + partial count, only
+        # when every ok utterance streamed (mixed feeds would be garbage)
+        if all(r.get("ttfp_ns") for r in ok):
+            s.update(dist_stats([r["ttfp_ns"] / 1e9 for r in ok], "ttfp_s"))
+            s.update(
+                dist_stats([float(r.get("partials_n") or 0) for r in ok], "partials_n")
+            )
     if task == "tts" and ok:
         s.update(dist_stats([r["synth_ns"] / 1e9 for r in ok], "synth_latency_s"))
         if all(r.get("ttfa_ns") for r in ok):

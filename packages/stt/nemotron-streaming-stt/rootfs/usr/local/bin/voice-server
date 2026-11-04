@@ -1,0 +1,300 @@
+#!/opt/venv/bin/python3
+"""voice-api v1 STT server — Nemotron Speech Streaming EN 0.6B (in-memory; no temp files).
+
+POST /v1/audio/transcriptions  multipart ('file' required) or raw WAV body
+  stream=true (multipart field or query param) -> text/event-stream partials
+  (`partial` events on text change at the 160 ms slice cadence, then one
+  `final`); the recognizer's cache-aware graph does its own chunking — audio
+  is appended as it arrives, never pre-chunked differently.
+GET  /v1/voices | /v1/models | /health     — docs/voice-api.md
+
+Adapter core from bench/engines/client.py (NemotronStreaming): canonical
+offline feed = whole utterance + 0.2 s tail + input_finished; the 160 ms
+latency profile is baked into the graph (sherpa-onnx 2.0.1, GPU wheel).
+"""
+import email
+import io
+import json
+import os
+import signal
+import threading
+import wave
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import numpy as np
+import sherpa_onnx
+
+ENGINE = "nemotron_streaming"  # adapter name (client.py registry)
+VERSION = "0.2.0"
+PORT = int(os.environ.get("PORT", "8080"))
+MODEL_ID = os.environ.get("MODEL_ID", "nemotron-streaming-160ms")
+LANGUAGES = ["en"]
+REQUIRE_16K = False
+
+_PROVIDER = os.environ.get("NEMOSTREAM_PROVIDER", "cuda")
+_T = sherpa_onnx.OnlineRecognizer.from_transducer(
+    encoder=os.environ["NEMOSTREAM_ENCODER"],
+    decoder=os.environ["NEMOSTREAM_DECODER"],
+    joiner=os.environ["NEMOSTREAM_JOINER"],
+    tokens=os.environ["NEMOSTREAM_VOCAB"],
+    num_threads=1,
+    provider=_PROVIDER,
+)
+_DEVICE_ACTUAL = _PROVIDER
+
+_TAIL_S = 0.2  # canonical 0.2 s tail padding before input_finished
+_SLICE_S = 0.16  # slice cadence for partials (the baked latency profile)
+
+
+def _to_16k(pcm: np.ndarray, sr: int):
+    if sr == 16000:
+        return pcm
+    import soxr
+
+    return soxr.resample(pcm, sr, 16000)
+
+
+def _text_of(stream) -> str:
+    res = _T.get_result(stream)
+    return (res if isinstance(res, str) else res.text).strip()
+
+
+def _engine_transcribe(sr, pcm):
+    samples = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768.0
+    samples = _to_16k(samples, sr)
+    stream = _T.create_stream()
+    stream.accept_waveform(16000, samples)
+    stream.accept_waveform(16000, np.zeros(int(_TAIL_S * 16000), dtype=np.float32))
+    stream.input_finished()
+    while _T.is_ready(stream):
+        _T.decode_stream(stream)
+    return _text_of(stream)
+
+
+def _engine_stream_partial(sr, pcm):
+    """Yield (text, is_final) partials: append 160 ms slices as they 'arrive',
+    decode whenever the graph is ready, emit on text change; then the
+    canonical tail + input_finished + drain for the final."""
+    samples = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768.0
+    samples = _to_16k(samples, sr)
+    stream = _T.create_stream()
+    try:
+        step = int(_SLICE_S * 16000)
+        last = ""
+        for i in range(0, len(samples), step):
+            stream.accept_waveform(16000, samples[i : i + step])
+            while _T.is_ready(stream):
+                _T.decode_stream(stream)
+            txt = _text_of(stream)
+            if txt and txt != last:
+                last = txt
+                yield txt, False
+        stream.accept_waveform(16000, np.zeros(int(_TAIL_S * 16000), dtype=np.float32))
+        stream.input_finished()
+        while _T.is_ready(stream):
+            _T.decode_stream(stream)
+        yield _text_of(stream) or last, True
+    finally:
+        pass  # stream is GC'd; the recognizer owns no per-stream threads
+
+
+_LOCK = threading.Lock()
+
+
+def _decode_wav(body):
+    with wave.open(io.BytesIO(body), "rb") as w:
+        sr, sw, ch = w.getframerate(), w.getsampwidth(), w.getnchannels()
+        pcm = w.readframes(w.getnframes())
+    if sw != 2 or ch != 1:
+        raise ValueError(f"expected 16-bit mono WAV, got {sw * 8}-bit x{ch}")
+    return sr, pcm
+
+
+def _multipart(body, ct):
+    msg = email.message_from_bytes(b"Content-Type: " + ct.encode() + b"\r\n\r\n" + body)
+    fields, files = {}, {}
+    for part in msg.walk():
+        name = part.get_param("name", header="content-disposition")
+        if not name:
+            continue
+        payload = part.get_payload(decode=True) or b""
+        if part.get_filename():
+            files[name] = payload
+        else:
+            fields[name] = payload.decode("utf-8", "replace")
+    return fields, files
+
+
+def _voices_payload():
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": MODEL_ID,
+                "object": "voice",
+                "task": "stt",
+                "sample_rate": 16000,
+                "languages": LANGUAGES,
+                "streaming": True,
+                "engine": ENGINE,
+                "version": VERSION,
+            }
+        ],
+    }
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *a):
+        pass
+
+    def _json(self, code, obj):
+        body = json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _fail(self, code, msg):
+        self._json(code, {"error": {"message": msg, "type": "invalid_request_error"}})
+
+    def _auth_ok(self):
+        """Optional bearer-token gate (VOICE_API_TOKEN); unset = open."""
+        tok = os.environ.get("VOICE_API_TOKEN")
+        if not tok:
+            return True
+        return self.headers.get("Authorization", "") == f"Bearer {tok}"
+
+    def do_GET(self):
+        # /health is exempt: orchestrator healthchecks cannot send the token
+        if self.path.split("?")[0] != "/health" and not self._auth_ok():
+            self._json(
+                401,
+                {"error": {"message": "invalid or missing bearer token", "type": "authentication_error"}},
+            )
+            return
+        p = self.path.split("?")[0]
+        if p == "/health":
+            self._json(
+                200,
+                {"status": "ok", "engine": ENGINE, "version": VERSION,
+                 "device": _DEVICE_ACTUAL, "model": MODEL_ID},
+            )
+        elif p in ("/v1/voices", "/v1/models"):
+            self._json(200, _voices_payload())
+        else:
+            self._json(404, {"error": {"message": "not found"}})
+
+    def _sse_partials(self, sr, pcm, dur_s):
+        """stream=true: text/event-stream with `partial` events (on text
+        change) then one `final` (contract §STT)."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+
+        def evt(name, obj):
+            b = f"event: {name}\ndata: {json.dumps(obj)}\n\n".encode()
+            self.wfile.write(f"{len(b):x}\r\n".encode() + b + b"\r\n")
+            self.wfile.flush()
+
+        try:
+            with _LOCK:
+                for text, final in _engine_stream_partial(sr, pcm):
+                    if final:
+                        evt("final", {"text": text, "duration": round(dur_s, 3)})
+                    else:
+                        evt("partial", {"text": text})
+            self.wfile.write(b"0\r\n\r\n")
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+
+    def do_POST(self):
+        # /health is exempt: orchestrator healthchecks cannot send the token
+        if self.path.split("?")[0] != "/health" and not self._auth_ok():
+            self._json(
+                401,
+                {"error": {"message": "invalid or missing bearer token", "type": "authentication_error"}},
+            )
+            return
+        path, _, query = self.path.partition("?")
+        qv = {
+            k: v
+            for k, _, v in (seg.partition("=") for seg in query.split("&") if seg)
+        }
+        want_stream = qv.get("stream", "").lower() in ("true", "1")
+        if path != "/v1/audio/transcriptions":
+            self._json(404, {"error": {"message": "not found"}})
+            return
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        ct = self.headers.get("Content-Type", "")
+        fmt, model = "json", self.headers.get("X-Model")
+        if "multipart/form-data" in ct:
+            fields, files = _multipart(body, ct)
+            wav = files.get("file")
+            if wav is None:
+                self._fail(400, "missing required field 'file'")
+                return
+            model = fields.get("model") or model
+            fmt = fields.get("response_format") or "json"
+            want_stream = want_stream or fields.get("stream", "").lower() in ("true", "1")
+        else:
+            wav = body  # raw WAV body fallback
+        if fmt not in ("json", "text", "verbose_json"):
+            self._fail(400, "response_format must be json, text or verbose_json")
+            return
+        if model and model != MODEL_ID:
+            self._fail(400, f"unknown model {model!r}; supported: ['{MODEL_ID}']")
+            return
+        try:
+            sr, pcm = _decode_wav(wav)
+        except ValueError as e:
+            self._fail(400, str(e))
+            return
+        if want_stream:
+            try:
+                self._sse_partials(sr, pcm, len(pcm) / 2 / sr)
+            except (BrokenPipeError, ConnectionResetError):
+                self.close_connection = True
+            return
+        try:
+            with _LOCK:
+                text = _engine_transcribe(sr, pcm)
+        except ValueError as e:
+            self._fail(400, str(e))
+            return
+        except Exception as e:
+            self._json(500, {"error": {"message": repr(e)[:300]}})
+            return
+        if fmt == "text":
+            payload = text.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        elif fmt == "verbose_json":
+            self._json(200, {"task": "transcribe", "text": text,
+                             "duration": len(pcm) / 2 / sr})
+        else:
+            self._json(200, {"text": text})
+
+
+def _serve():
+    """serve_forever with SIGTERM/SIGINT -> clean shutdown (fast docker stop)."""
+    srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+
+    def _stop(*_a):
+        threading.Thread(target=srv.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+    srv.serve_forever()
+
+
+if __name__ == "__main__":
+    _serve()
