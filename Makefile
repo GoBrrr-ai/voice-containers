@@ -26,6 +26,9 @@ smoke-all: ## GPU smoke suite (waits for free VRAM; never kills co-tenants)
 lint: ## pre-commit over the whole repo
 	pre-commit run --all-files
 
+contract: ## voice-api v1 contract test (reference stub, no GPU/docker) — run before campaigns
+	python3 tools/voice_api_contract_test.py
+
 bench-prepare: ## download datasets + build frozen manifests (spec 3.4)
 	bench/.venv/bin/python -m bench.cli prepare --dataset librispeech --split test-clean --lang en --n 500 --seed 42 --task stt
 	bench/.venv/bin/python -m bench.cli prepare --dataset librispeech --split test-clean --lang en --n 500 --seed 42 --task tts
