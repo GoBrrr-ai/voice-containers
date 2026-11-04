@@ -2,6 +2,9 @@
 """voice-api v1 STT server — Moonshine Streaming Medium 245M (in-memory; no temp files).
 
 POST /v1/audio/transcriptions  multipart ('file' required) or raw WAV body
+  stream=true (multipart field or query param) + the 'streaming' engine
+  variant -> text/event-stream partials (`partial` events, one `final`);
+  otherwise the settled JSON/text response (stream accepted-and-ignored).
 GET  /v1/voices | /v1/models | /health     — docs/voice-api.md
 
 Adapter core from bench/engines/client.py (MoonshineStreaming / MoonshineOrt).
@@ -61,6 +64,38 @@ if MOONSHINE_VARIANT == "streaming":
         return " ".join(
             getattr(line, "text", "") for line in getattr(res, "lines", [])
         ).strip()
+
+    def _engine_stream_partial(sr, pcm):
+        """Yield (text, is_final) partials: 320 ms slices through the official
+        streaming runtime (create_stream + update_transcription per chunk).
+        Only emits on text change; the final yield carries the settled text."""
+        samples = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768.0
+        if sr != 16000:
+            import soxr
+
+            samples = soxr.resample(samples, sr, 16000)
+        stream = _T.create_stream()
+        stream.start()
+        try:
+            step = int(0.32 * 16000)
+            last = ""
+            for i in range(0, len(samples), step):
+                stream.add_audio(samples[i : i + step].tolist(), 16000)
+                t = stream.update_transcription()
+                txt = " ".join(
+                    getattr(line, "text", "") for line in getattr(t, "lines", [])
+                ).strip()
+                if txt and txt != last:
+                    last = txt
+                    yield txt, False
+            stream.stop()
+            t = stream.update_transcription()
+            txt = " ".join(
+                getattr(line, "text", "") for line in getattr(t, "lines", [])
+            ).strip()
+            yield txt or last, True
+        finally:
+            stream.close()
 else:
     import onnxruntime as _ort
 
@@ -152,6 +187,10 @@ else:
 
 _LOCK = threading.Lock()
 
+# SSE partials (M8): only the official streaming runtime emits partials; the
+# ORT 5-graph variant keeps stream=true accepted-and-ignored (contract §STT).
+_STREAM_CAPABLE = MOONSHINE_VARIANT == "streaming"
+
 
 def _decode_wav(body):
     with wave.open(io.BytesIO(body), "rb") as w:
@@ -187,7 +226,7 @@ def _voices_payload():
                 "task": "stt",
                 "sample_rate": 16000,
                 "languages": LANGUAGES,
-                "streaming": False,
+                "streaming": _STREAM_CAPABLE,
                 "engine": ENGINE,
                 "version": VERSION,
             }
@@ -239,6 +278,31 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._json(404, {"error": {"message": "not found"}})
 
+    def _sse_partials(self, sr, pcm, dur_s):
+        """stream=true on a partial-capable engine: text/event-stream with
+        `partial` events (on text change) then one `final` (contract §STT)."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+
+        def evt(name, obj):
+            b = f"event: {name}\ndata: {json.dumps(obj)}\n\n".encode()
+            self.wfile.write(f"{len(b):x}\r\n".encode() + b + b"\r\n")
+            self.wfile.flush()
+
+        try:
+            with _LOCK:
+                for text, final in _engine_stream_partial(sr, pcm):
+                    if final:
+                        evt("final", {"text": text, "duration": round(dur_s, 3)})
+                    else:
+                        evt("partial", {"text": text})
+            self.wfile.write(b"0\r\n\r\n")
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+
     def do_POST(self):
         # /health is exempt: orchestrator healthchecks cannot send the token
         if self.path.split("?")[0] != "/health" and not self._auth_ok():
@@ -247,7 +311,13 @@ class Handler(BaseHTTPRequestHandler):
                 {"error": {"message": "invalid or missing bearer token", "type": "authentication_error"}},
             )
             return
-        if self.path.split("?")[0] != "/v1/audio/transcriptions":
+        path, _, query = self.path.partition("?")
+        qv = {
+            k: v
+            for k, _, v in (seg.partition("=") for seg in query.split("&") if seg)
+        }
+        want_stream = qv.get("stream", "").lower() in ("true", "1")
+        if path != "/v1/audio/transcriptions":
             self._json(404, {"error": {"message": "not found"}})
             return
         length = int(self.headers.get("Content-Length", 0))
@@ -262,6 +332,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             model = fields.get("model") or model
             fmt = fields.get("response_format") or "json"
+            want_stream = want_stream or fields.get("stream", "").lower() in ("true", "1")
         else:
             wav = body  # raw WAV body fallback
         if fmt not in ("json", "text", "verbose_json"):
@@ -274,6 +345,12 @@ class Handler(BaseHTTPRequestHandler):
             sr, pcm = _decode_wav(wav)
         except ValueError as e:
             self._fail(400, str(e))
+            return
+        if want_stream and _STREAM_CAPABLE:
+            try:
+                self._sse_partials(sr, pcm, len(pcm) / 2 / sr)
+            except (BrokenPipeError, ConnectionResetError):
+                self.close_connection = True
             return
         try:
             with _LOCK:

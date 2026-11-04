@@ -12,7 +12,12 @@ tighter budgets.
 - CPU-only by design (A78AE + Thor); ~270 MB files + 50–300 MB runtime.
 - **True streaming**: feed PCM via `Transcriber.create_stream()` +
   `stream.add_audio()` — partials arrive on an interval (default 0.5 s),
-  finals on `.on_line()`. `transcribe_without_streaming()` for files.
+  exposed over voice-api as **SSE partials**: `POST
+  /v1/audio/transcriptions` with `stream=true` (multipart field or query
+  param) → `text/event-stream` (`partial` events on text change at the
+  320 ms slice cadence, then one `final` with `text` + `duration`). The
+  CUDA `ort` variant serves offline-only and accept-and-ignores `stream`
+  (finals land on `.on_line()`; `transcribe_without_streaming()` for files).
 - Keyterm/context biasing supported on streaming architectures
   (`set_keyterms`/`set_context`).
 

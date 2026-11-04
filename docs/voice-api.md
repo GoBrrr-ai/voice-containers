@@ -45,9 +45,14 @@ multipart/form-data (OpenAI subset), or a raw WAV body
 
 - `json` → `{"text": "..."}`; `text` → plain text; `verbose_json` →
   `{task, text, duration}` (no segment/timestamp fabrications).
-- `stream=true` is **accepted and ignored** on engines without partial
-  support (OpenAI's own precedent for `whisper-1`); streaming partials are a
-  fast-follow for `nemotron-unified-asr` / moonshine.
+- **`stream=true` → SSE partials** on partial-capable engines (accepted
+  via multipart field or `?stream=true` query param; raw-WAV bodies use
+  the query param): the response becomes `text/event-stream` (chunked)
+  emitting `event: partial` (`{"text": ...}`, on text change) followed by
+  one `event: final` (`{"text": ..., "duration": s}`). Engines **without**
+  partial support accept-and-ignore `stream` and return the settled
+  response (OpenAI's own precedent for `whisper-1`). Capability is
+  advertised in `/v1/voices` (`"streaming": true|false`).
 - Audio is decoded **in memory** (`io.BytesIO` + `wave`) — no temp files.
 
 ## `POST /v1/audio/speech`
@@ -79,10 +84,10 @@ JSON body (OpenAI subset):
 | `parakeet-tdt-cpp-stt` | STT | json/text/verbose_json | — | `parakeet-tdt-0.6b-v3-q4_k` (parakeet-server, C++ route patch) |
 | `parakeet-redux-stt` | STT | 〃 | — | `redux-q8_0` |
 | `phonon2-stt` | STT | 〃 | — | `phonon-2.5-q8_0` |
-| `nemotron-unified-asr` | STT | 〃 | — (CLI presets 0.16–2.08 s; SSE partials fast-follow) | `nemotron-labs-unified-asr-0.6b-q8_0` |
+| `nemotron-unified-asr` | STT | 〃 | — (CLI presets 0.16–2.08 s; parakeet-server has no partial surface) | `nemotron-labs-unified-asr-0.6b-q8_0` |
 | `canary-flash-stt` | STT | 〃 | — | `canary-180m-flash-int8` (en/de/es/fr + X↔EN translation via `CANARY_SRC_LANG`/`CANARY_TGT_LANG`) |
 | `parakeet-tdt-stt` | STT | 〃 | — | `parakeet-tdt-0.6b-v3-int8` (25 languages) |
-| `moonshine-streaming-stt` | STT | 〃 | — | `moonshine-streaming-medium` (CPU bundle) or `moonshine-streaming-medium-ort` (CUDA; auto-selected) |
+| `moonshine-streaming-stt` | STT | 〃 | **SSE partials** (`stream=true`; official CPU runtime, 320 ms cadence) or — on the CUDA ORT variant | `moonshine-streaming-medium` (CPU bundle) or `moonshine-streaming-medium-ort` (CUDA; auto-selected) |
 | `parakeet-tdt-ort-stt` | STT | 〃 | — | `parakeet-tdt-0.6b-v3-int4` |
 | `kokoro-tts` | TTS | wav/pcm | pcm chunked | af_heart, af_bella, bf_isabella, am_puck, bm_fable (24 kHz, `speed`) |
 | `paradee-tts` | TTS | wav/pcm | — (single chunk) | af_heart, bf_isabella, am_puck, bm_fable (24 kHz) |
