@@ -10,6 +10,7 @@ import asyncio
 import io
 import json
 import os
+import signal
 import threading
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -155,7 +156,21 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(f"{len(b):x}\r\n".encode() + b + b"\r\n")
         self.wfile.write(b"0\r\n\r\n")
 
+    def _auth_ok(self):
+        """Optional bearer-token gate (VOICE_API_TOKEN); unset = open."""
+        tok = os.environ.get("VOICE_API_TOKEN")
+        if not tok:
+            return True
+        return self.headers.get("Authorization", "") == f"Bearer {tok}"
+
     def do_GET(self):
+        # /health is exempt: orchestrator healthchecks cannot send the token
+        if self.path.split("?")[0] != "/health" and not self._auth_ok():
+            self._json(
+                401,
+                {"error": {"message": "invalid or missing bearer token", "type": "authentication_error"}},
+            )
+            return
         p = self.path.split("?")[0]
         if p == "/health":
             self._json(
@@ -169,6 +184,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json(404, {"error": {"message": "not found"}})
 
     def do_POST(self):
+        # /health is exempt: orchestrator healthchecks cannot send the token
+        if self.path.split("?")[0] != "/health" and not self._auth_ok():
+            self._json(
+                401,
+                {"error": {"message": "invalid or missing bearer token", "type": "authentication_error"}},
+            )
+            return
         if self.path.split("?")[0] != "/v1/audio/speech":
             self._json(404, {"error": {"message": "not found"}})
             return
@@ -242,5 +264,17 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(f"{len(data):x}\r\n".encode() + data + b"\r\n")
 
 
+def _serve():
+    """serve_forever with SIGTERM/SIGINT -> clean shutdown (fast docker stop)."""
+    srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+
+    def _stop(*_a):
+        threading.Thread(target=srv.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+    srv.serve_forever()
+
+
 if __name__ == "__main__":
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    _serve()

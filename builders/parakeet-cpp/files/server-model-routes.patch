@@ -39,3 +39,32 @@ index 7a7ec6b..4415d48 100644
      svr.Post("/v1/audio/transcriptions",
               [&](const httplib::Request& req, httplib::Response& res) {
          using namespace pkserver;
+@@ -164,7 +164,17 @@ int main(int argc, char** argv) {
+             res.set_content(error_body(msg, "invalid_request_error"), "application/json");
+         };
+ 
+-        if (!req.has_file("file")) { fail(400, "missing required field 'file'"); return; }
++        // (narandill voice-api patch) raw WAV body support: a non-multipart
++        // request carrying audio/wav or application/octet-stream has the audio
++        // as the raw body (docs/voice-api.md); `stream` is accepted and
++        // ignored (no SSE in v1).
++        const std::string ctype = req.get_header_value("Content-Type");
++        const bool has_file_field = req.has_file("file");
++        const bool raw_audio =
++            !has_file_field &&
++            (ctype.find("audio/wav") != std::string::npos ||
++             ctype.find("application/octet-stream") != std::string::npos);
++        if (!has_file_field && !raw_audio) { fail(400, "missing required field 'file'"); return; }
+ 
+         // response_format (default json)
+         Format fmt = Format::kJson;
+@@ -178,7 +188,8 @@ int main(int argc, char** argv) {
+         for (const auto& g : req.get_file_values("timestamp_granularities[]"))
+             if (g.content == "word") include_words = true;
+ 
+-        const std::string& bytes = req.get_file_value("file").content;
++        const std::string bytes =
++            raw_audio ? req.body : req.get_file_value("file").content;
+         std::vector<float> pcm;
+         int sr = 0;
+         if (!decode_wav_mem(bytes, pcm, sr)) {

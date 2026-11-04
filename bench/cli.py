@@ -100,6 +100,7 @@ def prune(
     newest `keep` dirs per task; everything else is superseded.
     """
     import shutil
+    import subprocess
 
     from .matrix import select_rows
 
@@ -122,11 +123,38 @@ def prune(
             if dry_run:
                 typer.echo(f"would remove {rel} ({sum(1 for _ in d.rglob('*'))} files)")
             else:
-                shutil.rmtree(d)
-                typer.echo(f"removed {rel}")
+                # git-aware: tracked dirs vanish from the index too
+                tracked = (
+                    subprocess.run(
+                        ["git", "ls-files", "--error-unmatch", str(rel)],
+                        capture_output=True,
+                    ).returncode
+                    == 0
+                )
+                if tracked:
+                    subprocess.run(["git", "rm", "-rq", str(rel)], check=True)
+                else:
+                    shutil.rmtree(d)
+                typer.echo(f"removed {rel} ({'git rm' if tracked else 'untracked'})")
             removed += 1
     typer.echo(
         f"{removed} dir(s) {'would be ' if dry_run else ''}removed (dry-run: rerun with --yes)"
+    )
+
+
+@app.command()
+def validate(config: str):
+    """Static config check — no GPU, no run (catch typos before a campaign)."""
+    import yaml
+
+    from .runner import validate_config
+
+    cfg = yaml.safe_load(Path(config).read_text())
+    validate_config(cfg)
+    n_serve = sum(1 for e in cfg["engines"] if e.get("serve"))
+    typer.echo(
+        f"config OK: task={cfg['task']}, {len(cfg['engines'])} engine(s), "
+        f"{n_serve} served"
     )
 
 

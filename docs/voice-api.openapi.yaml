@@ -1,0 +1,148 @@
+# voice-api v1 — OpenAPI schema (hand-maintained alongside docs/voice-api.md).
+# The contract prose wins on any conflict. Deviations from this schema are
+# tracked in docs/voice-api.md (see the per-image roster note).
+openapi: 3.1.0
+info:
+  title: edge-containers voice-api
+  version: '1.0'
+  description: >-
+    OpenAI-aligned speech contract served by the STT/TTS engine images.
+    STT: POST /v1/audio/transcriptions. TTS: POST /v1/audio/speech.
+    Discovery: GET /v1/voices (+ /v1/models alias on STT images).
+    Optional bearer auth via the VOICE_API_TOKEN env (/health always open).
+servers:
+  - url: http://localhost:8080
+    description: STT images (parakeet-server family, sherpa/onnx family)
+  - url: http://localhost:8880
+    description: TTS images (kokoro, paradee, phonon31m)
+  - url: http://localhost:8000
+    description: pocket-tts
+  - url: http://localhost:10200
+    description: wyoming-piper1-tts (HA-native TCP — NOT this schema)
+paths:
+  /health:
+    get:
+      summary: Liveness + engine info (never token-gated)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, example: ok}
+                  engine: {type: string}
+                  version: {type: string}
+                  device: {type: string, enum: [cuda, cpu]}
+  /v1/voices:
+    get:
+      summary: The baked voice(s)/model(s) — one entry per image
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  object: {type: string, example: list}
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string, description: STT model id / TTS voice name}
+                        object: {type: string, example: voice}
+                        task: {type: string, enum: [stt, tts]}
+                        sample_rate: {type: integer}
+                        languages: {type: array, items: {type: string}}
+                        streaming: {type: boolean}
+                        engine: {type: string, description: the model id a request must send}
+  /v1/models:
+    get:
+      summary: STT-only alias of /v1/voices (OpenAI clients probe this first)
+      responses:
+        '200': {description: OK}
+  /v1/audio/transcriptions:
+    post:
+      summary: Speech recognition
+      description: >-
+        multipart/form-data (OpenAI subset) or a raw WAV body
+        (Content-Type: audio/wav or application/octet-stream). `stream=true`
+        is accepted and ignored on engines without partial support.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 16-bit PCM WAV preferred; decoded in memory
+                model:
+                  type: string
+                  description: must equal the /v1/voices id (400 otherwise)
+                response_format: {type: string, default: json, enum: [json, text, verbose_json]}
+                language: {type: string, description: honored where the model supports it}
+          audio/wav:
+            schema: {type: string, format: binary}
+          application/octet-stream:
+            schema: {type: string, format: binary}
+      responses:
+        '200':
+          description: Transcription (shape depends on response_format)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text: {type: string}
+            text/plain:
+              schema: {type: string}
+            application/json-vendor-verbose:
+              schema:
+                type: object
+                properties:
+                  task: {type: string, example: transcribe}
+                  text: {type: string}
+                  duration: {type: number}
+        '400': {description: invalid model / missing file / undecodable audio}
+  /v1/audio/speech:
+    post:
+      summary: Speech synthesis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input]
+              properties:
+                input: {type: string}
+                voice: {type: string, description: a /v1/voices id (engine default if omitted)}
+                model: {type: string, description: engine id, validated like STT}
+                response_format: {type: string, default: wav, enum: [wav, pcm]}
+                speed: {type: number, minimum: 0.25, maximum: 4, description: honored by kokoro/piper-family}
+      responses:
+        '200':
+          description: Audio
+          headers:
+            X-Sample-Rate:
+              description: PCM/WAV sample rate (24000 everywhere; piper 22050)
+              schema: {type: integer}
+          content:
+            audio/wav: {schema: {type: string, format: binary}}
+            application/octet-stream:
+              schema: {type: string, format: binary}
+              description: raw s16le PCM; chunked transfer when the engine streams
+        '400': {description: unknown voice/model, bad response_format, empty input}
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: Optional — active only when the server runs with VOICE_API_TOKEN set
+security: []

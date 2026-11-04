@@ -11,6 +11,9 @@
 
 ARG BUILDER_BASE=nvidia/cuda:13.2.1-devel-ubuntu24.04
 ARG PARAKEET_CPP_REF=master
+# Cap compile parallelism on shared hosts (RAM guard; 0 = nproc). A -j14 CUDA
+# build peaks ~14-28 GB — the 2026-11-03 OOM rule applies while vllm serves.
+ARG PARALLEL_JOBS=0
 
 FROM ${BUILDER_BASE} AS builder
 
@@ -50,7 +53,7 @@ RUN cmake -B /src/parakeet.cpp/build -S /src/parakeet.cpp \
         -DCMAKE_CUDA_HOST_COMPILER="$(command -v gcc-11 || command -v gcc)" \
         -DPARAKEET_GGML_CUDA=ON \
         -DGGML_NATIVE=OFF \
-    && cmake --build /src/parakeet.cpp/build --parallel "$(nproc)" \
+    && cmake --build /src/parakeet.cpp/build --parallel "$( [ "${PARALLEL_JOBS}" -gt 0 ] && echo "${PARALLEL_JOBS}" || nproc )" \
 # Upstream ships no cmake install rules and no global RUNTIME_OUTPUT_DIRECTORY:
 # executables sit next to their CMakeLists (build/examples/cli/...). Find them.
     && mkdir -p /opt/parakeet-dist/bin /opt/parakeet-dist/lib \

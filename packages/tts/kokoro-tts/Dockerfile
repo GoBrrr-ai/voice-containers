@@ -82,3 +82,6 @@ ENV PATH="/opt/venv/bin:${PATH}" \
 # voice-api v1 (docs/voice-api.md); see the package README for the CLIs
 EXPOSE 8880
 CMD ["voice-server"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=300s --retries=3 \
+    CMD python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8880/health', timeout=4).status == 200 else 1)" || exit 1

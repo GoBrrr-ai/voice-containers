@@ -541,11 +541,11 @@ def run_container_job(
     return meta
 
 
-def run_config(config_path: str) -> str:
-    """Execute the spec §9.1 protocol for one config. Returns run_id."""
-    import yaml
+def validate_config(cfg: dict) -> None:
+    """Static config validation — shared by run_config and `bench.cli validate`.
 
-    cfg = yaml.safe_load(Path(config_path).read_text())
+    Raises SystemExit via _fail on the first problem; silent on success.
+    """
     unknown = set(cfg) - KNOWN_KEYS
     if unknown:
         _fail(f"unknown keys {sorted(unknown)} (typo or unsupported knob)")
@@ -560,6 +560,13 @@ def run_config(config_path: str) -> str:
         _fail("probes.tegrastats must be auto/true/false")
     if int(cfg.get("repeats", 1)) != 1:
         _fail("repeats > 1 is not implemented yet — set repeats: 1")
+    if cfg.get("task") not in ("stt", "tts"):
+        _fail(f"task {cfg.get('task')!r} must be 'stt' or 'tts'")
+    if not cfg.get("engines"):
+        _fail("engines[] is empty — nothing to run")
+    for eng in cfg["engines"]:
+        if not eng.get("name") or not eng.get("image"):
+            _fail(f"engine entry missing name/image: {eng}")
     # serve mode validation (docs/voice-api.md): per-engine voice-server flag
     for eng in cfg["engines"]:
         if serve := eng.get("serve"):
@@ -575,6 +582,14 @@ def run_config(config_path: str) -> str:
                     "docker-runs the image's own server and drives it from "
                     "the host"
                 )
+
+
+def run_config(config_path: str) -> str:
+    """Execute the spec §9.1 protocol for one config. Returns run_id."""
+    import yaml
+
+    cfg = yaml.safe_load(Path(config_path).read_text())
+    validate_config(cfg)
     # co-tenancy gate BEFORE touching anything: if the GPU is busy, wait for a
     # clean window or defer (never measure contaminated, never kill tenants)
     gpu_backends = [
