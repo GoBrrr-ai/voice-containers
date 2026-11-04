@@ -1,0 +1,1 @@
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_nemo_q4k", "image": "narandill/nemotron-unified-asr:0.2.0", "requested_backend": "cuda", "container": "bench-stt-parakeet_cpp_nemo_q4k-1793811434", "exit": 0, "wall_ns": 72358970312, "served": true, "host_port": 53667}

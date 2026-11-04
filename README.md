@@ -106,11 +106,14 @@ disk); **anon MiB** is true process memory.
 
 | engine | model | backend | WER | CER | SER | halluc. | RTF p50 | RTF p90 | lat p50 (s) | lat p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 🥇 parakeet-tdt-ort-stt | parakeet-tdt 0.6B v3 int4 (ORT) | cuda | 0.0194 | 0.0061 | 0.2540 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#3fb950}{\text{0.0103}}$ | $\color{#3fb950}{\text{0.0194}}$ | $\color{#3fb950}{\text{0.0661}}$ | $\color{#3fb950}{\text{0.0968}}$ | 1,130 | 1,076 | 20 |
-| 🥈 parakeet-redux-stt | parakeet-redux 178M q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0173 | 0.0311 | 0.1110 | 0.1907 | 607 | 562 | 26 |
-| 🥉 nemotron-unified-asr | nemotron-unified 0.6B q8_0 | cuda | 0.0189 | 0.0057 | $\color{#3fb950}{\text{0.2300}}$ | $\color{#3fb950}{\text{0.0000}}$ | 0.0236 | 0.2639 | 0.1472 | 2.1773 | 642 | 589 | 46 |
+| 🥇 nemotron-unified-asr | nemotron-unified 0.6B q4_k | cuda | 0.0184 | $\color{#3fb950}{\text{0.0049}}$ | $\color{#3fb950}{\text{0.2300}}$ | $\color{#3fb950}{\text{0.0000}}$ | 0.0183 | 0.0312 | 0.1190 | 0.2072 | 652 | 602 | 13 |
+| 🥈 parakeet-tdt-cpp-stt | parakeet-tdt 0.6B v3 q4_k (cpp) | cuda | 0.0202 | 0.0062 | 0.2760 | $\color{#3fb950}{\text{0.0000}}$ | 0.0167 | 0.0303 | 0.1072 | 0.1787 | 632 | 585 | 13 |
+| 🥉 phonon2-stt | phonon-2.5 q4_k | cuda | 0.0207 | 0.0062 | 0.2680 | $\color{#3fb950}{\text{0.0000}}$ | 0.0173 | 0.0307 | 0.1111 | 0.1835 | 628 | 577 | 13 |
+| parakeet-tdt-ort-stt | parakeet-tdt 0.6B v3 int4 (ORT) | cuda | 0.0194 | 0.0061 | 0.2540 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#3fb950}{\text{0.0103}}$ | $\color{#3fb950}{\text{0.0194}}$ | $\color{#3fb950}{\text{0.0661}}$ | $\color{#3fb950}{\text{0.0968}}$ | 1,130 | 1,076 | 20 |
+| parakeet-redux-stt | parakeet-redux 178M q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0173 | 0.0311 | 0.1110 | 0.1907 | 607 | 562 | 26 |
+| nemotron-unified-asr | nemotron-unified 0.6B q8_0 | cuda | 0.0189 | 0.0057 | $\color{#3fb950}{\text{0.2300}}$ | $\color{#3fb950}{\text{0.0000}}$ | 0.0236 | 0.2639 | 0.1472 | 2.1773 | 642 | 589 | 46 |
 | canary-flash-stt | canary-180m-flash int8 | cpu | 0.0204 | 0.0055 | 0.2500 | $\color{#3fb950}{\text{0.0000}}$ | 0.1704 | 0.2369 | 1.0269 | 3.9638 | 882 | 864 | — (CPU) |
-| nemotron-unified-asr | nemotron-unified 0.6B q4_k | cuda | $\color{#3fb950}{\text{0.0181}}$ | $\color{#3fb950}{\text{0.0050}}$ | 0.2320 | $\color{#3fb950}{\text{0.0000}}$ | 0.1013 | 0.2227 | 0.6458 | 0.7582 | 1,679 | 777 | 7 |
+| nemotron-unified-asr | nemotron-unified 0.6B q4_k | cuda | $\color{#3fb950}{\text{0.0181}}$ | 0.0050 | 0.2320 | $\color{#3fb950}{\text{0.0000}}$ | 0.1013 | 0.2227 | 0.6458 | 0.7582 | 1,679 | 777 | 7 |
 | parakeet-tdt-stt | parakeet-tdt 0.6B v3 int8 | cpu | 0.0228 | 0.0077 | 0.2960 | $\color{#3fb950}{\text{0.0000}}$ | 0.1159 | 0.1308 | 0.7192 | 1.9560 | 1,605 | 1,581 | — (CPU) |
 | parakeet-tdt-cpp-stt | parakeet-tdt 0.6B v3 q4_k (cpp) | cuda | 0.0202 | 0.0062 | 0.2760 | $\color{#3fb950}{\text{0.0000}}$ | 0.0963 | 0.2143 | 0.6170 | 0.7178 | 1,683 | 778 | 7 |
 | phonon2-stt | phonon-2.5 q4_k | cuda | 0.0207 | 0.0062 | 0.2680 | $\color{#3fb950}{\text{0.0000}}$ | 0.0982 | 0.2136 | 0.6218 | 0.7318 | 1,670 | 778 | 7 |
@@ -125,7 +128,7 @@ disk); **anon MiB** is true process memory.
 | nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cpu | 0.0259 | 0.0083 | 0.3100 | $\color{#3fb950}{\text{0.0000}}$ | 0.7777 | 0.7998 | 4.9759 | 13.6 | 1,511 | 1,481 | — (CPU) |
 | nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cuda | 0.0262 | 0.0085 | 0.3080 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.8127}}$ | $\color{#f85149}{\text{1.3220}}$ | $\color{#f85149}{\text{5.7140}}$ | $\color{#f85149}{\text{17.2}}$ | 1,966 | 1,801 | 19 |
 
-> *500 utterances · 18 configurations · 🥇 **parakeet-tdt 0.6B v3 int4 (ORT)** at **1.94% WER**
+> *500 utterances · 21 configurations · 🥇 **nemotron-unified 0.6B q4_k** at **1.84% WER**
 (🥇🥈🥉 = composite top 3); fastest RTF p50
 **0.010**. Green = best in column, red = worst. GPU W is the
 tegrastats module draw over each engine's window; the packed-CPU engine has none
