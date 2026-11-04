@@ -38,6 +38,21 @@ services:
     volumes:
       - ${STT_MODEL_DIR:-./models}:/models:ro
 
+  # --------------------------------------- streaming STT option (profile stream)
+  # nemotron-streaming voice-server: SSE partials (stream=true), ~394 MiB VRAM
+  # on cuda (smallest GPU footprint in the roster); set STT_STREAM_PROVIDER=cpu
+  # for the CPU-only budget. Pairs with the tts service over voice-api.
+  stt-stream:
+    <<: *voice-common
+    image: ${STT_STREAM_IMAGE:-narandill/nemotron-streaming-stt:0.2.0}
+    profiles: [stream]
+    environment:
+      <<: *voice-env
+      NEMOSTREAM_PROVIDER: ${STT_STREAM_PROVIDER:-cuda}
+      VOICE_API_TOKEN: ${VOICE_API_TOKEN:-}
+    ports:
+      - "${STT_STREAM_PORT:-8081}:8080"
+
   tts:
     <<: *voice-common
     image: ${TTS_IMAGE:-narandill/phonon31m-tts:0.1.0}
