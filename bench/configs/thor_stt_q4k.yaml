@@ -1,0 +1,56 @@
+# Thor STT q4_k rows (S4, 2026-11-04) — the Orin Nano 8 GB budget tier.
+# Same cohort as thor_stt_baseline (device/power/manifest/seed) so the rows
+# land in the same matrix; run_name contains "baseline" so the default
+# select_rows(include="baseline") filter includes it. Explicit `id:`s — no
+# index coupling with the anchor config. One run, three q4_k GGUFs, all
+# already baked in their images; the server picks the file via
+# PARAKEET_MODEL (opts.model is NOT sent over the API — server-authoritative).
+run_name: thor_stt_baseline_q4k
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 500
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: parakeet_cpp            # nemo q4_k — the 674 MB Orin-budget GGUF
+    id: parakeet_cpp_nemo_q4k
+    image: narandill/nemotron-unified-asr:0.2.0
+    backends: [cuda]
+    serve:
+      port: 8080
+      transport: openai
+      env: {PARAKEET_MODEL: /models/nemotron-labs-unified-asr-0.6b-q4_k.gguf}
+    opts:
+      model: /models/nemotron-labs-unified-asr-0.6b-q4_k.gguf
+      lang: en
+  - name: parakeet_cpp            # phonon-2.5 q4_k — same budget tier
+    id: parakeet_cpp_phonon_q4k
+    image: narandill/phonon2-stt:0.2.0
+    backends: [cuda]
+    serve:
+      port: 8080
+      transport: openai
+      env: {PARAKEET_MODEL: /models/phonon-2.5-english-q4_k.gguf}
+    opts:
+      model: /models/phonon-2.5-english-q4_k.gguf
+  - name: parakeet_cpp            # tdt-0.6b-v3 q4_k (cpp) — image's only/baked model
+    id: parakeet_cpp_tdt_q4k
+    image: narandill/parakeet-tdt-cpp-stt:0.1.0
+    backends: [cuda]
+    serve: {port: 8080, transport: openai}
+    opts:
+      model: /models/tdt-0.6b-v3-q4_k.gguf
+streaming: {chunk_ms: 160, realtime_pass: false}
+warmup_n: 5
+repeats: 1
+cooldown_s: 60
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+output_dir: results

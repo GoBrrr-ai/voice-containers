@@ -1,0 +1,1 @@
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_tdt_q4k", "image": "narandill/parakeet-tdt-cpp-stt:0.1.0", "requested_backend": "cuda", "container": "bench-stt-parakeet_cpp_tdt_q4k-1793811694", "exit": 0, "wall_ns": 64326020486, "served": true, "host_port": 55655}

@@ -1,0 +1,3 @@
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_nemo_q4k", "load_ns_after_imports": 82609119647021, "actual_backend": "remote:openai", "requested_backend": "cuda"}
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_phonon_q4k", "load_ns_after_imports": 82741831003089, "actual_backend": "remote:openai", "requested_backend": "cuda"}
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_tdt_q4k", "load_ns_after_imports": 82868722945187, "actual_backend": "remote:openai", "requested_backend": "cuda"}
