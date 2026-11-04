@@ -173,7 +173,7 @@ class OpenAITTSRemote:
                 if usable:
                     yield np.frombuffer(buf[:usable], dtype=np.int16), sr
                     buf = buf[usable:]
-            if buf:
+            if len(buf) >= 2:  # odd trailing byte cannot be framed s16le
                 yield np.frombuffer(buf[: len(buf) // 2 * 2], dtype=np.int16), sr
 
 
@@ -204,7 +204,9 @@ class WyomingTTSRemote:
             async with AsyncTcpClient(self.host, self.port) as client:
                 await client.write_event(Synthesize(text=text).event())
                 while True:
-                    ev = await client.read_event()
+                    # bounded: a wedged server must surface as an error row,
+                    # never hang the borrowed clean GPU window
+                    ev = await asyncio.wait_for(client.read_event(), 600)
                     if ev is None:
                         return
                     t = ev.type
@@ -226,6 +228,10 @@ class WyomingTTSRemote:
                 except StopAsyncIteration:
                     break
         finally:
+            try:
+                loop.run_until_complete(it.aclose())
+            except Exception:
+                pass
             loop.close()
 
     def synthesize(self, text: str):
@@ -284,9 +290,11 @@ class WyomingSTTRemote:
                     )
                 await client.write_event(AudioStop().event())
                 while True:
-                    ev = await client.read_event()
+                    ev = await asyncio.wait_for(client.read_event(), 600)
                     if ev is None:
-                        return ""
+                        # server closed before Transcript — an honest error row
+                        # beats a silent empty transcript that poisons WER
+                        raise ConnectionError("wyoming server closed before Transcript")
                     if Transcript.is_type(ev.type):
                         return Transcript.from_event(ev).text
 
