@@ -4,7 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 TAG="${TAG:-narandill/edge-wheels:cu132}"
-docker build --target builder -t "$TAG" .
+# PARALLEL_JOBS=0 -> nproc (default); set lower on shared hosts
+docker build --build-arg PARALLEL_JOBS="${PARALLEL_JOBS:-0}" --target builder -t "$TAG" .
 echo "Done: $TAG"
 echo "Wheels:"
 docker run --rm --runtime=runc --entrypoint ls "$TAG" /wheels

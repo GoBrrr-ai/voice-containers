@@ -14,6 +14,9 @@
 # =============================================================================
 
 ARG BUILDER_BASE=nvidia/cuda:13.2.1-devel-ubuntu24.04
+# CT2 parallelism cap (0 = nproc); the ORT build below is already RAM-adaptive.
+# A -j14 nvcc build peaks ~28-40 GB — cap on shared hosts (2026-11-03 OOM rule).
+ARG PARALLEL_JOBS=0
 ARG RUNTIME_BASE=nvidia/cuda:13.2.1-runtime-ubuntu24.04
 
 ARG CTRANSLATE2_REF=v4.8.4
@@ -50,6 +53,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && python3 -m pip install --break-system-packages uv numpy packaging wheel
 
 COPY patches/ /tmp/patches/
+# (2026-11-04 restructure) 0003 lives in patches-va/ and is copied LATE so
+# editing the piper streaming patch never invalidates the CT2/ORT layers
+# again. .dockerignore keeps patches/0003 out of the early context.
+COPY patches-va/ /tmp/patches-va/
 
 # --- libcuda stub: SONAME-correct symlink so executables link (builder-only) -
 RUN if [ -f /usr/local/cuda/lib64/stubs/libcuda.so ]; then \
@@ -69,7 +76,7 @@ RUN cmake -B /src/CTranslate2/build -S /src/CTranslate2 \
         -DCUDA_ARCH_LIST="8.7+PTX" \
         -DCUDA_NVCC_FLAGS="-gencode=arch=compute_110,code=sm_110;-gencode=arch=compute_110,code=compute_110" \
         -DCMAKE_INSTALL_PREFIX=/opt/ct2-dist \
-    && cmake --build /src/CTranslate2/build --parallel "$(nproc)" \
+    && cmake --build /src/CTranslate2/build --parallel "$( [ "${PARALLEL_JOBS}" -gt 0 ] && echo "${PARALLEL_JOBS}" || nproc )" \
     && cmake --install /src/CTranslate2/build \
     && cp -r /opt/ct2-dist/* /usr/local/ && ldconfig
 
@@ -123,7 +130,7 @@ RUN git clone --depth 1 --branch "${WYOMING_PIPER_REF}" \
     # voice-api: stream piper1-gpl's in-memory sentence chunks straight onto
     # the wyoming socket — the tempfile WAV roundtrip is gone entirely (and
     # --sentence-silence now sits between sentences, its documented semantic).
-    && git apply --verbose /tmp/patches/0003-*.patch \
+    && git apply --verbose /tmp/patches-va/0003-*.patch \
     && uv build --wheel --out-dir /wheels .
 
 # --- pre-build pysilero-vad wheel (compiled ggml ext; avoid compiling in the
