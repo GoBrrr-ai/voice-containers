@@ -87,6 +87,7 @@ JSON body (OpenAI subset):
 | `nemotron-unified-asr` | STT | 〃 | — (CLI presets 0.16–2.08 s; parakeet-server has no partial surface) | `nemotron-labs-unified-asr-0.6b-q8_0` |
 | `canary-flash-stt` | STT | 〃 | — | `canary-180m-flash-int8` (en/de/es/fr + X↔EN translation via `CANARY_SRC_LANG`/`CANARY_TGT_LANG`) |
 | `parakeet-tdt-stt` | STT | 〃 | — | `parakeet-tdt-0.6b-v3-int8` (25 languages) |
+| `nemotron-streaming-stt` | STT | 〃 | **SSE partials** (`stream=true`; sherpa 160 ms profile, slice cadence) | `nemotron-streaming-160ms` |
 | `moonshine-streaming-stt` | STT | 〃 | **SSE partials** (`stream=true`; official CPU runtime, 320 ms cadence) or — on the CUDA ORT variant | `moonshine-streaming-medium` (CPU bundle) or `moonshine-streaming-medium-ort` (CUDA; auto-selected) |
 | `parakeet-tdt-ort-stt` | STT | 〃 | — | `parakeet-tdt-0.6b-v3-int4` |
 | `kokoro-tts` | TTS | wav/pcm | pcm chunked | af_heart, af_bella, bf_isabella, am_puck, bm_fable (24 kHz, `speed`) |

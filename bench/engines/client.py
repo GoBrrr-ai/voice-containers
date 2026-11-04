@@ -417,13 +417,13 @@ class NemotronStreaming:
 
     Cache-aware native streaming with the 160 ms latency profile baked into
     the graph; v1 benches the canonical whole-utterance feed (the graph
-    chunks internally — never pre-chunk). Streaming-partial metrics are a
-    fast-follow.
+    chunks internally — never pre-chunk). transcribe_stream appends 160 ms
+    slices and drains is_ready/decode_stream per slice for genuine partials.
     """
 
     name = "nemotron_streaming"
     backends = {"cpu", "cuda"}
-    supports_streaming = False
+    supports_streaming = True
     required_sample_rate = 16000
 
     def __init__(self, opts):
@@ -456,6 +456,43 @@ class NemotronStreaming:
             self._r.decode_stream(stream)
         result = self._r.get_result(stream)
         return (result if isinstance(result, str) else result.text).strip()
+
+    def transcribe_stream(self, pcm, sr: int, wav_path: str | None = None):
+        """Yield (text, is_final, t_ns): 160 ms slices appended as they
+        'arrive' (the graph chunks internally per its baked profile), decode
+        whenever ready, emit on text change; canonical 0.2 s tail +
+        input_finished + drain for the final."""
+        import time
+
+        import numpy as np
+
+        samples = _to_float(pcm)
+        if sr != 16000:
+            import soxr
+
+            samples = soxr.resample(samples, sr, 16000)
+            sr = 16000
+        stream = self._r.create_stream()
+        last = ""
+        for i in range(0, len(samples), int(0.16 * sr)):
+            stream.accept_waveform(sr, samples[i : i + int(0.16 * sr)])
+            while self._r.is_ready(stream):
+                self._r.decode_stream(stream)
+            result = self._r.get_result(stream)
+            txt = (result if isinstance(result, str) else result.text).strip()
+            if txt and txt != last:
+                last = txt
+                yield txt, False, time.perf_counter_ns()
+        stream.accept_waveform(sr, np.zeros(int(0.2 * sr), dtype=np.float32))
+        stream.input_finished()
+        while self._r.is_ready(stream):
+            self._r.decode_stream(stream)
+        result = self._r.get_result(stream)
+        yield (
+            (result if isinstance(result, str) else result.text).strip() or last,
+            True,
+            time.perf_counter_ns(),
+        )
 
 
 class ParakeetTdtOrt:
@@ -970,9 +1007,40 @@ def run_sample(
                 pcm = w.readframes(w.getnframes())
                 sr = w.getframerate()
             t1 = _now_ns()
-            text = eng.transcribe(pcm, sr, wav_path=s["audio_path"])
-            t2 = _now_ns()
-            rec_utt.update(hyp_raw=text, proc_ns=t2 - t1, feed_mode="fast", status="ok")
+            if (
+                job.get("streaming")
+                and getattr(eng, "supports_streaming", False)
+                and hasattr(eng, "transcribe_stream")
+            ):
+                # realtime pass (M8): SSE partials with per-event timing; the
+                # stream's final event is the transcript (== canonical text).
+                # Incapable engines degrade to one final -> feed_mode "fast".
+                first = n_partials = 0
+                saw_stream = False
+                text = ""
+                for text, is_final, t_ns in eng.transcribe_stream(
+                    pcm, sr, wav_path=s["audio_path"]
+                ):
+                    if not is_final:
+                        saw_stream = True
+                        n_partials += 1
+                        first = first or t_ns
+                t2 = _now_ns()
+                rec_utt.update(
+                    hyp_raw=text,
+                    proc_ns=t2 - t1,
+                    feed_mode="stream" if saw_stream else "fast",
+                    status="ok",
+                )
+                if saw_stream:
+                    rec_utt["ttfp_ns"] = (first or t2) - t1
+                    rec_utt["partials_n"] = n_partials
+            else:
+                text = eng.transcribe(pcm, sr, wav_path=s["audio_path"])
+                t2 = _now_ns()
+                rec_utt.update(
+                    hyp_raw=text, proc_ns=t2 - t1, feed_mode="fast", status="ok"
+                )
         else:
             import numpy as np  # lazy: parakeet images ship no numpy
 

@@ -18,9 +18,26 @@ the report. INT8 encoder 653 MB + decoder 7.3 + joiner 1.7 MB.
 ## Run
 
 ```sh
+# voice-api v1 server (the default CMD — SSE partials via stream=true)
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 \
+  -e NEMOSTREAM_PROVIDER=cuda -p 8080:8080 narandill/nemotron-streaming-stt:0.2.0
+# CLI (in-process container-mode benches + humans)
 docker run --rm -v /data:/data --entrypoint nemotron-stream-transcribe \
-  narandill/nemotron-streaming-stt:0.1.0 /audio/x.wav
+  narandill/nemotron-streaming-stt:0.2.0 /audio/x.wav
 ```
+
+- **voice-api v1** (`rootfs/usr/local/bin/voice-server`, stdlib-only): `/health`,
+  `/v1/voices` (`streaming: true`), `/v1/models`, and `POST
+  /v1/audio/transcriptions` with **SSE partials** — `stream=true` (multipart
+  field or query param) yields `event: partial {text}` on text change at the
+  160 ms slice cadence, then one `event: final {text, duration}`. The
+  canonical offline path (whole utterance + 0.2 s tail) serves the non-stream
+  response shapes. Optional `VOICE_API_TOKEN` gate (/health exempt).
+- **Measured (Thor, 500-utt pilot)**: TTFP p50 ~0.53 s (cuda) with ~26
+  partials/utterance; RTF ~0.8 on BOTH providers — the tiny-chunk decode is
+  launch-bound, so GPU ≈ CPU for this model; the win is the footprint
+  (~394 MiB VRAM, smallest in the GPU roster) + true streaming, not
+  throughput.
 
 **Positioning (report rank #3):** best streaming design; at the memory
 budget limit, CPU speed unproven until benched (A78AE is much slower than

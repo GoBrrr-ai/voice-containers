@@ -1,0 +1,52 @@
+# Thor STT realtime-pass rows (M8 phase 2, 2026-11-04) — the streaming
+# cohort: `realtime_pass: true` drives the SSE partials endpoint and records
+# ttfp_s / partials_n per utterance (feed_mode: "stream"). Same frozen
+# manifest/seed as the anchor so rows stay cohort-comparable; run_name does
+# NOT contain "baseline" — the stream view is selected via --include stream
+# until the owner wants a README table. Engine ids are explicit (no index
+# coupling with the anchor configs).
+run_name: thor_stt_stream
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 500
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: nemotron_streaming     # NEW voice-server (sherpa 160 ms profile, SSE)
+    id: nemotron_streaming_serve_cuda
+    image: narandill/nemotron-streaming-stt:0.2.0
+    backends: [cuda]
+    serve:
+      port: 8080
+      transport: openai
+      env: {NEMOSTREAM_PROVIDER: cuda}
+    opts:
+      encoder: /models/nemotron-streaming-160ms/encoder.int8.onnx
+      decoder: /models/nemotron-streaming-160ms/decoder.int8.onnx
+      joiner: /models/nemotron-streaming-160ms/joiner.int8.onnx
+      tokens: /models/nemotron-streaming-160ms/tokens.txt
+  - name: moonshine              # official streaming runtime (CPU-fused), SSE
+    id: moonshine_stream_sse
+    image: narandill/moonshine-streaming-stt:0.2.0
+    backends: [cpu]
+    serve:
+      port: 8080
+      transport: openai
+      env: {MOONSHINE_ENGINE: streaming, DEVICE: cpu}
+    opts:
+      model_dir: /models/moonshine-streaming-en
+      model_arch: 5
+streaming: {chunk_ms: 160, realtime_pass: true}
+warmup_n: 2
+repeats: 1
+cooldown_s: 30
+soak_minutes: 0
+probes: {interval_ms: 100, tegrastats: auto}
+output_dir: results
