@@ -1,0 +1,80 @@
+# =============================================================================
+# edge-voice — the voice stack as a deployment (Orin Nano 8 GB Option A default)
+#
+# The default service set is the co-location-safe CPU pair measured in
+# task/orin-nano-8gb-plan.md §3 Option A (parakeet packed CPU + phonon-31m
+# CPU = ~1.23 GB pool, 0 GPU-side) plus an optional llama.cpp LLM.
+# For the Thor bench box, flip STT_IMAGE/TTS_DEVICE in .env (see README).
+#
+# Prereqs: images pulled from Docker Hub (task/wiki/publishing.md), nvidia
+# container toolkit configured (Jetson default), and `cp .env.example .env`.
+#
+#   docker compose --profile llm up -d          # voice-api pair + llama.cpp
+#   docker compose --profile ha up -d           # HA-native wyoming pair
+#   docker compose --profile ha --profile llm up -d
+# =============================================================================
+name: edge-voice
+
+x-voice-common: &voice-common
+  restart: unless-stopped
+  runtime: nvidia
+  environment: &voice-env
+    NVIDIA_DISABLE_REQUIRE: "1"          # our cu132 base images fail the hook check on L4T
+    VOICE_API_TOKEN: ${VOICE_API_TOKEN:-}  # unset = open (private net); set = bearer required
+  # healthchecks are baked into the images (30s interval, 300s start period)
+
+services:
+  # ------------------------------------------------ voice-api pair (Nexus path)
+  stt:
+    <<: *voice-common
+    image: ${STT_IMAGE:-narandill/parakeet-redux-stt:0.1.0}
+    environment:
+      <<: *voice-env
+      PARAKEET_DEVICE: ${STT_DEVICE:-cpu}   # cpu = Orin Option A; unset for Thor GPU
+      NVIDIA_DISABLE_REQUIRE: "1"
+      VOICE_API_TOKEN: ${VOICE_API_TOKEN:-}
+    ports:
+      - "${STT_PORT:-8080}:8080"
+    volumes:
+      - ${STT_MODEL_DIR:-./models}:/models:ro
+
+  tts:
+    <<: *voice-common
+    image: ${TTS_IMAGE:-narandill/phonon31m-tts:0.1.0}
+    environment:
+      <<: *voice-env
+      TTS_DEVICE: ${TTS_DEVICE:-cpu}
+      VOICE_API_TOKEN: ${VOICE_API_TOKEN:-}
+    ports:
+      - "${TTS_PORT:-8880}:8880"
+
+  # ------------------------------------------------ LLM (llama.cpp, profile llm)
+  llm:
+    <<: *voice-common
+    image: ${LLM_IMAGE:-narandill/llama-cpp:0.8.0}
+    profiles: [llm]
+    command: >-
+      llama-server --host 0.0.0.0 --port 8080
+      --model /models/${LLM_MODEL:-Qwen3-4B-Instruct-2507-Q4_K_M.gguf}
+      --ctx-size ${LLM_CTX:-8192} --flash-attn
+    environment:
+      NVIDIA_DISABLE_REQUIRE: "1"
+    ports:
+      - "${LLM_PORT:-8088}:8080"
+    volumes:
+      - ${LLM_MODEL_DIR:-./models}:/models:ro
+
+  # ------------------------------- HA-native wyoming pair (profile ha, no HTTP)
+  wyoming-stt:
+    <<: *voice-common
+    image: narandill/wyoming-faster-whisper:0.1.0
+    profiles: [ha]
+    ports:
+      - "${WYOMING_STT_PORT:-10300}:10300"
+
+  wyoming-tts:
+    <<: *voice-common
+    image: narandill/wyoming-piper1-tts:0.1.0
+    profiles: [ha]
+    ports:
+      - "${WYOMING_TTS_PORT:-10200}:10200"
