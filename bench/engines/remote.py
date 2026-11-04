@@ -121,7 +121,13 @@ class OpenAITTSRemote:
         from openai import OpenAI
 
         self._client = OpenAI(base_url=self.base + "/v1", api_key="local")
-        voices = self._client.get("/v1/voices")["data"]
+        # discovery via stdlib — the SDK's low-level .get() demands cast_to,
+        # and typed resources don't cover our /v1/voices shape
+        import json as _json
+        import urllib.request as _ur
+
+        with _ur.urlopen(self.base + "/v1/voices", timeout=30) as r:
+            voices = _json.loads(r.read())["data"]
         if not self._model:
             # voice entries carry the engine id == the `model` the server
             # validates against (docs/voice-api.md)
@@ -144,16 +150,18 @@ class OpenAITTSRemote:
         return kw
 
     def synthesize(self, text: str):
-        with self._client.audio.speech.with_streaming_response.create(
-            **self._speech_kwargs(text, "wav")
-        ) as r:
-            return _wav_read(r.content)
+        # plain create() -> HttpxBinaryResponseContent (.content); the
+        # with_streaming_response variant yields a StreamedBinaryAPIResponse
+        # that has no .content
+        r = self._client.audio.speech.create(**self._speech_kwargs(text, "wav"))
+        return _wav_read(r.content)
 
     def synthesize_stream(self, text: str):
         with self._client.audio.speech.with_streaming_response.create(
             **self._speech_kwargs(text, "pcm")
         ) as r:
-            sr = int(r.response.headers.get("X-Sample-Rate") or self.output_sample_rate)
+            # StreamedBinaryAPIResponse exposes .headers directly (no .response)
+            sr = int(r.headers.get("X-Sample-Rate") or self.output_sample_rate)
             # chunked read may split mid-sample — keep a 1-byte carry
             buf = b""
             for chunk in r.iter_bytes(8192):
