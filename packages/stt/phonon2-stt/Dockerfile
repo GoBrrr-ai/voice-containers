@@ -65,3 +65,6 @@ ENV PATH="/opt/parakeet-dist/bin:${PATH}" \
 
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/parakeet-entrypoint.sh"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=300s --retries=3 \
+    CMD bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080' || exit 1

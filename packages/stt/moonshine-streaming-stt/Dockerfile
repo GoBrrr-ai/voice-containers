@@ -109,3 +109,6 @@ ENV PATH="/opt/venv/bin:${PATH}" \
 # voice-api v1 (docs/voice-api.md); the transcribe CLI stays available
 EXPOSE 8080
 CMD ["voice-server"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=300s --retries=3 \
+    CMD python3 -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=4).status == 200 else 1)" || exit 1
