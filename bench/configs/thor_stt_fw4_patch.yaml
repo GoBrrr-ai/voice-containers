@@ -1,0 +1,35 @@
+# faster_whisper_4 patch run — the main STT re-bench raced the wyoming
+# server's model load: the old bare-TCP readiness probe succeeded against
+# docker's userland proxy before the container server listened, and all 500
+# utterances got connection-reset (fixed in bench/runner.py with a
+# Describe->Info probe, verified 4.1 s to ready). The n_ok=0 history row
+# self-filters from the matrix; this single-engine run supersedes it per
+# (cohort, engine_id, backend). The engine_id is intentionally the
+# index-derived name from the baseline config (matrix key continuity).
+run_name: thor_stt_baseline
+task: stt
+device_label: jetson-agx-thor-128gb
+power_profile: default
+dataset:
+  name: librispeech
+  split: test-clean
+  language: en
+  manifest: manifests/stt_librispeech_test-clean_en_500_seed42.jsonl
+  n: 500
+  seed: 42
+normalizer: whisper_english
+cache_dir: datasets/cache
+engines:
+  - name: faster_whisper
+    id: faster_whisper_4
+    image: narandill/wyoming-faster-whisper:0.1.0
+    backends: [cuda]
+    serve: {port: 10300, transport: wyoming}
+    opts:
+      model: rhasspy/faster-whisper-tiny-int8
+streaming: {chunk_ms: 160, realtime_pass: false}
+warmup_n: 5
+repeats: 1
+cooldown_s: 0
+probes: {interval_ms: 100, tegrastats: auto}
+output_dir: results
