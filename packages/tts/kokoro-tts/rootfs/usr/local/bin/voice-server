@@ -65,7 +65,19 @@ _providers = (
     if DEVICE == "cuda"
     else ["CPUExecutionProvider"]
 )
-_sess = rt.InferenceSession(MODEL_PATH, providers=_providers)
+# S7 A/B: ORT CUDA-graph capture (env-gated). Static-shape graphs on a
+# dynamic-sequence model — expected to dud or shape-error; the bench A/B
+# decides (E7-style: cheap kill beats speculation).
+_prov_opts = (
+    [{"enable_cuda_graph": "1"}, {}]
+    if os.environ.get("KOKORO_CUDA_GRAPH") == "1"
+    else None
+)
+_sess = (
+    rt.InferenceSession(MODEL_PATH, providers=_providers, provider_options=_prov_opts)
+    if _prov_opts
+    else rt.InferenceSession(MODEL_PATH, providers=_providers)
+)
 _K = Kokoro.from_session(_sess, VOICES_PATH)
 _ACTUAL = "cuda" if _sess.get_providers()[0] == "CUDAExecutionProvider" else "cpu"
 _LOCK = threading.Lock()
