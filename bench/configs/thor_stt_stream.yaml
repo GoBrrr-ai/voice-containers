@@ -44,6 +44,7 @@ engines:
       model_dir: /models/moonshine-streaming-en
       model_arch: 5
 streaming: {chunk_ms: 160, realtime_pass: true}
+publish_raw: true
 warmup_n: 2
 repeats: 1
 cooldown_s: 30
