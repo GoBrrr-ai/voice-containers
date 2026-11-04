@@ -1,0 +1,1 @@
+{"engine": "pocket_tts", "engine_id": "pocket_tts_5", "image": "narandill/pocket-tts:0.3.0", "requested_backend": "cuda", "container": "bench-tts-pocket_tts_5-1793766452", "exit": 0, "wall_ns": 1275361729634, "served": true, "host_port": 58997}

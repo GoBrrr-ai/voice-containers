@@ -1,0 +1,1 @@
+{"engine": "nemotron_streaming", "engine_id": "nemotron_streaming_11", "image": "narandill/nemotron-streaming-stt:0.2.0", "requested_backend": "cuda", "container": "bench-stt-nemotron_streaming_11-1793746057", "exit": 0, "wall_ns": 4511400378411}

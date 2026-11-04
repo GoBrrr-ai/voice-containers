@@ -1,0 +1,1 @@
+{"engine": "piper", "engine_id": "piper_3", "image": "narandill/wyoming-piper1-tts:0.1.0", "requested_backend": "cuda", "container": "bench-tts-piper_3-1793761286", "exit": 0, "wall_ns": 76458070751, "served": true, "host_port": 46301}

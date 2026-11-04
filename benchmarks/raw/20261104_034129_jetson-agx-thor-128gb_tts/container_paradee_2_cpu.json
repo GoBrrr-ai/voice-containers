@@ -1,0 +1,1 @@
+{"engine": "paradee", "engine_id": "paradee_2_cpu", "image": "narandill/paradee-tts:0.2.0", "requested_backend": "cpu", "container": "bench-tts-paradee_2_cpu-1793760948", "exit": 0, "wall_ns": 277417913980, "served": true, "host_port": 40433}

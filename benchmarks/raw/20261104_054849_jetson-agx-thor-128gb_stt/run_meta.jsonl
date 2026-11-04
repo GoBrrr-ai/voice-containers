@@ -1,0 +1,1 @@
+{"engine": "faster_whisper", "engine_id": "faster_whisper_4", "load_ns_after_imports": 38906507246408, "actual_backend": "remote:wyoming", "requested_backend": "cuda"}

@@ -1,0 +1,7 @@
+{"engine": "kokoro", "engine_id": "kokoro_0", "load_ns_after_imports": 31266159928112, "actual_backend": "remote:openai", "requested_backend": "cuda"}
+{"engine": "ptts", "engine_id": "ptts_1", "load_ns_after_imports": 31518814495534, "actual_backend": "remote:openai", "requested_backend": "cpu"}
+{"engine": "paradee", "engine_id": "paradee_2_cuda", "load_ns_after_imports": 31999600681699, "actual_backend": "remote:openai", "requested_backend": "cuda"}
+{"engine": "paradee", "engine_id": "paradee_2_cpu", "load_ns_after_imports": 32124091142891, "actual_backend": "remote:openai", "requested_backend": "cpu"}
+{"engine": "piper", "engine_id": "piper_3", "load_ns_after_imports": 32460219129525, "actual_backend": "remote:wyoming", "requested_backend": "cuda"}
+{"engine": "pocket_tts", "engine_id": "pocket_tts_4", "load_ns_after_imports": 32601483320683, "actual_backend": "remote:openai", "requested_backend": "cpu"}
+{"engine": "pocket_tts", "engine_id": "pocket_tts_5", "load_ns_after_imports": 37631132399177, "actual_backend": "remote:openai", "requested_backend": "cuda"}

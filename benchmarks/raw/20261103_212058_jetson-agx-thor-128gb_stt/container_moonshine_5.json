@@ -1,0 +1,1 @@
+{"engine": "moonshine", "engine_id": "moonshine_5", "image": "narandill/moonshine-streaming-stt:0.2.0", "requested_backend": "cpu", "container": "bench-stt-moonshine_5-1793739245", "exit": 0, "wall_ns": 684160065164, "served": true, "host_port": 38533}

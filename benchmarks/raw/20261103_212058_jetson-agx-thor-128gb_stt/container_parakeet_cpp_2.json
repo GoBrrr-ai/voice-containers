@@ -1,0 +1,1 @@
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_2", "image": "narandill/phonon2-stt:0.2.0", "requested_backend": "cuda", "container": "bench-stt-parakeet_cpp_2-1793737804", "exit": 0, "wall_ns": 589636914473, "served": true, "host_port": 34379}

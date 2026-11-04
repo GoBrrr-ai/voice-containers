@@ -1,0 +1,1 @@
+{"engine": "ptts", "engine_id": "ptts_1", "image": "narandill/phonon31m-tts:0.1.0", "requested_backend": "cpu", "container": "bench-tts-ptts_1-1793760344", "exit": 0, "wall_ns": 419248800670, "served": true, "host_port": 52773}

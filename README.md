@@ -95,7 +95,7 @@ upgrade, drop the flag.
 
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
 by `bench plot --readme` — regenerate with `make bench-plot`.
-> Cohort: **jetson-agx-thor-128gb · default power · commit 3a7634f · 2026-11-03**.
+> Cohort: **jetson-agx-thor-128gb · default power · commit 1f9cab3 · 2026-11-04**.
 Charts: ❶❷❸ mark the top-3 places (gold/silver/bronze) for that chart's ranking
 metric; the scatter legends rank by composite score. Memory: **cgroup MiB**
 counts the container's active file cache too (the model was just read from
@@ -106,24 +106,24 @@ disk); **anon MiB** is true process memory.
 
 | engine | model | backend | WER | CER | SER | halluc. | RTF p50 | RTF p90 | lat p50 (s) | lat p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 🥇 parakeet-tdt-ort-stt | parakeet-tdt 0.6B v3 int4 (ORT) | cuda | 0.0194 | 0.0061 | 0.2540 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#3fb950}{\text{0.0103}}$ | 0.0194 | $\color{#3fb950}{\text{0.0661}}$ | $\color{#3fb950}{\text{0.0968}}$ | 1,130 | 1,076 | 20 |
-| 🥈 canary-flash-stt | canary-180m-flash int8 | cpu | 0.0199 | 0.0055 | 0.2460 | $\color{#3fb950}{\text{0.0000}}$ | 0.1610 | 0.2283 | 0.9770 | 3.8869 | 777 | 766 | — (CPU) |
-| 🥉 parakeet-redux-stt | redux packed (CPU) | cpu | 0.0252 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0743 | 0.1239 | 0.4879 | 0.9450 | 1,107 | 730 | — (CPU) |
-| parakeet-tdt-stt | parakeet-tdt 0.6B v3 int8 | cpu | 0.0231 | 0.0079 | 0.3080 | $\color{#3fb950}{\text{0.0000}}$ | 0.1196 | 0.1298 | 0.7368 | 2.0574 | 1,313 | 1,300 | — (CPU) |
-| nemotron-unified-asr | nemotron-unified 0.6B q4_k | cuda | 0.0181 | 0.0050 | 0.2320 | $\color{#3fb950}{\text{0.0000}}$ | 0.1013 | 0.2227 | 0.6458 | 0.7582 | 1,679 | 777 | 7 |
+| 🥇 parakeet-tdt-ort-stt | parakeet-tdt 0.6B v3 int4 (ORT) | cuda | 0.0194 | 0.0061 | 0.2540 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#3fb950}{\text{0.0103}}$ | $\color{#3fb950}{\text{0.0194}}$ | $\color{#3fb950}{\text{0.0661}}$ | $\color{#3fb950}{\text{0.0968}}$ | 1,130 | 1,076 | 20 |
+| 🥈 parakeet-redux-stt | parakeet-redux 178M q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.0173 | 0.0311 | 0.1110 | 0.1907 | 607 | 562 | 26 |
+| 🥉 nemotron-unified-asr | nemotron-unified 0.6B q8_0 | cuda | 0.0189 | 0.0057 | $\color{#3fb950}{\text{0.2300}}$ | $\color{#3fb950}{\text{0.0000}}$ | 0.0236 | 0.2639 | 0.1472 | 2.1773 | 642 | 589 | 46 |
+| canary-flash-stt | canary-180m-flash int8 | cpu | 0.0204 | 0.0055 | 0.2500 | $\color{#3fb950}{\text{0.0000}}$ | 0.1704 | 0.2369 | 1.0269 | 3.9638 | 882 | 864 | — (CPU) |
+| nemotron-unified-asr | nemotron-unified 0.6B q4_k | cuda | $\color{#3fb950}{\text{0.0181}}$ | $\color{#3fb950}{\text{0.0050}}$ | 0.2320 | $\color{#3fb950}{\text{0.0000}}$ | 0.1013 | 0.2227 | 0.6458 | 0.7582 | 1,679 | 777 | 7 |
+| parakeet-tdt-stt | parakeet-tdt 0.6B v3 int8 | cpu | 0.0228 | 0.0077 | 0.2960 | $\color{#3fb950}{\text{0.0000}}$ | 0.1159 | 0.1308 | 0.7192 | 1.9560 | 1,605 | 1,581 | — (CPU) |
 | parakeet-tdt-cpp-stt | parakeet-tdt 0.6B v3 q4_k (cpp) | cuda | 0.0202 | 0.0062 | 0.2760 | $\color{#3fb950}{\text{0.0000}}$ | 0.0963 | 0.2143 | 0.6170 | 0.7178 | 1,683 | 778 | 7 |
 | phonon2-stt | phonon-2.5 q4_k | cuda | 0.0207 | 0.0062 | 0.2680 | $\color{#3fb950}{\text{0.0000}}$ | 0.0982 | 0.2136 | 0.6218 | 0.7318 | 1,670 | 778 | 7 |
-| moonshine-streaming-stt | moonshine-streaming medium fp32 (ORT) | cpu | 0.0205 | 0.0080 | 0.2440 | $\color{#3fb950}{\text{0.0000}}$ | 0.1080 | 0.1335 | 0.6567 | 1.8402 | 2,358 | 2,334 | — (CPU) |
-| moonshine-streaming-stt | moonshine-streaming medium fp32 (ORT) | cuda | 0.0205 | 0.0080 | 0.2440 | $\color{#3fb950}{\text{0.0000}}$ | 0.0376 | 0.0453 | 0.2381 | 0.6336 | 1,703 | 1,647 | 16 |
-| canary-flash-stt | canary-180m-flash int8 | cuda | 0.0202 | 0.0054 | 0.2440 | $\color{#3fb950}{\text{0.0000}}$ | 0.1330 | 0.1842 | 0.8078 | 3.1153 | 1,347 | 1,101 | 8 |
-| moonshine-streaming-stt | moonshine-streaming medium int8 | cpu | 0.0381 | 0.0210 | 0.4720 | $\color{#3fb950}{\text{0.0000}}$ | 0.1707 | 0.2672 | 1.1922 | 3.0605 | 657 | 643 | — (CPU) |
-| nemotron-unified-asr | nemotron-unified 0.6B q8_0 | cuda | $\color{#3fb950}{\text{0.0177}}$ | $\color{#3fb950}{\text{0.0047}}$ | $\color{#3fb950}{\text{0.2240}}$ | $\color{#3fb950}{\text{0.0000}}$ | 0.1126 | 0.2469 | 0.7162 | 0.8270 | 2,179 | 1,030 | 7 |
-| parakeet-tdt-stt | parakeet-tdt 0.6B v3 int8 | cuda | 0.0223 | 0.0076 | 0.2940 | $\color{#3fb950}{\text{0.0000}}$ | 0.0897 | 0.1049 | 0.5698 | 1.3966 | 1,983 | 1,735 | 7 |
-| phonon2-stt | phonon-2.5 q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.1093 | 0.2421 | 0.6962 | 0.8076 | 2,188 | 1,031 | 7 |
-| parakeet-redux-stt | parakeet-redux 178M q8_0 | cuda | 0.0249 | 0.0083 | 0.3200 | $\color{#3fb950}{\text{0.0000}}$ | 0.1108 | 0.2426 | 0.7019 | 0.8066 | 2,194 | 1,031 | 7 |
-| wyoming-faster-whisper | faster-whisper tiny int8 | cuda | $\color{#f85149}{\text{0.0722}}$ | $\color{#f85149}{\text{0.0280}}$ | $\color{#f85149}{\text{0.5940}}$ | $\color{#f85149}{\text{0.0020}}$ | 0.0130 | $\color{#3fb950}{\text{0.0192}}$ | 0.0859 | 0.1511 | 616 | 562 | 13 |
-| nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cpu | 0.0261 | 0.0085 | 0.3120 | $\color{#3fb950}{\text{0.0000}}$ | 0.7844 | 0.7971 | 4.9934 | 13.5 | 1,364 | 1,344 | — (CPU) |
-| nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cuda | 0.0262 | 0.0085 | 0.3080 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.8077}}$ | $\color{#f85149}{\text{0.8219}}$ | $\color{#f85149}{\text{5.1436}}$ | $\color{#f85149}{\text{13.9}}$ | 1,868 | 1,800 | 8 |
+| canary-flash-stt | canary-180m-flash int8 | cuda | 0.0202 | 0.0054 | 0.2440 | $\color{#3fb950}{\text{0.0000}}$ | 0.1455 | 0.1931 | 0.8711 | 3.2932 | 1,423 | 1,179 | 8 |
+| parakeet-tdt-stt | parakeet-tdt 0.6B v3 int8 | cuda | 0.0223 | 0.0076 | 0.2940 | $\color{#3fb950}{\text{0.0000}}$ | 0.0964 | 0.1202 | 0.6112 | 1.4538 | 2,179 | 1,932 | 7 |
+| phonon2-stt | phonon-2.5 q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.1649 | 0.2277 | 0.9913 | 2.2191 | 616 | 557 | 51 |
+| parakeet-redux-stt | redux packed (CPU) | cpu | 0.0249 | 0.0082 | 0.3160 | $\color{#3fb950}{\text{0.0000}}$ | 0.1592 | 0.1752 | 1.0111 | 2.6395 | 1,347 | 1,326 | — (CPU) |
+| moonshine-streaming-stt | moonshine-streaming medium int8 | cpu | 0.0381 | 0.0210 | 0.4720 | $\color{#3fb950}{\text{0.0000}}$ | 0.1585 | 0.2074 | 1.0251 | 2.6872 | 770 | 744 | — (CPU) |
+| wyoming-faster-whisper | faster-whisper tiny int8 | cuda | $\color{#f85149}{\text{0.0720}}$ | $\color{#f85149}{\text{0.0278}}$ | $\color{#f85149}{\text{0.5860}}$ | $\color{#f85149}{\text{0.0020}}$ | 0.0127 | 0.0212 | 0.0806 | 0.1413 | 733 | 676 | 10 |
+| moonshine-streaming-stt | moonshine-streaming medium fp32 (ORT) | cpu | 0.0381 | 0.0210 | 0.4720 | $\color{#3fb950}{\text{0.0000}}$ | 0.1476 | 0.2422 | 1.0152 | 2.8033 | 752 | 743 | — (CPU) |
+| moonshine-streaming-stt | moonshine-streaming medium fp32 (ORT) | cuda | 0.0205 | 0.0080 | 0.2440 | $\color{#3fb950}{\text{0.0000}}$ | 0.0667 | 0.1586 | 0.5068 | 1.5959 | 2,118 | 2,013 | 36 |
+| nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cpu | 0.0259 | 0.0083 | 0.3100 | $\color{#3fb950}{\text{0.0000}}$ | 0.7777 | 0.7998 | 4.9759 | 13.6 | 1,511 | 1,481 | — (CPU) |
+| nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cuda | 0.0262 | 0.0085 | 0.3080 | $\color{#3fb950}{\text{0.0000}}$ | $\color{#f85149}{\text{0.8127}}$ | $\color{#f85149}{\text{1.3220}}$ | $\color{#f85149}{\text{5.7140}}$ | $\color{#f85149}{\text{17.2}}$ | 1,966 | 1,801 | 19 |
 
 > *500 utterances · 18 configurations · 🥇 **parakeet-tdt 0.6B v3 int4 (ORT)** at **1.94% WER**
 (🥇🥈🥉 = composite top 3); fastest RTF p50
@@ -197,18 +197,18 @@ ship as v3 — never a silent rewrite of history.
 
 | engine | model | backend | RTF p50 | RTF p90 | synth p50 (s) | synth p90 (s) | TTFA p50 (s) | TTFA p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| 🥇 paradee-tts | paradee 8M int8 (GPU) | cuda | $\color{#3fb950}{\text{0.0110}}$ | $\color{#3fb950}{\text{0.0276}}$ | $\color{#3fb950}{\text{0.0863}}$ | $\color{#3fb950}{\text{0.1391}}$ | 0.0863 | 0.1391 | 1,462 | 1,388 | 14 |
-| 🥈 phonon31m-tts | phonon-31m (CPU) | cpu | 0.1384 | 0.1502 | 0.8234 | 2.4125 | $\color{#3fb950}{\text{0.0845}}$ | $\color{#3fb950}{\text{0.1169}}$ | 526 | 508 | — (CPU) |
-| 🥉 wyoming-piper1-tts | piper1-tts libritts-r medium | cuda | 0.0363 | 0.1046 | 0.1684 | 0.1839 | 0.1684 | 0.1839 | 1,158 | 1,100 | 11 |
-| paradee-tts | paradee 8M int8 (CPU) | cpu | 0.0573 | 0.0586 | 0.4310 | 1.2937 | 0.4310 | 1.2937 | 1,956 | 1,888 | — (CPU) |
-| kokoro-tts | kokoro 82M int8 | cuda | 0.0525 | 0.0953 | 0.3377 | 0.8554 | 0.3377 | 0.8346 | 1,590 | 1,465 | 14 |
-| pocket-tts | pocket-tts 100M | cuda | 0.1248 | 0.1423 | 0.8164 | 13.0 | 0.8164 | 13.0 | 1,629 | 1,520 | 16 |
+| 🥇 paradee-tts | paradee 8M int8 (GPU) | cuda | $\color{#3fb950}{\text{0.0160}}$ | $\color{#3fb950}{\text{0.0374}}$ | $\color{#3fb950}{\text{0.1240}}$ | $\color{#3fb950}{\text{0.1607}}$ | 0.0869 | 0.1402 | 1,440 | 1,371 | 12 |
+| 🥈 wyoming-piper1-tts | piper1-tts libritts-r medium | cuda | 0.0338 | 0.0995 | 0.1553 | 0.1709 | 0.1553 | 0.1709 | 1,159 | 1,106 | 11 |
+| 🥉 phonon31m-tts | phonon-31m (CPU) | cpu | 0.1101 | 0.1201 | 0.6675 | 1.9145 | 0.1198 | 0.1631 | 536 | 527 | — (CPU) |
+| paradee-tts | paradee 8M int8 (CPU) | cpu | 0.0577 | 0.0706 | 0.4403 | 1.3019 | 0.4342 | 1.3010 | 1,977 | 1,916 | — (CPU) |
+| kokoro-tts | kokoro 82M int8 | cuda | 0.0504 | 0.0900 | 0.3421 | 0.8059 | 0.3134 | 0.8039 | 1,549 | 1,429 | 14 |
+| pocket-tts | pocket-tts 100M | cuda | 0.1293 | 0.1432 | 0.8209 | 12.8 | $\color{#3fb950}{\text{0.0546}}$ | $\color{#3fb950}{\text{0.0615}}$ | 1,609 | 1,528 | 15 |
 | pocket-tts | pocket-tts 18M | cuda | 0.1732 | 0.2293 | 1.0951 | 21.9 | 1.0951 | 21.9 | 1,764 | 1,714 | 12 |
-| pocket-tts | pocket-tts 18M | cpu | 0.1905 | $\color{#f85149}{\text{0.9188}}$ | 1.2255 | $\color{#f85149}{\text{87.1}}$ | 1.2255 | $\color{#f85149}{\text{87.1}}$ | 5,885 | 5,802 | — (CPU) |
-| pocket-tts | pocket-tts 100M | cpu | $\color{#f85149}{\text{0.3934}}$ | 0.5836 | $\color{#f85149}{\text{2.5111}}$ | 53.8 | $\color{#f85149}{\text{2.5111}}$ | 53.8 | 4,229 | 4,173 | — (CPU) |
+| pocket-tts | pocket-tts 18M | cpu | 0.1905 | $\color{#f85149}{\text{0.9188}}$ | 1.2255 | $\color{#f85149}{\text{87.1}}$ | $\color{#f85149}{\text{1.2255}}$ | $\color{#f85149}{\text{87.1}}$ | 5,885 | 5,802 | — (CPU) |
+| pocket-tts | pocket-tts 100M | cpu | $\color{#f85149}{\text{0.3872}}$ | 0.5712 | $\color{#f85149}{\text{2.4963}}$ | 52.3 | 0.5848 | 1.4645 | 5,045 | 4,980 | — (CPU) |
 
 > *444 sentences · 9 configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
-**0.011**; best TTFA p50 **84 ms**
+**0.016**; best TTFA p50 **55 ms**
 (300 ms gate). TTFA = time to first audio: streaming engines report the first
 chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so
 their TTFA equals the synth p50/p90.*
