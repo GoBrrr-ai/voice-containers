@@ -1,0 +1,1 @@
+{"engine": "kokoro", "engine_id": "kokoro_0", "image": "narandill/kokoro-tts:0.1.0", "requested_backend": "cuda", "container": "bench-tts-kokoro_0-1793760090", "exit": 0, "wall_ns": 193625875588, "served": true, "host_port": 52923}

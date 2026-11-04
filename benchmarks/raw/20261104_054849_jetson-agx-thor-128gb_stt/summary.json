@@ -1,0 +1,43 @@
+{
+  "task": "stt",
+  "n": 500,
+  "n_ok": 500,
+  "per_engine": {
+    "faster_whisper_4": {
+      "n": 500,
+      "n_ok": 500,
+      "wer": 0.07196523943151988,
+      "cer": 0.027750206782464846,
+      "sub_rate": 0.054132343622703,
+      "del_rate": 0.005521861138770707,
+      "ins_rate": 0.012311034670046166,
+      "ser": 0.586,
+      "empty_rate": 0.0,
+      "hallucination_rate": 0.002,
+      "rtf": 0.01274711478514357,
+      "rtf_n": 500,
+      "rtf_mean": 0.01370080262361181,
+      "rtf_std": 0.004995642095378717,
+      "rtf_min": 0.0062442730482875995,
+      "rtf_max": 0.0342956093385214,
+      "rtf_p90": 0.0211504219309367,
+      "rtf_p95": 0.023222617343749988,
+      "rtf_p99": 0.02679872043790507,
+      "rtf_iqr": 0.006724285159306842,
+      "rtf_mad": 5.621510278603969e-05,
+      "rtf_low_confidence": false,
+      "offline_latency_s": 0.080614918,
+      "offline_latency_s_n": 500,
+      "offline_latency_s_mean": 0.09145925536,
+      "offline_latency_s_std": 0.034653880787296976,
+      "offline_latency_s_min": 0.044069858,
+      "offline_latency_s_max": 0.245001998,
+      "offline_latency_s_p90": 0.14130406150000002,
+      "offline_latency_s_p95": 0.15568854525,
+      "offline_latency_s_p99": 0.19333109372999996,
+      "offline_latency_s_iqr": 0.04680026575,
+      "offline_latency_s_mad": 0.00040266961923847693,
+      "offline_latency_s_low_confidence": false
+    }
+  }
+}

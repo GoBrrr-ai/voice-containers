@@ -1,0 +1,1 @@
+{"engine": "canary", "engine_id": "canary_6", "image": "narandill/canary-flash-stt:0.2.0", "requested_backend": "cpu", "container": "bench-stt-canary_6-1793739990", "exit": 0, "wall_ns": 852072091610, "served": true, "host_port": 36235}

@@ -1,0 +1,14 @@
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_0", "load_ns_after_imports": 8433481059957, "actual_backend": "remote:openai", "requested_backend": "cuda"}
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_1", "load_ns_after_imports": 8834253453081, "actual_backend": "remote:openai", "requested_backend": "cuda"}
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_2", "load_ns_after_imports": 8979241731861, "actual_backend": "remote:openai", "requested_backend": "cuda"}
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_3", "load_ns_after_imports": 9629999087304, "actual_backend": "remote:openai", "requested_backend": "cpu"}
+{"engine": "faster_whisper", "engine_id": "faster_whisper_4", "load_ns_after_imports": 10355821075026, "actual_backend": "remote:wyoming", "requested_backend": "cuda"}
+{"engine": "moonshine", "engine_id": "moonshine_5", "load_ns_after_imports": 10419929932355, "actual_backend": "remote:openai", "requested_backend": "cpu"}
+{"engine": "canary", "engine_id": "canary_6", "load_ns_after_imports": 11165746911465, "actual_backend": "remote:openai", "requested_backend": "cpu"}
+{"engine": "parakeet_tdt", "engine_id": "parakeet_tdt_7", "load_ns_after_imports": 12079547501913, "actual_backend": "remote:openai", "requested_backend": "cpu"}
+{"engine": "nemotron_streaming", "engine_id": "nemotron_streaming_8", "load_ns_after_imports": 12633141295348, "actual_backend": "cpu", "requested_backend": "cpu"}
+{"engine": "canary", "engine_id": "canary_9", "load_ns_after_imports": 16001505875127, "actual_backend": "remote:openai", "requested_backend": "cuda"}
+{"engine": "parakeet_tdt", "engine_id": "parakeet_tdt_10", "load_ns_after_imports": 16778769292365, "actual_backend": "remote:openai", "requested_backend": "cuda"}
+{"engine": "nemotron_streaming", "engine_id": "nemotron_streaming_11", "load_ns_after_imports": 17234728025030, "actual_backend": "cuda", "requested_backend": "cuda"}
+{"engine": "moonshine_ort", "engine_id": "moonshine_ort_12", "load_ns_after_imports": 21805433389414, "actual_backend": "remote:openai", "requested_backend": "cpu"}
+{"engine": "moonshine_ort", "engine_id": "moonshine_ort_13", "load_ns_after_imports": 22556072773947, "actual_backend": "remote:openai", "requested_backend": "cuda"}

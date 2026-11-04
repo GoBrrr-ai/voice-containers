@@ -1,0 +1,1 @@
+{"engine": "faster_whisper", "engine_id": "faster_whisper_4", "image": "narandill/wyoming-faster-whisper:0.1.0", "requested_backend": "cuda", "container": "bench-stt-faster_whisper_4-1793739182", "exit": 0, "wall_ns": 2103782579, "served": true, "host_port": 33443}

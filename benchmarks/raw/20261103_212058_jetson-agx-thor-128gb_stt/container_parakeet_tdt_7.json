@@ -1,0 +1,1 @@
+{"engine": "parakeet_tdt", "engine_id": "parakeet_tdt_7", "image": "narandill/parakeet-tdt-stt:0.2.0", "requested_backend": "cpu", "container": "bench-stt-parakeet_tdt_7-1793740902", "exit": 0, "wall_ns": 493889389619, "served": true, "host_port": 53093}

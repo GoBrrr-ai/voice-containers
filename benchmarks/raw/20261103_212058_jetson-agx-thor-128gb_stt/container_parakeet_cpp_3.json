@@ -1,0 +1,1 @@
+{"engine": "parakeet_cpp", "engine_id": "parakeet_cpp_3", "image": "narandill/parakeet-redux-stt:0.1.0", "requested_backend": "cpu", "container": "bench-stt-parakeet_cpp_3-1793738455", "exit": 0, "wall_ns": 665397248184, "served": true, "host_port": 39733}
