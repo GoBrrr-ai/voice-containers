@@ -89,13 +89,12 @@ JSON body (OpenAI subset):
 | `phonon31m-tts` | TTS | wav/pcm | pcm chunked (true frames) | `default` (24 kHz, CPU by design); legacy `GET /say` kept |
 | `pocket-tts` | TTS | wav/pcm | pcm chunked | alba, marius, javert, jean, fantine, cosette, eponine, azelma (24 kHz; cloning stays on the official `pocket-tts serve`) |
 
-**Known deviation (deferred — needs a C++ rebuild, forbidden while vllm
-serves):** the four parakeet-server images (tdt-cpp, redux, phonon2,
-nemotron) return `400 missing required field 'file'` for **raw WAV bodies**
-— multipart only, everything else compliant. Tracked in
-`builders/parakeet-cpp/files/server-model-routes.patch` (accept
-`Content-Type: audio/wav` / `application/octet-stream` as the file when no
-multipart `file` is present). Bench adapters are unaffected (multipart).
+**Known deviation — RESOLVED 2026-11-04:** the four parakeet-server images
+(tdt-cpp, redux, phonon2, nemotron) accepted raw WAV bodies since
+commit `f938ec5` (patch hunk 2 in
+`builders/parakeet-cpp/files/server-model-routes.patch`; verified CPU-mode:
+raw 200 + multipart regression + negative 400, transcript-identical paths).
+
 
 ## Implementation notes
 
