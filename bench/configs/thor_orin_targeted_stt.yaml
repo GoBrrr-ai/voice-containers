@@ -47,6 +47,6 @@ warmup_n: 5
 repeats: 1
 cooldown_s: 60
 soak_minutes: 0
-probes: {interval_ms: 100, tegrastats: auto}
+probes: {interval_ms: 1000, tegrastats: auto}
 publish_raw: true
 output_dir: results

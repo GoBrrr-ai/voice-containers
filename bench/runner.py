@@ -148,7 +148,7 @@ def _wait_for_free_gpu(
 class TegraStats:
     """tegrastats --interval <ms> sampler; absent on non-Jetson hosts."""
 
-    def __init__(self, out_path: Path, interval_ms: int = 100):
+    def __init__(self, out_path: Path, interval_ms: int = 1000):
         self.out = open(out_path, "w")
         self.proc = None
         self.interval_ms = interval_ms
@@ -609,7 +609,7 @@ def run_config(config_path: str) -> str:
     out.mkdir(parents=True, exist_ok=True)
     Path(out / "audio").mkdir(exist_ok=True)
 
-    interval_ms = int((cfg.get("probes", {}) or {}).get("interval_ms", 100))
+    interval_ms = int((cfg.get("probes", {}) or {}).get("interval_ms", 1000))
     warmup_n = int(cfg.get("warmup_n", 0))
     cooldown_s = float(cfg.get("cooldown_s", 0))
     soak_s = float(cfg.get("soak_minutes", 0)) * 60

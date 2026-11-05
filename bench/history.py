@@ -152,8 +152,21 @@ def append_run(run_dir: Path, bench_root: Path) -> list[dict]:
     return doc["rows"]
 
 
+def _scrub_paths(text: str, bench_root: Path) -> str:
+    """Anonymize absolute host paths in persisted artifacts: the repo prefix
+    becomes repo-relative (e.g. datasets/cache/...), so committed raws carry
+    no username/home layout. Idempotent; anything else passes through."""
+    prefix = f"{bench_root.resolve()}/"
+    return text.replace(prefix, "")
+
+
 def publish_raw(run_dir: Path, bench_root: Path) -> Path:
-    """Copy a run's raw artifacts (no audio) into benchmarks/raw/<run_id>/."""
+    """Copy a run's raw artifacts (no audio) into benchmarks/raw/<run_id>/.
+
+    Text artifacts (json/jsonl/csv/logs) get host-path scrubbing — committed
+    raws stay repo-relative (no /home/<user> leakage); the results/ copies
+    keep runtime-absolute paths.
+    """
     run_dir = Path(run_dir)
     bench_root = Path(bench_root)
     dst = bench_root / "benchmarks" / "raw" / run_dir.name
@@ -161,11 +174,17 @@ def publish_raw(run_dir: Path, bench_root: Path) -> Path:
     if dst.exists():
         shutil.rmtree(dst)
     dst.mkdir()
+    scrub_suffixes = {".json", ".jsonl", ".csv", ".txt"}
     for p in run_dir.iterdir():
         if p.name in RAW_EXCLUDE or p.suffix == ".wav":
             continue
         if p.is_file():
-            shutil.copy2(p, dst / p.name)
+            target = dst / p.name
+            if p.suffix in scrub_suffixes:
+                text = p.read_text(errors="replace")
+                target.write_text(_scrub_paths(text, bench_root))
+            else:
+                shutil.copy2(p, target)
     return dst
 
 
