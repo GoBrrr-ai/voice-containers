@@ -1,4 +1,4 @@
-"""CLI: prepare | selfcheck | run | report | compare (spec 9.3)."""
+"""CLI: prepare | selfcheck | run | validate | plot | prune (spec 9.3)."""
 
 from __future__ import annotations
 import json
@@ -56,17 +56,6 @@ def run(config: str):
 
     rid = run_config(config)
     typer.echo(f"run_id: {rid}")
-
-
-@app.command()
-def report(run_dir: str):
-    """Recompute summary.json/csv for a finished run."""
-    from .runner import write_summary
-
-    s = write_summary(
-        Path(run_dir), json.loads((Path(run_dir) / "summary.json").read_text())["task"]
-    )
-    typer.echo(json.dumps(s, indent=2))
 
 
 @app.command("grant-permissions")
@@ -194,60 +183,6 @@ def plot(readme: bool = True, include: str = "baseline,gpu_variants,orin_targete
     if readme:
         p = _readme.render_readme(BENCH, include=include)
         typer.echo(f"README rendered: {p}")
-
-
-def _write_html(path: Path, tables: dict, task: str) -> None:
-    """Sortable self-contained HTML matrix (spec 10.1) with direction-aware coloring."""
-    import html as _html
-
-    parts = [
-        "<!doctype html><meta charset=utf-8><title>edge-containers matrix — "
-        f"{_html.escape(task)}</title>",
-        "<style>body{font:14px/1.5 system-ui;background:#0d1117;color:#e6edf3}"
-        "table{border-collapse:collapse}td,th{padding:4px 10px;border:1px solid #30363d}"
-        "th{background:#161b22;cursor:pointer}.g{color:#3fb950}.r{color:#f85149}"
-        "</style><h1>Results matrix — " + _html.escape(task) + "</h1>",
-    ]
-    for cohort, t in sorted(tables.items()):
-        parts.append(
-            f"<h3>{_html.escape(cohort[1])} · {cohort[2]} power · {_html.escape(cohort[3])}</h3>"
-        )
-        parts.append("<table id=t>")
-        parts.append(
-            "<tr>"
-            + "".join(
-                f"<th onclick=sortTable(this)>{_html.escape(h)}</th>"
-                for h in t["heads"]
-            )
-            + "</tr>"
-        )
-        for row in t["body"]:
-            cells = []
-            for c in row:
-                cls = ""
-                if isinstance(c, str) and c.startswith("$\\color"):
-                    cls = "g" if "#3fb950" in c else ("r" if "#f85149" in c else "")
-                    c = c
-                cells.append(f'<td class="{cls}">{_html.escape(str(c))}</td>')
-            parts.append("<tr>" + "".join(cells) + "</tr>")
-        parts.append("</table>")
-    parts.append(
-        "<script>function sortTable(th){const t=th.closest('table'),i=[...th.parentNode.children].indexOf(th),"
-        "asc=th.asc=!th.asc;[...t.rows].slice(1).sort((a,b)=>{const x=a.cells[i].innerText,y=b.cells[i].innerText;"
-        "const nx=parseFloat(x),ny=parseFloat(y);const c=(isNaN(nx)||isNaN(ny))?x.localeCompare(y):nx-ny;"
-        "return asc?c:-c;}).forEach(r=>t.appendChild(r));}</script>"
-    )
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(parts))
-
-
-@app.command()
-def compare(run_dirs: list[str], out: str = "compare.md"):
-    """Side-by-side headline table (full matrix is spec §10, fast-follow)."""
-    from .runner import compare as run_compare
-
-    typer.echo(Path(run_compare(run_dirs, out)).read_text())
 
 
 if __name__ == "__main__":

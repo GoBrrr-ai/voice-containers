@@ -48,10 +48,6 @@ FALLBACK_COLOR = "#0072B2"  # blue — unknown engines
 BACKEND_MARKERS = {"cuda": "s", "cpu": "o"}
 
 
-def engine_color(engine: str) -> str:
-    return ENGINE_COLORS.get(engine, FALLBACK_COLOR)
-
-
 def row_color(row: dict) -> str:
     """Consistent identity color: per MODEL (brand-aware), same in every
     chart; the same model in two variants keeps one hue (marker + label)."""
@@ -97,13 +93,11 @@ def footer(fig, mode: Mode = DARK, left: str = "", right: str = "") -> None:
     fig.text(0.99, 0.012, right, fontsize=7.5, color=mode.text_dim, ha="right")
 
 
-def log_y_if_spanning(ax, values, min_span: float = 10.0) -> bool:
-    """Log scale when the range spans > min_span (spec 10.3). Returns applied."""
+def span_wants_log(values, min_span: float = 10.0) -> bool:
+    """True when the positive range spans >= min_span (spec 10.3) — the single
+    log-axis policy; callers apply it to whichever axis they own."""
     vals = [v for v in values if v and v > 0]
     if not vals:
         return False
     lo, hi = min(vals), max(vals)
-    if hi / max(lo, 1e-12) >= min_span:
-        ax.set_yscale("log")
-        return True
-    return False
+    return hi / max(lo, 1e-12) >= min_span

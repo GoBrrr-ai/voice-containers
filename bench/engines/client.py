@@ -160,9 +160,6 @@ class ParakeetCpp:
         ]
         return " ".join(lines).strip()
 
-    def stream_feed(self, chunk):
-        raise NotImplementedError("v1: streaming via whole-file --stream runs")
-
 
 # --------------------------------------------------------- 2026-11 CPU engines
 class MoonshineStreaming:

@@ -177,11 +177,6 @@ def _figsize(n_rows: int, base: float, per_row: float) -> tuple[float, float]:
     return (9.5, max(base, 1.5 + per_row * n_rows))
 
 
-def _auto_log(values: list[float]) -> bool:
-    vals = [v for v in values if v and v > 0]
-    return bool(vals) and max(vals) / max(min(vals), 1e-12) >= 10
-
-
 def _text_on(hex_color: str, mode: Mode) -> str:
     """Readable text color on top of a filled marker of ``hex_color``."""
     r, g, b = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
@@ -220,7 +215,7 @@ def _lollipop(
     are bolded/colored on the y-tick labels."""
     assert len(set(names)) == len(names), "duplicate labels would merge rows"
     if log is None:
-        log = _auto_log(values)
+        log = theme.span_wants_log(values)
     y = list(range(len(names)))
     if log:
         ax.set_xscale("log")

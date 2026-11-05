@@ -178,11 +178,6 @@ def family(row: dict) -> str:
     return FAMILY_OF_PROJECT.get(project(row), project(row))
 
 
-def star(row: dict) -> str:
-    """Star marker for the cohort winner (rank 1) — used in charts (font-safe)."""
-    return "★ " if row.get("rank") == 1 else ""
-
-
 MEDALS = {1: "🥇\u00a0", 2: "🥈\u00a0", 3: "🥉\u00a0"}
 
 
