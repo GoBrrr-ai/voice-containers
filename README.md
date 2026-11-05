@@ -95,7 +95,7 @@ upgrade, drop the flag.
 
 > Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
 by `bench plot --readme` — regenerate with `make bench-plot`.
-> Cohort: **jetson-agx-thor-128gb · default power · commit 1f9cab3 · 2026-11-04**.
+> Cohort: **jetson-agx-thor-128gb · default power · commit 1f9cab3 · 2026-11-05**.
 Charts: ❶❷❸ mark the top-3 places (gold/silver/bronze) for that chart's ranking
 metric; the scatter legends rank by composite score. Memory: **cgroup MiB**
 counts the container's active file cache too (the model was just read from
