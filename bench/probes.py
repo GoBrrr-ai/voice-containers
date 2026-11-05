@@ -112,31 +112,3 @@ def parse_docker_stats(path: Path) -> dict | None:
         out["anon_peak_mib"] = anons[-1]
         out["anon_p50_mib"] = anons[len(anons) // 2]
     return out
-
-
-def docker_image_size_gb(image: str) -> float | None:
-    """Model/image size on disk via `docker images` (None if unknown)."""
-    import subprocess
-
-    try:
-        out = subprocess.run(
-            [
-                "docker",
-                "images",
-                "--format",
-                "{{.Repository}}:{{.Tag}} {{.Size}}",
-                image,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        ).stdout.strip()
-    except Exception:
-        return None
-    if not out:
-        return None
-    m = re.search(r"([0-9.]+)(GB|MB|kB|B)", out.splitlines()[0])
-    if not m:
-        return None
-    v, unit = float(m.group(1)), m.group(2)
-    return v / 1000.0 if unit == "MB" else v if unit == "GB" else v / 1000.0

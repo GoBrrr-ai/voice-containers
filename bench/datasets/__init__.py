@@ -12,10 +12,6 @@ from ..common import Sample
 RESAMPLE_RATE = 16000
 
 
-def cache_key(*parts: str) -> str:
-    return hashlib.sha256(":".join(parts).encode()).hexdigest()[:16]
-
-
 def wav_cache_path(cache_dir: str, dataset: str, utt_id: str) -> Path:
     p = Path(cache_dir) / dataset
     p.mkdir(parents=True, exist_ok=True)

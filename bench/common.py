@@ -27,28 +27,6 @@ class Sample:
         return asdict(self)
 
 
-@dataclass
-class SttEvent:
-    kind: str  # "partial" | "final"
-    text: str
-    t_ns: int = 0  # stamped by the runner on return, not by the engine
-
-
-@dataclass
-class SttResult:
-    text: str
-    words: Optional[list] = None  # (word, start_s, end_s)
-    language: Optional[str] = None
-
-
-def jsonl_write(path, rows) -> None:
-    import json
-
-    with open(path, "a", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-
-
 def jsonl_read(path):
     import json
 

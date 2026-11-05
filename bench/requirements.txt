@@ -10,6 +10,10 @@ pandas
 pyarrow
 # normalizer (spec 3.5) — whisper's EnglishTextNormalizer via transformers
 transformers
+# serve-mode clients (remote.py adapters, chain probe)
+openai
+# wyoming wire (version-pinned: the event API is release-sensitive)
+wyoming==1.10.2
 # probes / reports
 psutil
 matplotlib
