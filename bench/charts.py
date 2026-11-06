@@ -1209,6 +1209,31 @@ TASK_CHARTS = {
 }
 
 
+def _shrink_png(p: Path) -> None:
+    """Palette-quantize a rendered chart in place (~3.6x smaller file).
+
+    Flat dark-theme plots survive 256 colors visually intact; measured
+    alternatives (jpeg q85, webp) were all bigger. Best effort on purpose —
+    a failed optimization must never fail the render.
+    """
+    try:
+        from PIL import Image
+
+        img = Image.open(p)
+        img.load()
+        for method in (3, 2, 1, 0):  # libimagequant, fastoctree, maxcoverage, mediancut
+            try:
+                quantized = img.quantize(colors=256, method=method)
+                break
+            except ValueError:
+                continue
+        else:
+            return
+        quantized.save(p, optimize=True)
+    except Exception:
+        pass
+
+
 def render_all(bench_root: Path, include: str = "baseline") -> dict:
     """Render every chart that has data; write manifest.json. Returns it."""
     plt = _plt()
@@ -1233,6 +1258,7 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
             pad_inches=0.2,
         )
         plt.close(fig)
+        _shrink_png(p)
         manifest.setdefault(name, []).append(
             {"task": task, "dark": str(p.relative_to(bench_root))}
         )
