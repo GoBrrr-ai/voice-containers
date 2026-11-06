@@ -37,7 +37,7 @@ engines:
     image: narandill/wyoming-piper1-tts:0.1.0
     backends: [cuda]
     volumes:
-      - /home/narandill/edge-containers/task/voice-data:/data
+      - /home/narandill/voice-containers/task/voice-data:/data
     opts:
       model_dir: /data/models/piper
       voice: en_US-libritts_r-medium

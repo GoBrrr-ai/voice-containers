@@ -6,7 +6,7 @@ The runner clears the host page cache
 warm file cache can't skew the memory numbers. That call needs root, so
 ``bench grant-permissions`` installs a *targeted* NOPASSWD grant — drop-caches
 only, **never full sudo** — as a single sudoers drop-in
-(``/etc/sudoers.d/edge-containers-drop-caches``). After that one install (one
+(``/etc/sudoers.d/voice-containers-drop-caches``). After that one install (one
 sudo password prompt) the cache clear runs passwordless on every run. A grant
 installed by another checkout is
 detected via ``sudo -n -l`` and reused.
@@ -33,7 +33,7 @@ DROP_CACHES = "vm.drop_caches=3"
 DROP_CACHES_CMD = f"{SYSCTL} -w {DROP_CACHES}"
 
 # The sudoers drop-in this package installs (one file, one rule).
-SUDOERS_DROPIN = "/etc/sudoers.d/edge-containers-drop-caches"
+SUDOERS_DROPIN = "/etc/sudoers.d/voice-containers-drop-caches"
 
 # The rule is recognized in a `sudo -l` listing by the sysctl command + the
 # property name — so a grant installed under any drop-in name counts.
@@ -107,7 +107,7 @@ def grant_drop_caches(assume_yes: bool = False) -> int:
             return 1
 
     rule = _rule()
-    fd, tmp = tempfile.mkstemp(prefix="edge-containers-sudoers-")
+    fd, tmp = tempfile.mkstemp(prefix="voice-containers-sudoers-")
     try:
         with os.fdopen(fd, "w") as fh:
             fh.write(rule)
