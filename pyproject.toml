@@ -1,0 +1,18 @@
+# Repo metadata + tool config. The host-side harness deps live in
+# bench/requirements.txt (the bench venv consumes that directly); this file
+# carries the packaging identity, pytest discovery and a dependabot anchor.
+[project]
+name = "edge-containers"
+version = "0.1.0"
+description = "Production container images for NVIDIA Jetson edge GPUs (sm_87/sm_110): a streaming voice stack with a spec-driven benchmark harness."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Mieszko Syty" }]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
