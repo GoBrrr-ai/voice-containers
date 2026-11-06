@@ -193,11 +193,19 @@ def collect_packages(bench_root: Path) -> dict[str, str]:
     return out
 
 
+def _data_date(rows: list[dict]) -> str:
+    """Render date derived from the data: the newest utc_ts among the selected
+    runs. Keeps README.md reproducible on any day (CI re-renders and diffs
+    it); wall clock only as last resort for empty selections."""
+    stamps = sorted(str(r.get("utc_ts") or "") for r in rows)
+    return stamps[-1][:10] if stamps and stamps[-1] else time.strftime("%Y-%m-%d")
+
+
 def collect_context(bench_root: Path, include: str = "baseline") -> dict:
     bench_root = Path(bench_root)
     rows = _matrix.select_rows(bench_root, include)
     ctx: dict[str, Any] = {
-        "date": time.strftime("%Y-%m-%d"),
+        "date": _data_date(rows),
         "commit": (rows[0].get("git_commit", "") if rows else ""),
         "device": (rows[0].get("device_label", "") if rows else ""),
         "power": (rows[0].get("power_profile", "") if rows else ""),
