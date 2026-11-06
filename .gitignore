@@ -11,6 +11,7 @@ vendor/
 __pycache__/
 *.pyc
 .venv/
+.env
 reports/
 selfcheck.json
 readme_preview.html
