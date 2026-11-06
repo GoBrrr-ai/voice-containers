@@ -16,6 +16,8 @@ from pathlib import Path
 from . import probes as _probes
 
 RAW_EXCLUDE = {"audio"}  # TTS wavs stay out of the committed raws
+RAW_META_NAMES = {"summary.json", "env.json", "run_meta.jsonl"}
+RAW_META_PREFIXES = ("container_",)  # engine -> container map, tiny
 
 
 def _derive_metrics(m: dict, run_dir: Path, eid: str) -> None:
@@ -160,12 +162,24 @@ def _scrub_paths(text: str, bench_root: Path) -> str:
     return text.replace(prefix, "")
 
 
-def publish_raw(run_dir: Path, bench_root: Path) -> Path:
-    """Copy a run's raw artifacts (no audio) into benchmarks/raw/<run_id>/.
+def _is_raw_meta(name: str) -> bool:
+    """Slim-repo policy: committed raws carry metadata, never bulk data.
 
-    Text artifacts (json/jsonl/csv/logs) get host-path scrubbing — committed
-    raws stay repo-relative (no /home/<user> leakage); the results/ copies
-    keep runtime-absolute paths.
+    charts/README render from benchmarks/history.jsonl alone, so the
+    committed per-run raws hold only the audit trail (summary / env /
+    run_meta / container map). Bulky probes — tegrastats, docker stats,
+    per-utterance csv/jsonl, engine logs, job blobs — remain only in
+    results/ on the bench host.
+    """
+    return name in RAW_META_NAMES or name.startswith(RAW_META_PREFIXES)
+
+
+def publish_raw(run_dir: Path, bench_root: Path) -> Path:
+    """Copy a run's metadata into benchmarks/raw/<run_id>/ (no bulk data).
+
+    Text artifacts get host-path scrubbing — committed raws stay
+    repo-relative (no /home/<user> leakage); the results/ copies keep
+    runtime-absolute paths.
     """
     run_dir = Path(run_dir)
     bench_root = Path(bench_root)
@@ -174,17 +188,17 @@ def publish_raw(run_dir: Path, bench_root: Path) -> Path:
     if dst.exists():
         shutil.rmtree(dst)
     dst.mkdir()
-    scrub_suffixes = {".json", ".jsonl", ".csv", ".txt"}
     for p in run_dir.iterdir():
-        if p.name in RAW_EXCLUDE or p.suffix == ".wav":
+        if p.name in RAW_EXCLUDE or p.suffix == ".wav" or not p.is_file():
             continue
-        if p.is_file():
-            target = dst / p.name
-            if p.suffix in scrub_suffixes:
-                text = p.read_text(errors="replace")
-                target.write_text(_scrub_paths(text, bench_root))
-            else:
-                shutil.copy2(p, target)
+        if not _is_raw_meta(p.name):
+            continue
+        target = dst / p.name
+        if p.suffix in {".json", ".jsonl"}:
+            text = _scrub_paths(p.read_text(errors="replace"), bench_root)
+            target.write_text(text)
+        else:
+            shutil.copy2(p, target)
     return dst
 
 

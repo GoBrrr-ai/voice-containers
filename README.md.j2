@@ -76,7 +76,7 @@ upgrade, drop the flag.
 {% if ctx.stt or ctx.tts %}
 ## 📊 Benchmarks
 
-> Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
+> Rendered from `benchmarks/history.jsonl` (per-run metadata in `benchmarks/raw/`)
 by `bench plot --readme` — regenerate with `make bench-plot`.
 > Cohort: **{{ ctx.device }} · {{ ctx.power }} power · commit {{ ctx.commit }} · {{ ctx.date }}**.
 Charts: ❶❷❸ mark the top-3 places (gold/silver/bronze) for that chart's ranking
@@ -220,7 +220,8 @@ Quality is *higher-is-better* — hence the inverted log ratio. Weights renormal
 </p>
 {% endif %}
 
-> Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
+> Full per-utterance data and probes live on the bench host (`results/`); gate
+> details: `docs/REPORT-benchmark.md`.
 {% endif %}
 
 ## Layout
@@ -265,8 +266,9 @@ engine (and once the window opens) the runner also **drops the host page
 cache** (`sysctl -w vm.drop_caches=3` via a targeted NOPASSWD grant — install
 it with `bench grant-permissions`; without the grant it silently skips), so a
 warm file cache can't inflate the memory numbers. Every run appends to
-`benchmarks/history.jsonl`; baseline-class runs also publish their raw
-artifacts to `benchmarks/raw/<run_id>/`.
+`benchmarks/history.jsonl`; baseline-class runs also publish their run
+metadata to `benchmarks/raw/<run_id>/` — logs and per-utterance data stay in
+`results/` on the bench host.
 
 ## CI
 
