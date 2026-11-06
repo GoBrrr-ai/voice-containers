@@ -8,7 +8,7 @@ repository), or contact the maintainer (**@narandill**) directly.
 
 ## Scope
 
-edge-containers is a set of self-contained voice images (`narandill/<engine>`)
+voice-containers is a set of self-contained voice images (`narandill/<engine>`)
 built from the Dockerfiles under `packages/` — speech recognition, speech
 synthesis and a local LLM server for NVIDIA Jetson edge GPUs. Almost all
 functionality is upstream software running unmodified; vulnerabilities in

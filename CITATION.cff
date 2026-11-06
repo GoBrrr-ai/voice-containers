@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: If you use this software, please cite it using the metadata from this file.
 title: >-
-  edge-containers: production container images for NVIDIA Jetson edge GPUs -
+  voice-containers: production container images for NVIDIA Jetson edge GPUs -
   a streaming speech recognition and synthesis stack with a spec-driven
   benchmark harness
 type: software
@@ -10,7 +10,7 @@ authors:
   - given-names: Mieszko
     family-names: Syty
     affiliation: "MS/1 Design"
-repository-code: "https://github.com/GoBrrr-ai/edge-containers"
+repository-code: "https://github.com/GoBrrr-ai/voice-containers"
 abstract: >-
   Container images for NVIDIA Jetson edge GPUs (Orin sm_87, Thor sm_110): a
   streaming voice stack - speech recognition (whisper, parakeet, nemotron,

@@ -1,4 +1,4 @@
-# edge-containers
+# voice-containers
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Jetson%20Orin-eb6834" alt="Platform: Jetson AGX Orin (sm_87)">

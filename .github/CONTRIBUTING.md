@@ -1,4 +1,4 @@
-# Contributing to edge-containers
+# Contributing to voice-containers
 
 Production container images for NVIDIA Jetson edge GPUs — Orin (`sm_87`) and
 Thor (`sm_110`) — a streaming voice stack: speech recognition, speech

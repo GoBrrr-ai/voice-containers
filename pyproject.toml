@@ -2,7 +2,7 @@
 # bench/requirements.txt (the bench venv consumes that directly); this file
 # carries the packaging identity, pytest discovery and a dependabot anchor.
 [project]
-name = "edge-containers"
+name = "voice-containers"
 version = "0.1.0"
 description = "Production container images for NVIDIA Jetson edge GPUs (sm_87/sm_110): a streaming voice stack with a spec-driven benchmark harness."
 readme = "README.md"

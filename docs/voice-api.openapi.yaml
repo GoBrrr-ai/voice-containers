@@ -3,7 +3,7 @@
 # tracked in docs/voice-api.md (see the per-image roster note).
 openapi: 3.1.0
 info:
-  title: edge-containers voice-api
+  title: voice-containers voice-api
   version: '1.0'
   description: >-
     OpenAI-aligned speech contract served by the STT/TTS engine images.
