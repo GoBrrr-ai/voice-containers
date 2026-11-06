@@ -1,0 +1,60 @@
+edge-containers
+Copyright 2026 Mieszko Syty (ms1design)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE),
+except where a file states otherwise. The container images built from this
+repository include and redistribute third-party software; every component
+keeps its own license and notice. The authoritative copies are the license
+files inside each image and the upstream repositories — this file only maps
+the outline.
+
+================================================================================
+ Container base images
+================================================================================
+
+packages/*/*/Dockerfile build FROM ubuntu:24.04 and NVIDIA CUDA / JetPack-based
+runtime images (ARG BASE_IMAGE). They redistribute the Ubuntu archive, the
+CUDA userspace, cuDNN and the NVIDIA driver libraries under those components'
+own licenses.
+
+================================================================================
+ Speech recognition — runtimes
+================================================================================
+
+- faster-whisper + CTranslate2 (wyoming-faster-whisper) ............ MIT
+- parakeet.cpp — github.com/mudler/parakeet.cpp ................... MIT
+- sherpa-onnx — github.com/k2-fsa/sherpa-onnx ............. Apache-2.0
+- onnxruntime / onnxruntime-gpu — microsoft/onnxruntime ........... MIT
+- wyoming protocol libraries — rhasspy/home-assistant ............. MIT
+- Moonshine runtime (moonshine-streaming-stt) .......... see upstream repo
+- phonon runtime — github.com/fermionresearch/phonon ... see upstream repo
+
+The wyoming fork adaptations in builders/wheels-cu132/patches*/ are applied at
+image build time; patched files keep their original notices.
+
+================================================================================
+ Speech recognition — models
+================================================================================
+
+NVIDIA (parakeet, nemotron, canary), SYSTRAN (whisper), Useful Sensors
+(moonshine), fermion / gradium (phonon), moondream (parakeet-redux) — each
+checkpoint under the license of its model card.
+
+================================================================================
+ Speech synthesis
+================================================================================
+
+- piper1-tts + piper voices — OHF-Voice / rhasspy ................. MIT
+- kokoro — hexgrad (Apache-2.0) / kokoro-onnx — thewh1teagle (see repo)
+- phonon-31m via ptts — gradium ......................... see upstream repo
+- parade, pocket-tts — Kyutai .......................... see upstream repo
+
+================================================================================
+ LLM
+================================================================================
+
+- llama.cpp — ggml-org ........................................... MIT
+- GGUF checkpoints (e.g. Qwen) ......................... per model card
+
+Where a component ships dual-licensed variants, the image build pins one —
+the pinned license ships inside the image.

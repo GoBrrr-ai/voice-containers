@@ -1,0 +1,17 @@
+# Weekly drift watch. The images pin their internals at build time; this
+# covers the repo-level surfaces only (CI actions + the bench venv specs).
+# Dormant until the repo is pushed anywhere — consistent with publish.yml.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /bench
+    schedule:
+      interval: weekly

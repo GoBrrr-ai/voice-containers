@@ -1,0 +1,14 @@
+# Root-context guard only: the per-package builds use their own build context
+# (and their own .dockerignore). This applies if a Dockerfile ever builds from
+# the repository root — keep the context small and free of local state.
+.git
+.env
+.envrc
+.ruff_cache
+bench/.venv
+datasets/
+results/
+reports/
+benchmarks/raw/
+task/
+**/__pycache__
