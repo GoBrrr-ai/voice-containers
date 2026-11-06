@@ -5,6 +5,7 @@ data without re-running anything.
 """
 
 from __future__ import annotations
+import gzip
 import re
 import time
 from pathlib import Path
@@ -36,8 +37,15 @@ def parse_tegrastats(path: Path) -> list[dict]:
     rows = []
     p = Path(path)
     if not p.exists():
-        return rows
-    for line in p.read_text(errors="ignore").splitlines():
+        p = Path(f"{p}.gz")  # published raws store tegrastats gzipped
+        if not p.exists():
+            return rows
+    fh = (
+        gzip.open(p, "rt", errors="ignore")
+        if p.name.endswith(".gz")
+        else p.open(errors="ignore")
+    )
+    for line in fh:
         m = _TS_TS.match(line)
         if not m:
             continue

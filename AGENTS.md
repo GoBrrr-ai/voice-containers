@@ -80,7 +80,7 @@ update all four when adding a project. Docker image names stay flat
 ```
 bench run  →  results/<run_id>/         (+ tegrastats, docker stats, utterances.jsonl)
            →  benchmarks/history.jsonl  one line per engine config (append-only)
-           →  benchmarks/raw/<run_id>/  baseline-class runs publish raws (no audio)
+           →  benchmarks/raw/<run_id>/  baseline-class runs publish metadata only (no raw logs)
 bench plot --readme
            →  assets/benchmarks/<task>/*.png + manifest.json
            →  reports/matrix/{matrix_<task>.csv,.json,index_<task>.html}
