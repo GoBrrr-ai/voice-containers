@@ -1,4 +1,4 @@
-"""edge-containers benchmark harness (spec §1-9 core).
+"""voice-containers benchmark harness (spec §1-9 core).
 
 Datasets and engines are plugins behind fixed interfaces; the runner and metric
 code never contain engine- or dataset-specific branches. Every metric is

@@ -1,4 +1,4 @@
-# Benchmark harness — edge-containers
+# Benchmark harness — voice-containers
 
 Implements `task/benchmark-prd.md` §1-9 (core). **§10 matrix/dashboard and
 §7.3 off-device quality scoring (UTMOS, round-trip WER) are fast-follow** — the

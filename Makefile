@@ -1,4 +1,4 @@
-# edge-containers — build, verify, smoke and benchmark all projects.
+# voice-containers — build, verify, smoke and benchmark all projects.
 PROJECTS := packages/llm/llama-cpp \
             packages/stt/wyoming-faster-whisper packages/stt/nemotron-unified-asr \
             packages/stt/parakeet-redux-stt packages/stt/phonon2-stt \

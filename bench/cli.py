@@ -6,7 +6,7 @@ from pathlib import Path
 
 import typer
 
-app = typer.Typer(no_args_is_help=True, help="edge-containers benchmark harness")
+app = typer.Typer(no_args_is_help=True, help="voice-containers benchmark harness")
 BENCH = Path(__file__).resolve().parent.parent  # repo root
 
 

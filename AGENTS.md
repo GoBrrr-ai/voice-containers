@@ -4,7 +4,7 @@ Guidance for AI coding agents (and humans) working in this repository.
 
 ## What this repo is
 
-`edge-containers` — production container images for NVIDIA Jetson edge GPUs
+`voice-containers` — production container images for NVIDIA Jetson edge GPUs
 (sm_87 Orin + sm_110 Thor): a streaming voice stack (speech recognition +
 synthesis) organized as `stt/`, `tts/` and `llm/` project dirs, shared
 `builders/`, and a spec-driven benchmark harness (`bench/`) that renders the

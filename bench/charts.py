@@ -165,7 +165,7 @@ def _footer_common(fig, rows: list[dict], extra: str = "") -> None:
         fig,
         DARK,
         left=(
-            f"edge-containers bench · {_pretty_device(r0.get('device_label', '?'))} · "
+            f"voice-containers bench · {_pretty_device(r0.get('device_label', '?'))} · "
             f"{_pretty_dataset(r0)}"
         ),
         right=f"commit {r0.get('git_commit', '?')}{extra}",
