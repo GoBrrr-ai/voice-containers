@@ -36,7 +36,7 @@ engines:
     image: narandill/nemotron-streaming-stt:0.2.0
     backends: [cuda]
     volumes:
-      - /home/narandill/edge-containers/task/models/nemotron-streaming-80ms:/models-nemo80:ro
+      - /home/narandill/voice-containers/task/models/nemotron-streaming-80ms:/models-nemo80:ro
     serve:
       port: 8080
       transport: openai
