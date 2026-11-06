@@ -220,8 +220,8 @@ Quality is *higher-is-better* — hence the inverted log ratio. Weights renormal
 </p>
 {% endif %}
 
-> Full per-utterance data and probes live on the bench host (`results/`); gate
-> details: `docs/REPORT-benchmark.md`.
+> Full per-utterance data and probes live on the bench host (`results/`); the
+> gate logic itself is `bench/matrix.py`.
 {% endif %}
 
 ## Layout
@@ -233,11 +233,11 @@ packages/             the images — packages/<stt|tts|llm>/<name>/
   llm/                  LLM runtime (outside the voice stack)
 builders/             shared artifact builders (wheels-cu132, parakeet-cpp) — not shipped
 bench/                spec-driven benchmark harness (datasets, engines, probes, metrics)
-benchmarks/           history.jsonl + raw run artifacts (committed) — feeds the charts
+benchmarks/           history.jsonl + per-run metadata (committed) — feeds the charts
 assets/benchmarks/    generated charts + manifest (committed)
 manifests/            frozen benchmark manifests (seed 42) — the reproducibility anchor
 scripts/              sweep-build.sh / sweep-smoke.sh
-docs/                 build & benchmark reports
+docs/                 voice-api HTTP contract (markdown + OpenAPI)
 ```
 
 Each package dir is standalone: `Dockerfile + build.sh + README +

@@ -93,7 +93,7 @@ upgrade, drop the flag.
 
 ## 📊 Benchmarks
 
-> Rendered from the raw benchmark artifacts (`benchmarks/raw/`, `benchmarks/history.jsonl`)
+> Rendered from `benchmarks/history.jsonl` (per-run metadata in `benchmarks/raw/`)
 by `bench plot --readme` — regenerate with `make bench-plot`.
 > Cohort: **jetson-agx-thor-128gb · default power · commit 1f9cab3 · 2026-11-04**.
 Charts: ❶❷❸ mark the top-3 places (gold/silver/bronze) for that chart's ranking
@@ -269,7 +269,8 @@ Quality is *higher-is-better* — hence the inverted log ratio. Weights renormal
 </p>
 
 
-> Full per-utterance data, probes and gate details: `benchmarks/raw/`, `docs/REPORT-benchmark.md`.
+> Full per-utterance data and probes live on the bench host (`results/`); the
+> gate logic itself is `bench/matrix.py`.
 
 
 ## Layout
@@ -281,11 +282,11 @@ packages/             the images — packages/<stt|tts|llm>/<name>/
   llm/                  LLM runtime (outside the voice stack)
 builders/             shared artifact builders (wheels-cu132, parakeet-cpp) — not shipped
 bench/                spec-driven benchmark harness (datasets, engines, probes, metrics)
-benchmarks/           history.jsonl + raw run artifacts (committed) — feeds the charts
+benchmarks/           history.jsonl + per-run metadata (committed) — feeds the charts
 assets/benchmarks/    generated charts + manifest (committed)
 manifests/            frozen benchmark manifests (seed 42) — the reproducibility anchor
 scripts/              sweep-build.sh / sweep-smoke.sh
-docs/                 build & benchmark reports
+docs/                 voice-api HTTP contract (markdown + OpenAPI)
 ```
 
 Each package dir is standalone: `Dockerfile + build.sh + README +
@@ -314,8 +315,9 @@ engine (and once the window opens) the runner also **drops the host page
 cache** (`sysctl -w vm.drop_caches=3` via a targeted NOPASSWD grant — install
 it with `bench grant-permissions`; without the grant it silently skips), so a
 warm file cache can't inflate the memory numbers. Every run appends to
-`benchmarks/history.jsonl`; baseline-class runs also publish their raw
-artifacts to `benchmarks/raw/<run_id>/`.
+`benchmarks/history.jsonl`; baseline-class runs also publish their run
+metadata to `benchmarks/raw/<run_id>/` — logs and per-utterance data stay in
+`results/` on the bench host.
 
 ## CI
 
