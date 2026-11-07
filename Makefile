@@ -21,7 +21,7 @@ smoke-all: ## GPU smoke suite (waits for free VRAM; never kills co-tenants)
 lint: ## pre-commit over the whole repo
 	pre-commit run --all-files
 
-test: ## unit tests — pure helpers only, no GPU/docker (bench venv)
+test: ## unit tests + 80% coverage gate — pure helpers, no GPU/docker (bench venv)
 	bench/.venv/bin/python -m pytest
 
 contract: ## voice-api v1 contract test (reference stub, no GPU/docker) — run before campaigns

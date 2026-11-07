@@ -119,7 +119,7 @@ def read_token(args) -> tuple[str, str, str]:
     """Returns (login_user, token, config_user). Token never via argv."""
     cfg = _config_auth()
     config_user, config_token = cfg if cfg else ("", "")
-    token = ""
+    token = ""  # nosec B105 - placeholder, filled from stdin below
     if args.token_stdin:
         if sys.stdin.isatty():
             fail(
@@ -166,7 +166,7 @@ def hub_request(
         data = json.dumps(body).encode()
         req.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(req, data=data, timeout=30) as r:
+        with urllib.request.urlopen(req, data=data, timeout=30) as r:  # nosec B310 - hub API over https
             raw = r.read()
             return r.status, (
                 json.loads(raw) if raw and raw[:1] in (b"{", b"[") else raw

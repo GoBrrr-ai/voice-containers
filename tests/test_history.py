@@ -2,6 +2,10 @@
 
 import json
 
+import pytest
+
+from pathlib import Path
+
 from bench.history import _scrub_paths, read_history
 
 
@@ -27,3 +31,133 @@ def test_read_history_roundtrip(tmp_path):
     rows = [{"engine_id": "a", "epoch": 2}, {"engine_id": "b", "epoch": 1}]
     hist.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     assert [r["engine_id"] for r in read_history(tmp_path)] == ["a", "b"]
+
+
+def _run_dir(tmp_path: Path):
+    """A finished run dir: summary + container map + env + derived metrics."""
+    from bench.history import _load_run_dir
+
+    run = tmp_path / "20260101_dev_stt"
+    run.mkdir()
+    (run / "summary.json").write_text(
+        json.dumps({"per_engine": {"e1": {"n_ok": 2, "wer": 0.05}}})
+    )
+    (run / "container_e1.json").write_text(
+        json.dumps(
+            {
+                "engine_id": "e1",
+                "engine": "e",
+                "container": "bench-e1-1798000000",
+                "wall_ns": 1.5e9,
+                "exit": 0,
+            }
+        )
+    )
+    (run / "env.json").write_text(
+        json.dumps(
+            {
+                "device_label": "dev",
+                "power_profile": "default",
+                "git_commit": "abc1234",
+                "compute_cap": "8.7",
+                "config": {
+                    "task": "tts",
+                    "run_name": "baseline_x",
+                    "dataset": {"manifest": "mf.jsonl", "name": "libritts_r"},
+                    "engines": [{"name": "e", "image": "img:1"}],
+                },
+            }
+        )
+    )
+    with open(run / "utterances.jsonl", "w") as f:
+        for i in range(4):
+            f.write(
+                json.dumps(
+                    {
+                        "engine_id": "e1",
+                        "status": "ok",
+                        "synth_ns": 1.0e9 + i * 1e8,
+                    }
+                )
+                + "\n"
+            )
+        f.write(json.dumps({"engine_id": "other", "status": "ok"}) + "\n")
+        f.write("\n")  # blank line tolerated
+    doc = _load_run_dir(run)
+    assert doc["run_id"] == "20260101_dev_stt"
+    (r,) = doc["rows"]
+    assert r["engine_id"] == "e1" and r["task"] == "tts"
+    # _derive_metrics: no ttfa anywhere -> synth p50 becomes ttfa (documented)
+    assert r["metrics"]["synth_latency_s"] == pytest.approx(1.2e9 / 1e9)
+    assert r["metrics"]["ttfa_s"] == r["metrics"]["synth_latency_s"]
+    assert "image" in r and r["requested_backend"] == ""
+    return run, doc
+
+
+def test_load_run_dir_and_append(tmp_path):
+    from bench.history import append_run, read_history
+
+    run, doc = _run_dir(tmp_path)
+    bench_root = tmp_path / "bench"
+    bench_root.mkdir()
+    rows = append_run(run, bench_root)
+    assert len(rows) == 1
+    hist = read_history(bench_root)
+    assert hist[0]["host"] and hist[0]["epoch"] > 0
+    assert hist[0]["metrics"]["n_ok"] == 2
+
+
+def test_append_run_empty_is_noop(tmp_path):
+    from bench.history import append_run
+
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    (empty / "summary.json").write_text(json.dumps({"per_engine": {}}))
+    assert append_run(empty, tmp_path) == []
+    assert not (tmp_path / "benchmarks" / "history.jsonl").exists()
+
+
+def test_publish_raw_scrubs_and_slims(tmp_path):
+    from bench.history import publish_raw
+
+    run = Path(_run_dir.__wrapped__(tmp_path)[0]) if False else _run_dir(tmp_path)[0]
+    (run / "audio").mkdir(exist_ok=True)
+    (run / "x.wav").write_bytes(b"RIFF")
+    (run / "tegrastats.log").write_text("11-07-2026 12:00:00 x\n")
+    bench_root = tmp_path / "bench2"
+    bench_root.mkdir()
+    dst = publish_raw(run, bench_root)
+    names = {p.name for p in dst.iterdir()}
+    assert "summary.json" in names and "env.json" in names
+    assert "x.wav" not in names and "tegrastats.log" not in names
+    text = (dst / "env.json").read_text()
+    assert str(tmp_path) not in text  # scrubbed to repo-relative
+    # republish is idempotent (rmtree first)
+    dst2 = publish_raw(run, bench_root)
+    assert dst2 == dst
+
+
+def test_load_run_dir_tolerates_odd_container_names(tmp_path):
+    from bench.history import _load_run_dir, _derive_metrics
+
+    run = tmp_path / "r"
+    run.mkdir()
+    (run / "summary.json").write_text(json.dumps({"per_engine": {"e1": {"n_ok": 1}}}))
+    # container name without a trailing epoch -> start_epoch 0.0 (no crash)
+    (run / "container_e1.json").write_text(
+        json.dumps({"engine_id": "e1", "container": "x"})
+    )
+    (run / "job_e1.json").write_text(json.dumps({"opts": {"model": "/m"}}))
+    m = {"n_ok": 1}
+    _derive_metrics(m, run, "e1")  # no utterances file -> unchanged
+    assert "synth_latency_s" not in m
+    # utterances with ttfa already present -> derive skipped
+    (run / "utterances.jsonl").write_text(
+        json.dumps({"engine_id": "e1", "status": "ok", "synth_ns": 2e9, "ttfa_ns": 3e8})
+        + "\n"
+    )
+    m2 = {"n_ok": 1}
+    _derive_metrics(m2, run, "e1")
+    assert "ttfa_s" not in m2 and "synth_latency_s" in m2
+    doc = _load_run_dir(run)
+    assert doc["rows"][0]["opts"] == {"model": "/m"}

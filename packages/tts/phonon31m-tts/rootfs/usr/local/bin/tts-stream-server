@@ -8,6 +8,7 @@ GET /health                  -> {"status": "ok"}
 True streaming: tts.stream() yields float32 PCM chunks as they are generated
 (TTFA ~28 ms CPU); frames are written to the socket as they arrive.
 """
+
 import json
 import os
 import threading
