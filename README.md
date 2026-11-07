@@ -20,27 +20,27 @@
 </p>
 
 <p align="center">
-  <a href="#packages">Packages</a> •
-  <a href="#quick-start">Quick start</a> •
+  <a href="#-packages">Packages</a> •
+  <a href="#-quick-start">Quick start</a> •
   <a href="#-benchmarks">Benchmarks</a> •
-  <a href="#benchmarking">Benchmarking</a> •
-  <a href="#ci">CI</a>
+  <a href="#-benchmarking">Benchmarking</a> •
+  <a href="#-ci">CI</a>
 </p>
 
-## Features
+## 🐋 Features
 
 <table width="100%">
   <tr>
     <td width="33%" valign="top" align="center"><br>
-      <h3>🎙️&nbsp;<a href="#packages">10 speech-recognition engines</a></h3>
+      <h3>🎙️&nbsp;<a href="#-packages">10 speech-recognition engines</a></h3>
       <p>Parakeet C++, Whisper, Canary, Moonshine, streaming Nemotron — <b>one image each</b>, version pinned in its build.</p><br>
     </td>
     <td width="33%" valign="top" align="center"><br>
-      <h3>🔊&nbsp;<a href="#packages">5 speech-synthesis engines</a></h3>
+      <h3>🔊&nbsp;<a href="#-packages">5 speech-synthesis engines</a></h3>
       <p>Kokoro, Piper, Phonon, Paradee, Pocket — <b>PCM chunks streamed as generated</b>, single-shot where it counts.</p><br>
     </td>
     <td width="33%" valign="top" align="center"><br>
-      <h3>⚡&nbsp;<a href="#supported-hardware">Edge-GPU ready</a></h3>
+      <h3>⚡&nbsp;<a href="#-supported-hardware">Edge-GPU ready</a></h3>
       <p><b>sm_87 + sm_110a cubins baked side by side</b> — one image serves Jetson Orin <i>and</i> Thor.</p><br>
     </td>
   </tr>
@@ -54,13 +54,13 @@
       <p><b>SSE partials</b> while you speak, <b>chunked PCM</b> while it speaks — plus Wyoming wire for Home Assistant.</p><br>
     </td>
     <td width="33%" valign="top" align="center"><br>
-      <h3>🐳&nbsp;<a href="#quick-start">Plain docker, no framework</a></h3>
+      <h3>🐳&nbsp;<a href="#-quick-start">Plain docker, no framework</a></h3>
       <p>Every project is <b>one Dockerfile + one script</b> — <code>make build-all</code> and everything exists locally.</p><br>
     </td>
   </tr>
 </table>
 
-## Packages
+## 📦 Packages
 
 ### Speech recognition (`packages/stt/`)
 
@@ -87,7 +87,7 @@
 | 🎺 piper1-tts | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | `wyoming-piper1-tts:0.1.0` | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; wyoming streaming |
 | 🎒 pocket-tts | [`pocket-tts`](packages/tts/pocket-tts/) | `pocket-tts:0.3.0` | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning; **true streaming** (~200 ms TTFA) |
 
-## Supported Hardware
+## 🖥️ Supported Hardware
 
 One image per package serves **both boards** — native cubins for sm_87 and
 sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
@@ -105,7 +105,7 @@ sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
   </tbody>
 </table>
 
-## Quick start
+## 🚀 Quick start
 
 ```bash
 # 1) shared artifact builders (cached; seconds on replay)
@@ -300,7 +300,7 @@ Quality is *higher-is-better* — hence the inverted log ratio. Weights renormal
 > gate logic itself is `bench/matrix.py`.
 
 
-## Layout
+## 🗺️ Layout
 
 ```
 packages/             the images — packages/<stt|tts|llm>/<name>/
@@ -322,7 +322,7 @@ test/{verify_arch,smoke_*}`.
 **Decoupling contract:** an engine references shared artifacts only through a single
 overridable ARG (`WHEELS_IMAGE`, `PARAKEET_DIST_IMAGE`) — see `ARCHITECTURE.md`.
 
-## Benchmarking
+## 🧪 Benchmarking
 
 ```bash
 make bench-prepare      # frozen manifests: 500 utterances + 444 sentences (LibriSpeech, seed 42)
@@ -346,7 +346,7 @@ warm file cache can't inflate the memory numbers. Every run appends to
 metadata to `benchmarks/raw/<run_id>/` — logs and per-utterance data stay in
 `results/` on the bench host.
 
-## CI
+## 🚦 CI
 
 | Workflow | Trigger | Runner | What it does |
 |---|---|---|---|
@@ -354,7 +354,7 @@ metadata to `benchmarks/raw/<run_id>/` — logs and per-utterance data stay in
 | `build-smoke.yml` | `workflow_dispatch` | `[self-hosted, jetson]` | build matrix + arch verification (+ optional GPU smoke) |
 | `publish.yml` | tag `v*` | `[self-hosted, jetson]` | build → arch gate → push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
 
-## Licenses
+## 📜 Licenses
 
 Apache-2.0 — see [`LICENSE`](LICENSE). Each image carries its engine's license — check every project's
 README (all engines here are permissive or OpenMDW; nothing NC).
