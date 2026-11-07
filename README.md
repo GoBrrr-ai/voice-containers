@@ -172,7 +172,7 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 (hollow point, idle draw) in the power chart.*
 
 <p align="center">
-<img src="assets/benchmarks/stt/stt-edge.png" alt="Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM; profile orin-nano-8gb-v2)" width="100%">
+<img src="assets/benchmarks/stt/stt-edge.png" alt="Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM)" width="100%">
 </p>
 
 <details>
@@ -249,7 +249,7 @@ chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completio
 their TTFA equals the synth p50/p90.*
 
 <p align="center">
-<img src="assets/benchmarks/tts/tts-edge.png" alt="Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending; profile orin-nano-8gb-v2)" width="100%">
+<img src="assets/benchmarks/tts/tts-edge.png" alt="Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending)" width="100%">
 </p>
 
 <details>

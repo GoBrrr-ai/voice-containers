@@ -1014,11 +1014,11 @@ def _edge_chart(rows: list[dict], task: str, mode: Mode):
     if task == "stt":
         xlabel = f"edge deployment score (0–100; {vec_txt})"
         title = "Speech recognition — edge deployment score"
-        footer = f" · profile {EDGE_PROFILE} · ✗ = hard-gate FAIL"
+        footer = " · ✗ = hard-gate FAIL"
     else:
         xlabel = f"edge deployment-performance score (0–100; {vec_txt})"
         title = "Speech synthesis — edge deployment-performance score"
-        footer = f" · profile {EDGE_PROFILE} · ✗ = hard-gate FAIL · MOS pending"
+        footer = " · ✗ = hard-gate FAIL · MOS pending"
     _lollipop(
         ax,
         names,
