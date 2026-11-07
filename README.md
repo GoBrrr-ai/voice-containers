@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.gif" width="360" alt="voice-containers — a candy soundwave becoming a whale">
+  <img src="assets/logo.png" width="360" alt="voice-containers — a candy soundwave becoming a whale">
 </p>
 
 <h1 align="center">voice-containers</h1>
