@@ -12,10 +12,10 @@
 </p>
 
 <p align="center">
-  <b>Production-ready Voice Container images for NVIDIA Jetson Edge GPUs</b> — a full streaming
+  <b>Production-ready voice-container images for NVIDIA Jetson edge GPUs</b> — a full streaming
   voice stack (speech recognition + synthesis) and a spec-driven benchmark harness.
-  One docker image per package serves <b>both boards</b> (native cubins for <code>sm_87</code> +
-  <code>sm_110a</code>), built on CUDA 13.2 SBSA / JetPack 7.2.1
+  One Docker image per package serves <b>both boards</b> (native <code>sm_87</code> +
+  <code>sm_110a</code> cubins), built on CUDA 13.2 SBSA / JetPack 7.2.1
   userspace with the GPU driver injected from the host.
 </p>
 
