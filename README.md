@@ -12,10 +12,10 @@
 </p>
 
 <p align="center">
-  <b>Production container images for NVIDIA Jetson edge GPUs</b> — a full streaming
+  <b>Production-ready Voice Container images for NVIDIA Jetson Edge GPUs</b> — a full streaming
   voice stack (speech recognition + synthesis) and a spec-driven benchmark harness.
   One docker image per package serves <b>both boards</b> (native cubins for <code>sm_87</code> +
-  <code>sm_110a</code> plus forward-compat PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1
+  <code>sm_110a</code>), built on CUDA 13.2 SBSA / JetPack 7.2.1
   userspace with the GPU driver injected from the host.
 </p>
 
@@ -60,51 +60,6 @@
   </tr>
 </table>
 
-## 📦 Packages
-
-### 🎙️ Speech recognition
-
-| Family | Package | Docker image | What it is |
-|---|---|---|---|
-| 🐤 canary | [`canary-flash-stt`](packages/stt/canary-flash-stt/) | [`canary-flash-stt:0.2.0`](https://hub.docker.com/r/narandill/canary-flash-stt) | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx; VAD-chunked (opt-in) |
-| ⚡ faster-whisper | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | [`wyoming-faster-whisper:0.1.0`](https://hub.docker.com/r/narandill/wyoming-faster-whisper) | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110); wyoming streaming |
-| 🌙 moonshine | [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | [`moonshine-streaming-stt:0.2.0`](https://hub.docker.com/r/narandill/moonshine-streaming-stt) | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime); **native incremental** (live partials) |
-| 🔊 nemotron-streaming | [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | [`nemotron-streaming-stt:0.2.0`](https://hub.docker.com/r/narandill/nemotron-streaming-stt) | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx; **true native** (cache-aware, graph-chunked) |
-| 🦜 parakeet-tdt | [`parakeet-tdt-cpp-stt`](packages/stt/parakeet-tdt-cpp-stt/) | [`parakeet-tdt-cpp-stt:0.1.0`](https://hub.docker.com/r/narandill/parakeet-tdt-cpp-stt) | nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp; VAD-chunked (opt-in) |
-| 🦜 parakeet-tdt | [`parakeet-tdt-ort-stt`](packages/stt/parakeet-tdt-ort-stt/) | [`parakeet-tdt-ort-stt:0.1.0`](https://hub.docker.com/r/narandill/parakeet-tdt-ort-stt) | nvidia parakeet-tdt-0.6b-v3 int4 MatMulNBits (391 MB, featurizer incl.) on our onnxruntime-gpu; VAD-chunked (opt-in) |
-| 🦜 parakeet-tdt | [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | [`parakeet-tdt-stt:0.2.0`](https://hub.docker.com/r/narandill/parakeet-tdt-stt) | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx; VAD-chunked (opt-in) |
-| 🦜 parakeet.cpp | [`nemotron-unified-asr`](packages/stt/nemotron-unified-asr/) | [`nemotron-unified-asr:0.2.0`](https://hub.docker.com/r/narandill/nemotron-unified-asr) | nvidia nemotron-unified-asr 0.6B (q8_0 GPU + q4_k Orin-budget) on parakeet.cpp; **true buffered** (0.16–2.08 s) |
-| 🦜 parakeet.cpp | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | [`parakeet-redux-stt:0.1.0`](https://hub.docker.com/r/narandill/parakeet-redux-stt) | moondream parakeet-redux 178M (q8_0) GPU + packed CPU; VAD-chunked (opt-in) |
-| 🦜 parakeet.cpp | [`phonon2-stt`](packages/stt/phonon2-stt/) | [`phonon2-stt:0.2.0`](https://hub.docker.com/r/narandill/phonon2-stt) | fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU); VAD-chunked (opt-in) |
-
-### 🔊 Speech synthesis
-
-| Family | Package | Docker image | What it is |
-|---|---|---|---|
-| 🗣️ kokoro | [`kokoro-tts`](packages/tts/kokoro-tts/) | [`kokoro-tts:0.1.0`](https://hub.docker.com/r/narandill/kokoro-tts) | Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a); `create_stream()` |
-| ✨ paradee | [`paradee-tts`](packages/tts/paradee-tts/) | [`paradee-tts:0.2.0`](https://hub.docker.com/r/narandill/paradee-tts) | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices); sentence-chunked |
-| 🌊 phonon-31m | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | [`phonon31m-tts:0.1.0`](https://hub.docker.com/r/narandill/phonon31m-tts) | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB); **true streaming** (TTFA ~76 ms p95) |
-| 🎺 piper1-tts | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | [`wyoming-piper1-tts:0.1.0`](https://hub.docker.com/r/narandill/wyoming-piper1-tts) | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; wyoming streaming |
-| 🎒 pocket-tts | [`pocket-tts`](packages/tts/pocket-tts/) | [`pocket-tts:0.3.0`](https://hub.docker.com/r/narandill/pocket-tts) | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning; **true streaming** (~200 ms TTFA) |
-
-## 🖥️ Supported Hardware
-
-One image per package serves **both boards** — native cubins for sm_87 and
-sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
-
-<table width="100%">
-  <thead>
-    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
-  </thead>
-  <tbody>
-    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
-    <tr><td align="center"><strong>compute capability</strong></td><td align="center">sm_110a + sm_110 PTX</td><td align="center">sm_87 + sm_87 PTX</td></tr>
-    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
-    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
-    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
-  </tbody>
-</table>
-
 ## 🚀 Quick start
 
 ```bash
@@ -123,21 +78,121 @@ docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyo
 docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
 ```
 
+> [!TIP]
 > On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
 580.00 vs the baked 13.2 userspace — minor-version compatibility). After the host
 upgrade, drop the flag.
 
+## 📦 Packages
+
+### 🎙️ Speech recognition
+
+| Family | Package | Docker image | What it is |
+|---|---|---|---|
+| 🐤 canary | [`canary-flash-stt`](packages/stt/canary-flash-stt/) | [`canary-flash-stt:0.2.0`](https://hub.docker.com/r/narandill/canary-flash-stt) | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx; VAD-chunked (opt-in) |
+| ⚡ faster-whisper | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | [`wyoming-faster-whisper:0.1.0`](https://hub.docker.com/r/narandill/wyoming-faster-whisper) | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110); wyoming streaming |
+| 🌙 moonshine | [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | [`moonshine-streaming-stt:0.2.0`](https://hub.docker.com/r/narandill/moonshine-streaming-stt) | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime); **native incremental** (live partials) |
+| 🔊 nemotron-streaming | [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | [`nemotron-streaming-stt:0.2.0`](https://hub.docker.com/r/narandill/nemotron-streaming-stt) | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx; **true native** (cache-aware, graph-chunked) |
+| 🦜 parakeet-tdt | [`parakeet-tdt-cpp-stt`](packages/stt/parakeet-tdt-cpp-stt/) | [`parakeet-tdt-cpp-stt:0.1.0`](https://hub.docker.com/r/narandill/parakeet-tdt-cpp-stt) | nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp; VAD-chunked (opt-in) |
+| 🦜 parakeet-tdt | [`parakeet-tdt-ort-stt`](packages/stt/parakeet-tdt-ort-stt/) | [`parakeet-tdt-ort-stt:0.1.0`](https://hub.docker.com/r/narandill/parakeet-tdt-ort-stt) | nvidia parakeet-tdt-0.6b-v3 int4 MatMulNBits (391 MB, featurizer incl.) on our onnxruntime-gpu; VAD-chunked (opt-in) |
+| 🦜 parakeet-tdt | [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | [`parakeet-tdt-stt:0.2.0`](https://hub.docker.com/r/narandill/parakeet-tdt-stt) | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx; VAD-chunked (opt-in) |
+| 🦜 parakeet.cpp | [`nemotron-unified-asr`](packages/stt/nemotron-unified-asr/) | [`nemotron-unified-asr:0.2.0`](https://hub.docker.com/r/narandill/nemotron-unified-asr) | nvidia nemotron-unified-asr 0.6B (q8_0 GPU + q4_k Orin-budget) on parakeet.cpp; **true buffered** (0.16–2.08 s) |
+| 🦜 parakeet.cpp | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | [`parakeet-redux-stt:0.1.0`](https://hub.docker.com/r/narandill/parakeet-redux-stt) | moondream parakeet-redux 178M (q8_0) GPU + packed CPU; VAD-chunked (opt-in) |
+| 🦜 parakeet.cpp | [`phonon2-stt`](packages/stt/phonon2-stt/) | [`phonon2-stt:0.2.0`](https://hub.docker.com/r/narandill/phonon2-stt) | fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU); VAD-chunked (opt-in) |
+
+<p align="center">
+<img src="assets/benchmarks/stt/stt-edge.png" alt="Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM)" width="100%">
+</p>
+
+<details>
+<summary>How the edge deployment score is calculated — and why p95 & anon peak</summary>
+
+Each vector is scored against *absolute* anchors — never against the other engines — so
+adding a config never rewrites a historical score. A vector scores 1.0 at/better than its
+target, 0.0 at its worst-acceptable bound, log-linear in between (RTF, latency and memory
+are heavy-tailed: the last halving counts as much as the first). The score is the
+weighted mean ×100 of **WER** (target 2%, worst 10%, weight 0.30) · **latency p95**
+(0.3 s, 1.5 s, 0.20) · **RTF p95** (0.1, 1.0, 0.15) · **VRAM, anon peak** (1 GiB,
+3 GiB, 0.35).
+
+$$
+S_i=\text{clip}\left(\frac{\ln(W_i/x_i)}{\ln(W_i/T_i)}, 0, 1\right)
+\qquad
+\text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
+$$
+
+Latency and RTF bind the *tail* (p95 — averages hide the spikes that make an assistant
+feel broken). Memory scores the *anon peak*, the true process footprint: cgroup peak
+counts reclaimable file cache, and on this 8 GB *unified*-memory board the stack must
+leave room for llama.cpp weights and KV cache. **Hard gates are separate from the
+score**: a red ✗ row breaches a worst-class bound (p95 latency above 1.5 s or anon peak
+above 4 GiB) and is undeployable regardless of its aggregate. Retuned anchors or weights
+ship as v3 — never a silent rewrite of history.
+
+</details>
+<br />
+
+### 🔊 Speech synthesis
+
+| Family | Package | Docker image | What it is |
+|---|---|---|---|
+| 🗣️ kokoro | [`kokoro-tts`](packages/tts/kokoro-tts/) | [`kokoro-tts:0.1.0`](https://hub.docker.com/r/narandill/kokoro-tts) | Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a); `create_stream()` |
+| ✨ paradee | [`paradee-tts`](packages/tts/paradee-tts/) | [`paradee-tts:0.2.0`](https://hub.docker.com/r/narandill/paradee-tts) | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices); sentence-chunked |
+| 🌊 phonon-31m | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | [`phonon31m-tts:0.1.0`](https://hub.docker.com/r/narandill/phonon31m-tts) | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB); **true streaming** (TTFA ~76 ms p95) |
+| 🎺 piper1-tts | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | [`wyoming-piper1-tts:0.1.0`](https://hub.docker.com/r/narandill/wyoming-piper1-tts) | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; wyoming streaming |
+| 🎒 pocket-tts | [`pocket-tts`](packages/tts/pocket-tts/) | [`pocket-tts:0.3.0`](https://hub.docker.com/r/narandill/pocket-tts) | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning; **true streaming** (~200 ms TTFA) |
+
+<p align="center">
+<img src="assets/benchmarks/tts/tts-edge.png" alt="Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending)" width="100%">
+</p>
+
+<details>
+<summary>How the synthesis deployment-performance score is calculated — design notes & hard gates</summary>
+
+Same scheme as the STT score: 1.0 at the target, 0.0 at the worst bound, log-linear in
+between, weighted mean ×100. Vectors — **TTFA p90** (0.3 s, 1.5 s, 0.25) · **RTF p95**
+(0.1, 1.0, 0.15) · **VRAM, anon peak** (see the STT note; 1 GiB, 3 GiB, 0.35) ·
+**quality, MOS** (4.0, 2.5, 0.25). Synth latency is excluded — it is RTF re-measured
+per sentence and would double-count throughput.
+
+$$
+S_i=\text{clip}\left(\frac{\ln(x_i/W_i)}{\ln(T_i/W_i)}, 0, 1\right)
+\qquad
+\text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
+$$
+
+Quality is *higher-is-better* — hence the inverted log ratio. Weights renormalize over
+*measured* vectors and every label reports its coverage (· 75%): these are provisional
+**deployment-performance** scores (efficiency + responsiveness), not yet naturalness.
+✗ rows breach a hard gate (TTFA p90 above 1.5 s or anon peak above 4 GiB).
+
+</details>
+<br />
+
+## 🖥️ Supported Hardware
+
+<table width="100%">
+  <thead>
+    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
+  </thead>
+  <tbody>
+    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
+    <tr><td align="center"><strong>compute capability</strong></td><td align="center"><code>sm_110a</code></td><td align="center"><code>sm_87</code></td></tr>
+    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
+    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
+    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
+  </tbody>
+</table>
+
 
 ## 📊 Benchmarks
 
-> Rendered from `benchmarks/history.jsonl` (per-run metadata in `benchmarks/raw/`)
-by `bench plot --readme` — regenerate with `make bench-plot`.
-> Cohort: **jetson-agx-thor-128gb · default power · commit 1f9cab3 · 2026-11-04**.
-Charts: ❶❷❸ mark the top-3 places (gold/silver/bronze) for that chart's ranking
-metric; the scatter legends rank by composite score. Memory: **cgroup MiB**
-counts the container's active file cache too (the model was just read from
-disk); **anon MiB** is true process memory.
+> [!NOTE]  
+> Rendered from `benchmarks/history.jsonl` (per-run metadata in `benchmarks/raw/`) by `bench plot --readme` — regenerate with `make bench-plot`.
 
+
+
+---
 
 ### 🎙️ Speech recognition
 
@@ -174,40 +229,8 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 (hollow point, idle draw) in the power chart.*
 
 <p align="center">
-<img src="assets/benchmarks/stt/stt-edge.png" alt="Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM)" width="100%">
-</p>
-
-<details>
-<summary>How the edge deployment score is calculated — and why p95 & anon peak</summary>
-
-Each vector is scored against *absolute* anchors — never against the other engines — so
-adding a config never rewrites a historical score. A vector scores 1.0 at/better than its
-target, 0.0 at its worst-acceptable bound, log-linear in between (RTF, latency and memory
-are heavy-tailed: the last halving counts as much as the first). The score is the
-weighted mean ×100 of **WER** (target 2%, worst 10%, weight 0.30) · **latency p95**
-(0.3 s, 1.5 s, 0.20) · **RTF p95** (0.1, 1.0, 0.15) · **VRAM, anon peak** (1 GiB,
-3 GiB, 0.35).
-
-$$
-S_i=\text{clip}\left(\frac{\ln(W_i/x_i)}{\ln(W_i/T_i)}, 0, 1\right)
-\qquad
-\text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
-$$
-
-Latency and RTF bind the *tail* (p95 — averages hide the spikes that make an assistant
-feel broken). Memory scores the *anon peak*, the true process footprint: cgroup peak
-counts reclaimable file cache, and on this 8 GB *unified*-memory board the stack must
-leave room for llama.cpp weights and KV cache. **Hard gates are separate from the
-score**: a red ✗ row breaches a worst-class bound (p95 latency above 1.5 s or anon peak
-above 4 GiB) and is undeployable regardless of its aggregate. Retuned anchors or weights
-ship as v3 — never a silent rewrite of history.
-
-</details>
-
-<p align="center">
 <img src="assets/benchmarks/stt/stt-wer-vs-rtf.png" alt="Speech recognition — accuracy vs speed with Pareto front" width="100%">
 </p>
-
 
 <p align="center">
 <img src="assets/benchmarks/stt/stt-latency-box.png" alt="Speech recognition — per-utterance RTF distributions" width="100%">
@@ -230,6 +253,9 @@ ship as v3 — never a silent rewrite of history.
 </p>
 
 
+
+---
+
 ### 🔊 Speech synthesis
 
 > LibriSpeech text — 444 sentences, frozen manifest (seed 42).
@@ -251,32 +277,6 @@ ship as v3 — never a silent rewrite of history.
 (300 ms gate). TTFA = time to first audio: streaming engines report the first
 chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so
 their TTFA equals the synth p50/p90.*
-
-<p align="center">
-<img src="assets/benchmarks/tts/tts-edge.png" alt="Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending)" width="100%">
-</p>
-
-<details>
-<summary>How the synthesis deployment-performance score is calculated — design notes & hard gates</summary>
-
-Same scheme as the STT score: 1.0 at the target, 0.0 at the worst bound, log-linear in
-between, weighted mean ×100. Vectors — **TTFA p90** (0.3 s, 1.5 s, 0.25) · **RTF p95**
-(0.1, 1.0, 0.15) · **VRAM, anon peak** (see the STT note; 1 GiB, 3 GiB, 0.35) ·
-**quality, MOS** (4.0, 2.5, 0.25). Synth latency is excluded — it is RTF re-measured
-per sentence and would double-count throughput.
-
-$$
-S_i=\text{clip}\left(\frac{\ln(x_i/W_i)}{\ln(T_i/W_i)}, 0, 1\right)
-\qquad
-\text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
-$$
-
-Quality is *higher-is-better* — hence the inverted log ratio. Weights renormalize over
-*measured* vectors and every label reports its coverage (· 75%): these are provisional
-**deployment-performance** scores (efficiency + responsiveness), not yet naturalness.
-✗ rows breach a hard gate (TTFA p90 above 1.5 s or anon peak above 4 GiB).
-
-</details>
 
 <p align="center">
 <img src="assets/benchmarks/tts/tts-ranking.png" alt="Speech synthesis — real-time factor ranking" width="100%">
