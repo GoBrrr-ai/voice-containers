@@ -1,5 +1,6 @@
 #!/opt/venv/bin/python3
 """Synthesize text to a WAV file. Usage: kokoro-say "text" [-o out.wav] [--voice V] [--speed F] [--lang L]"""
+
 import argparse
 import os
 import wave
@@ -14,7 +15,9 @@ def main() -> None:
     ap.add_argument("-o", "--out", default="kokoro.wav")
     ap.add_argument("--voice", default=os.environ.get("KOKORO_VOICE", "af_heart"))
     ap.add_argument("--lang", default=os.environ.get("KOKORO_LANG", "en-us"))
-    ap.add_argument("--speed", type=float, default=float(os.environ.get("KOKORO_SPEED", "1.0")))
+    ap.add_argument(
+        "--speed", type=float, default=float(os.environ.get("KOKORO_SPEED", "1.0"))
+    )
     a = ap.parse_args()
 
     providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]

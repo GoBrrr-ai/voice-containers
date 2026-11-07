@@ -202,7 +202,9 @@ def probe_engine(key: str, cfg: dict, llm, tts, model: str, rows: list, n: int):
         eng.load({})
         _run_once(eng, llm, tts, None, model)  # engine + server-cache warmup
         manifest = [
-            json.loads(l) for l in MANIFEST.read_text().splitlines() if l.strip()
+            json.loads(line)
+            for line in MANIFEST.read_text().splitlines()
+            if line.strip()
         ][:n]
         n_ok = 0
         for s in manifest:

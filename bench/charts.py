@@ -623,7 +623,11 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         medals[id(rows_used[i])] = pos
     labels = _labels(rows_used, ranks=medals)
     bp = ax.boxplot(
-        data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
+        data,
+        tick_labels=labels,
+        orientation="horizontal",
+        patch_artist=True,
+        showfliers=False,
     )
     _style_medals(ax, labels)
     for i, vals_i in enumerate(data):
@@ -798,7 +802,11 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         medals[id(rows_used[i])] = pos
     labels = _labels(rows_used, ranks=medals)
     bp = ax.boxplot(
-        data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
+        data,
+        tick_labels=labels,
+        orientation="horizontal",
+        patch_artist=True,
+        showfliers=False,
     )
     _style_medals(ax, labels)
     for i, vals_i in enumerate(data):

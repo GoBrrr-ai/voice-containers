@@ -79,7 +79,7 @@ make build-all         # docker build every image (roster from scripts/projects.
 make verify-all        # cuobjdump arch verification (no GPU)
 make smoke-all         # GPU smoke suite (co-tenancy aware)
 make lint              # pre-commit over the repo
-make test              # unit tests (bench venv, no GPU/docker)
+make test              # unit tests + coverage gate (bench venv, no GPU/docker)
 make contract          # voice-api v1 wire contract (stdlib, CI-safe)
 
 make bench-prepare     # frozen manifests (LibriSpeech 500 utts / 444 sentences, seed 42)

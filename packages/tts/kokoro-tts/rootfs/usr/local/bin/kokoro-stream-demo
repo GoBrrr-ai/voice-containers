@@ -1,6 +1,7 @@
 #!/opt/venv/bin/python3
 """Streaming demo: create_stream() async generator + time-to-first-audio.
 Usage: kokoro-stream-demo "text" [-o out.wav] [--voice V]"""
+
 import argparse
 import asyncio
 import os
@@ -24,7 +25,9 @@ async def run() -> None:
     t0 = time.perf_counter()
     sr, first = None, None
     frames = bytearray()
-    async for samples, rate in kokoro.create_stream(a.text, voice=a.voice, lang="en-us"):
+    async for samples, rate in kokoro.create_stream(
+        a.text, voice=a.voice, lang="en-us"
+    ):
         if first is None:
             first = time.perf_counter() - t0
             print(f"TTFA: {first * 1000:.0f} ms")

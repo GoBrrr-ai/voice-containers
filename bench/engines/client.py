@@ -193,7 +193,6 @@ class MoonshineStreaming:
         return "cpu"
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
-
         pcm = _to_float(pcm)
         if sr != 16000:
             import soxr
@@ -361,7 +360,6 @@ class CanaryFlash:
         return self.device
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
-
         stream = self._r.create_stream()
         stream.accept_waveform(sr, _to_float(pcm))
         self._r.decode_stream(stream)
@@ -402,7 +400,6 @@ class ParakeetTdt:
         return self.device
 
     def transcribe(self, pcm, sr: int, wav_path: str | None = None):
-
         stream = self._r.create_stream()
         stream.accept_waveform(sr, _to_float(pcm))
         self._r.decode_stream(stream)

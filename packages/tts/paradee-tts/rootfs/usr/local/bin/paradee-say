@@ -1,6 +1,7 @@
 #!/opt/venv/bin/python3
 """Paradee TTS to WAV. Usage: paradee-say "text" [-o out.wav] [--voice V] [--speed F]
 Voices v1.2: af_heart am_puck (US) / bf_isabella bm_fable (UK)."""
+
 import argparse
 import os
 import wave
@@ -16,16 +17,18 @@ def main() -> None:
     ap.add_argument("--voice", default="af_heart")
     ap.add_argument("--speed", type=float, default=1.0)
     a = ap.parse_args()
-    audio = Paradee(version=os.environ.get("PARADEE_MODEL_VERSION", "1.2"), quantized=True)(
-        a.text, speed=a.speed, voice=a.voice
-    )
+    audio = Paradee(
+        version=os.environ.get("PARADEE_MODEL_VERSION", "1.2"), quantized=True
+    )(a.text, speed=a.speed, voice=a.voice)
     pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2")
     with wave.open(a.out, "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
         w.setframerate(SAMPLE_RATE)
         w.writeframes(pcm.tobytes())
-    print(f"paradee: wrote {a.out} ({len(audio) / SAMPLE_RATE:.1f}s @ {SAMPLE_RATE} Hz)")
+    print(
+        f"paradee: wrote {a.out} ({len(audio) / SAMPLE_RATE:.1f}s @ {SAMPLE_RATE} Hz)"
+    )
 
 
 if __name__ == "__main__":
