@@ -135,19 +135,17 @@ def _package_version(build_sh: Path) -> str:
 
 def _packages_table(rows: list[dict], task: str) -> str:
     heads = [
+        "Family",
         "Package",
         "Image (`narandill/<name>`)",
-        "Family",
         "What it is",
-        "Streaming",
     ]
     body = [
         [
+            f"{r['emoji']} {r['family']}",
             f"[`{r['dir']}`](packages/{task}/{r['dir']}/)",
             f"`{r['dir']}:{r['version']}`",
-            f"{r['emoji']} {r['family']}",
-            r["what"],
-            r["streaming"],
+            f"{r['what']}; {r['streaming']}",
         ]
         for r in rows
     ]

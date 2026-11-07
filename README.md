@@ -27,32 +27,79 @@
   <a href="#ci">CI</a>
 </p>
 
+## Features
+
+<table width="100%">
+  <tr>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🎙️&nbsp;<a href="#packages">10 speech-recognition engines</a></h3>
+      <p>Parakeet C++, Whisper, Canary, Moonshine, streaming Nemotron — <b>one image each</b>, version pinned in its build.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🔊&nbsp;<a href="#packages">5 speech-synthesis engines</a></h3>
+      <p>Kokoro, Piper, Phonon, Paradee, Pocket — <b>PCM chunks streamed as generated</b>, single-shot where it counts.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>⚡&nbsp;<a href="#supported-hardware">Edge-GPU ready</a></h3>
+      <p><b>sm_87 + sm_110a cubins baked side by side</b> — one image serves Jetson Orin <i>and</i> Thor.</p><br>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🔌&nbsp;<a href="docs/voice-api.md">OpenAI-compatible API</a></h3>
+      <p><code>/v1/audio/*</code> on every voice image — <b>stock SDKs work</b>; the wire contract is tested in CI.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🌊&nbsp;<a href="#-benchmarks">Full-duplex streaming</a></h3>
+      <p><b>SSE partials</b> while you speak, <b>chunked PCM</b> while it speaks — plus Wyoming wire for Home Assistant.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🐳&nbsp;<a href="#quick-start">Plain docker, no framework</a></h3>
+      <p>Every project is <b>one Dockerfile + one script</b> — <code>make build-all</code> and everything exists locally.</p><br>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>📏&nbsp;<a href="#-benchmarks">Benchmarked, not vibes</a></h3>
+      <p>Frozen LibriSpeech manifests (seed 42), <b>p50/p90 with hard gates</b> — charts re-render from <code>history.jsonl</code>.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🧠&nbsp;<a href="#packages">LLM in the same style</a></h3>
+      <p>A tuned <b>llama.cpp</b> image for the very same boards — the assistant's brain, built like the voice.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🔍&nbsp;<a href="ARCHITECTURE.md#verification-gates-every-cuda-image">Verify before you trust</a></h3>
+      <p><b>cuobjdump arch gates and GPU smoke tests</b> on every image — plus the stdlib voice-api contract in CI.</p><br>
+    </td>
+  </tr>
+</table>
+
 ## Packages
 
 ### Speech recognition (`packages/stt/`)
 
-| Package | Image (`narandill/<name>`) | Family | What it is | Streaming |
-|---|---|---|---|---|
-| [`canary-flash-stt`](packages/stt/canary-flash-stt/) | `canary-flash-stt:0.2.0` | 🐤 canary | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx | VAD-chunked (opt-in) |
-| [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | `wyoming-faster-whisper:0.1.0` | ⚡ faster-whisper | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110) | wyoming streaming |
-| [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | `moonshine-streaming-stt:0.2.0` | 🌙 moonshine | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime) | **native incremental** (live partials) |
-| [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | `nemotron-streaming-stt:0.2.0` | 🔊 nemotron-streaming | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx | **true native** (cache-aware, graph-chunked) |
-| [`parakeet-tdt-cpp-stt`](packages/stt/parakeet-tdt-cpp-stt/) | `parakeet-tdt-cpp-stt:0.1.0` | 🦜 parakeet-tdt | nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp | VAD-chunked (opt-in) |
-| [`parakeet-tdt-ort-stt`](packages/stt/parakeet-tdt-ort-stt/) | `parakeet-tdt-ort-stt:0.1.0` | 🦜 parakeet-tdt | nvidia parakeet-tdt-0.6b-v3 int4 MatMulNBits (391 MB, featurizer incl.) on our onnxruntime-gpu | VAD-chunked (opt-in) |
-| [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | `parakeet-tdt-stt:0.2.0` | 🦜 parakeet-tdt | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx | VAD-chunked (opt-in) |
-| [`nemotron-unified-asr`](packages/stt/nemotron-unified-asr/) | `nemotron-unified-asr:0.2.0` | 🦜 parakeet.cpp | nvidia nemotron-unified-asr 0.6B (q8_0 GPU + q4_k Orin-budget) on parakeet.cpp | **true buffered** (0.16–2.08 s) |
-| [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | `parakeet-redux-stt:0.1.0` | 🦜 parakeet.cpp | moondream parakeet-redux 178M (q8_0) GPU + packed CPU | VAD-chunked (opt-in) |
-| [`phonon2-stt`](packages/stt/phonon2-stt/) | `phonon2-stt:0.2.0` | 🦜 parakeet.cpp | fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU) | VAD-chunked (opt-in) |
+| Family | Package | Image (`narandill/<name>`) | What it is |
+|---|---|---|---|
+| 🐤 canary | [`canary-flash-stt`](packages/stt/canary-flash-stt/) | `canary-flash-stt:0.2.0` | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx; VAD-chunked (opt-in) |
+| ⚡ faster-whisper | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | `wyoming-faster-whisper:0.1.0` | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110); wyoming streaming |
+| 🌙 moonshine | [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | `moonshine-streaming-stt:0.2.0` | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime); **native incremental** (live partials) |
+| 🔊 nemotron-streaming | [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | `nemotron-streaming-stt:0.2.0` | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx; **true native** (cache-aware, graph-chunked) |
+| 🦜 parakeet-tdt | [`parakeet-tdt-cpp-stt`](packages/stt/parakeet-tdt-cpp-stt/) | `parakeet-tdt-cpp-stt:0.1.0` | nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp; VAD-chunked (opt-in) |
+| 🦜 parakeet-tdt | [`parakeet-tdt-ort-stt`](packages/stt/parakeet-tdt-ort-stt/) | `parakeet-tdt-ort-stt:0.1.0` | nvidia parakeet-tdt-0.6b-v3 int4 MatMulNBits (391 MB, featurizer incl.) on our onnxruntime-gpu; VAD-chunked (opt-in) |
+| 🦜 parakeet-tdt | [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | `parakeet-tdt-stt:0.2.0` | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx; VAD-chunked (opt-in) |
+| 🦜 parakeet.cpp | [`nemotron-unified-asr`](packages/stt/nemotron-unified-asr/) | `nemotron-unified-asr:0.2.0` | nvidia nemotron-unified-asr 0.6B (q8_0 GPU + q4_k Orin-budget) on parakeet.cpp; **true buffered** (0.16–2.08 s) |
+| 🦜 parakeet.cpp | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | `parakeet-redux-stt:0.1.0` | moondream parakeet-redux 178M (q8_0) GPU + packed CPU; VAD-chunked (opt-in) |
+| 🦜 parakeet.cpp | [`phonon2-stt`](packages/stt/phonon2-stt/) | `phonon2-stt:0.2.0` | fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU); VAD-chunked (opt-in) |
 
 ### Speech synthesis (`packages/tts/`)
 
-| Package | Image (`narandill/<name>`) | Family | What it is | Streaming |
-|---|---|---|---|---|
-| [`kokoro-tts`](packages/tts/kokoro-tts/) | `kokoro-tts:0.1.0` | 🗣️ kokoro | Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a) | `create_stream()` |
-| [`paradee-tts`](packages/tts/paradee-tts/) | `paradee-tts:0.2.0` | ✨ paradee | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices) | sentence-chunked |
-| [`phonon31m-tts`](packages/tts/phonon31m-tts/) | `phonon31m-tts:0.1.0` | 🌊 phonon-31m | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB) | **true streaming** (TTFA ~76 ms p95) |
-| [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | `wyoming-piper1-tts:0.1.0` | 🎺 piper1-tts | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1 | wyoming streaming |
-| [`pocket-tts`](packages/tts/pocket-tts/) | `pocket-tts:0.3.0` | 🎒 pocket-tts | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning | **true streaming** (~200 ms TTFA) |
+| Family | Package | Image (`narandill/<name>`) | What it is |
+|---|---|---|---|
+| 🗣️ kokoro | [`kokoro-tts`](packages/tts/kokoro-tts/) | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a); `create_stream()` |
+| ✨ paradee | [`paradee-tts`](packages/tts/paradee-tts/) | `paradee-tts:0.2.0` | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices); sentence-chunked |
+| 🌊 phonon-31m | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB); **true streaming** (TTFA ~76 ms p95) |
+| 🎺 piper1-tts | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | `wyoming-piper1-tts:0.1.0` | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; wyoming streaming |
+| 🎒 pocket-tts | [`pocket-tts`](packages/tts/pocket-tts/) | `pocket-tts:0.3.0` | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning; **true streaming** (~200 ms TTFA) |
 
 ## Supported Hardware
 
@@ -143,7 +190,7 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 </p>
 
 <details>
-<summary>How the edge deployment score is calculated (profile orin-nano-8gb-v2)</summary>
+<summary>How the edge deployment score is calculated — and why p95 & anon peak</summary>
 
 Each vector is scored against *absolute* anchors — never against the other engines — so
 adding a config never rewrites a historical score. A vector scores 1.0 at/better than its
@@ -153,16 +200,11 @@ weighted mean ×100 of **WER** (target 2%, worst 10%, weight 0.30) · **latency 
 (0.3 s, 1.5 s, 0.20) · **RTF p95** (0.1, 1.0, 0.15) · **VRAM, anon peak** (1 GiB,
 3 GiB, 0.35).
 
-</details>
-
 $$
 S_i=\text{clip}\left(\frac{\ln(W_i/x_i)}{\ln(W_i/T_i)}, 0, 1\right)
 \qquad
 \text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
 $$
-
-<details>
-<summary>Why p95 & anon peak — and the hard gates</summary>
 
 Latency and RTF bind the *tail* (p95 — averages hide the spikes that make an assistant
 feel broken). Memory scores the *anon peak*, the true process footprint: cgroup peak
@@ -225,7 +267,7 @@ their TTFA equals the synth p50/p90.*
 </p>
 
 <details>
-<summary>How the synthesis deployment-performance score is calculated (profile orin-nano-8gb-v2)</summary>
+<summary>How the synthesis deployment-performance score is calculated — design notes & hard gates</summary>
 
 Same scheme as the STT score: 1.0 at the target, 0.0 at the worst bound, log-linear in
 between, weighted mean ×100. Vectors — **TTFA p90** (0.3 s, 1.5 s, 0.25) · **RTF p95**
@@ -233,16 +275,11 @@ between, weighted mean ×100. Vectors — **TTFA p90** (0.3 s, 1.5 s, 0.25) · *
 **quality, MOS** (4.0, 2.5, 0.25). Synth latency is excluded — it is RTF re-measured
 per sentence and would double-count throughput.
 
-</details>
-
 $$
 S_i=\text{clip}\left(\frac{\ln(x_i/W_i)}{\ln(T_i/W_i)}, 0, 1\right)
 \qquad
 \text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
 $$
-
-<details>
-<summary>Design notes — quality vector, coverage, hard gates</summary>
 
 Quality is *higher-is-better* — hence the inverted log ratio. Weights renormalize over
 *measured* vectors and every label reports its coverage (· 75%): these are provisional
