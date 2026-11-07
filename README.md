@@ -62,7 +62,7 @@
 
 ## 📦 Packages
 
-### Speech recognition
+### 🎙️ Speech recognition
 
 | Family | Package | Docker image | What it is |
 |---|---|---|---|
@@ -77,7 +77,7 @@
 | 🦜 parakeet.cpp | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | [`parakeet-redux-stt:0.1.0`](https://hub.docker.com/r/narandill/parakeet-redux-stt) | moondream parakeet-redux 178M (q8_0) GPU + packed CPU; VAD-chunked (opt-in) |
 | 🦜 parakeet.cpp | [`phonon2-stt`](packages/stt/phonon2-stt/) | [`phonon2-stt:0.2.0`](https://hub.docker.com/r/narandill/phonon2-stt) | fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU); VAD-chunked (opt-in) |
 
-### Speech synthesis
+### 🔊 Speech synthesis
 
 | Family | Package | Docker image | What it is |
 |---|---|---|---|
@@ -139,7 +139,9 @@ counts the container's active file cache too (the model was just read from
 disk); **anon MiB** is true process memory.
 
 
-### Speech recognition — LibriSpeech test-clean
+### 🎙️ Speech recognition
+
+> LibriSpeech `test-clean` — 500 utterances, frozen manifest (seed 42).
 
 | engine | model | backend | WER | CER | SER | halluc. | RTF p50 | RTF p90 | lat p50 (s) | lat p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
@@ -228,7 +230,9 @@ ship as v3 — never a silent rewrite of history.
 </p>
 
 
-### Speech synthesis — 444 sentences (LibriSpeech text)
+### 🔊 Speech synthesis
+
+> LibriSpeech text — 444 sentences, frozen manifest (seed 42).
 
 | engine | model | backend | RTF p50 | RTF p90 | synth p50 (s) | synth p90 (s) | TTFA p50 (s) | TTFA p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
