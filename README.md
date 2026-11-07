@@ -62,7 +62,7 @@
 
 ## 📦 Packages
 
-### Speech recognition (`packages/stt/`)
+### Speech recognition
 
 | Family | Package | Image (`narandill/<name>`) | What it is |
 |---|---|---|---|
@@ -77,7 +77,7 @@
 | 🦜 parakeet.cpp | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | `parakeet-redux-stt:0.1.0` | moondream parakeet-redux 178M (q8_0) GPU + packed CPU; VAD-chunked (opt-in) |
 | 🦜 parakeet.cpp | [`phonon2-stt`](packages/stt/phonon2-stt/) | `phonon2-stt:0.2.0` | fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU); VAD-chunked (opt-in) |
 
-### Speech synthesis (`packages/tts/`)
+### Speech synthesis
 
 | Family | Package | Image (`narandill/<name>`) | What it is |
 |---|---|---|---|
