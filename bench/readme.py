@@ -142,7 +142,7 @@ def _packages_table(rows: list[dict], task: str) -> str:
     ]
     body = [
         [
-            f"{r['emoji']} {r['family']}",
+            f"{r['emoji']}\u00a0{r['family']}",
             f"[`{r['dir']}`](packages/{task}/{r['dir']}/)",
             f"`{r['dir']}:{r['version']}`",
             f"{r['what']}; {r['streaming']}",

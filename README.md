@@ -66,26 +66,26 @@
 
 | Family | Package | Image (`narandill/<name>`) | What it is |
 |---|---|---|---|
-| 🐤 canary | [`canary-flash-stt`](packages/stt/canary-flash-stt/) | `canary-flash-stt:0.2.0` | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx; VAD-chunked (opt-in) |
-| ⚡ faster-whisper | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | `wyoming-faster-whisper:0.1.0` | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110); wyoming streaming |
-| 🌙 moonshine | [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | `moonshine-streaming-stt:0.2.0` | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime); **native incremental** (live partials) |
-| 🔊 nemotron-streaming | [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | `nemotron-streaming-stt:0.2.0` | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx; **true native** (cache-aware, graph-chunked) |
-| 🦜 parakeet-tdt | [`parakeet-tdt-cpp-stt`](packages/stt/parakeet-tdt-cpp-stt/) | `parakeet-tdt-cpp-stt:0.1.0` | nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp; VAD-chunked (opt-in) |
-| 🦜 parakeet-tdt | [`parakeet-tdt-ort-stt`](packages/stt/parakeet-tdt-ort-stt/) | `parakeet-tdt-ort-stt:0.1.0` | nvidia parakeet-tdt-0.6b-v3 int4 MatMulNBits (391 MB, featurizer incl.) on our onnxruntime-gpu; VAD-chunked (opt-in) |
-| 🦜 parakeet-tdt | [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | `parakeet-tdt-stt:0.2.0` | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx; VAD-chunked (opt-in) |
-| 🦜 parakeet.cpp | [`nemotron-unified-asr`](packages/stt/nemotron-unified-asr/) | `nemotron-unified-asr:0.2.0` | nvidia nemotron-unified-asr 0.6B (q8_0 GPU + q4_k Orin-budget) on parakeet.cpp; **true buffered** (0.16–2.08 s) |
-| 🦜 parakeet.cpp | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | `parakeet-redux-stt:0.1.0` | moondream parakeet-redux 178M (q8_0) GPU + packed CPU; VAD-chunked (opt-in) |
-| 🦜 parakeet.cpp | [`phonon2-stt`](packages/stt/phonon2-stt/) | `phonon2-stt:0.2.0` | fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU); VAD-chunked (opt-in) |
+| 🐤 canary | [`canary-flash-stt`](packages/stt/canary-flash-stt/) | `canary-flash-stt:0.2.0` | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx; VAD-chunked (opt-in) |
+| ⚡ faster-whisper | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | `wyoming-faster-whisper:0.1.0` | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110); wyoming streaming |
+| 🌙 moonshine | [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | `moonshine-streaming-stt:0.2.0` | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime); **native incremental** (live partials) |
+| 🔊 nemotron-streaming | [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | `nemotron-streaming-stt:0.2.0` | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx; **true native** (cache-aware, graph-chunked) |
+| 🦜 parakeet-tdt | [`parakeet-tdt-cpp-stt`](packages/stt/parakeet-tdt-cpp-stt/) | `parakeet-tdt-cpp-stt:0.1.0` | nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp; VAD-chunked (opt-in) |
+| 🦜 parakeet-tdt | [`parakeet-tdt-ort-stt`](packages/stt/parakeet-tdt-ort-stt/) | `parakeet-tdt-ort-stt:0.1.0` | nvidia parakeet-tdt-0.6b-v3 int4 MatMulNBits (391 MB, featurizer incl.) on our onnxruntime-gpu; VAD-chunked (opt-in) |
+| 🦜 parakeet-tdt | [`parakeet-tdt-stt`](packages/stt/parakeet-tdt-stt/) | `parakeet-tdt-stt:0.2.0` | NVIDIA Parakeet TDT 0.6B v3 int8 (25 languages) via sherpa-onnx; VAD-chunked (opt-in) |
+| 🦜 parakeet.cpp | [`nemotron-unified-asr`](packages/stt/nemotron-unified-asr/) | `nemotron-unified-asr:0.2.0` | nvidia nemotron-unified-asr 0.6B (q8_0 GPU + q4_k Orin-budget) on parakeet.cpp; **true buffered** (0.16–2.08 s) |
+| 🦜 parakeet.cpp | [`parakeet-redux-stt`](packages/stt/parakeet-redux-stt/) | `parakeet-redux-stt:0.1.0` | moondream parakeet-redux 178M (q8_0) GPU + packed CPU; VAD-chunked (opt-in) |
+| 🦜 parakeet.cpp | [`phonon2-stt`](packages/stt/phonon2-stt/) | `phonon2-stt:0.2.0` | fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU); VAD-chunked (opt-in) |
 
 ### Speech synthesis (`packages/tts/`)
 
 | Family | Package | Image (`narandill/<name>`) | What it is |
 |---|---|---|---|
-| 🗣️ kokoro | [`kokoro-tts`](packages/tts/kokoro-tts/) | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a); `create_stream()` |
-| ✨ paradee | [`paradee-tts`](packages/tts/paradee-tts/) | `paradee-tts:0.2.0` | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices); sentence-chunked |
-| 🌊 phonon-31m | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB); **true streaming** (TTFA ~76 ms p95) |
-| 🎺 piper1-tts | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | `wyoming-piper1-tts:0.1.0` | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; wyoming streaming |
-| 🎒 pocket-tts | [`pocket-tts`](packages/tts/pocket-tts/) | `pocket-tts:0.3.0` | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning; **true streaming** (~200 ms TTFA) |
+| 🗣️ kokoro | [`kokoro-tts`](packages/tts/kokoro-tts/) | `kokoro-tts:0.1.0` | Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a); `create_stream()` |
+| ✨ paradee | [`paradee-tts`](packages/tts/paradee-tts/) | `paradee-tts:0.2.0` | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices); sentence-chunked |
+| 🌊 phonon-31m | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | `phonon31m-tts:0.1.0` | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB); **true streaming** (TTFA ~76 ms p95) |
+| 🎺 piper1-tts | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | `wyoming-piper1-tts:0.1.0` | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; wyoming streaming |
+| 🎒 pocket-tts | [`pocket-tts`](packages/tts/pocket-tts/) | `pocket-tts:0.3.0` | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning; **true streaming** (~200 ms TTFA) |
 
 ## 🖥️ Supported Hardware
 
