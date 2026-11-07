@@ -1,4 +1,8 @@
-# voice-containers
+<p align="center">
+  <img src="assets/logo.png" width="360" alt="voice-containers — a candy soundwave becoming a whale">
+</p>
+
+<h1 align="center">voice-containers</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Jetson%20Orin-eb6834" alt="Platform: Jetson AGX Orin (sm_87)">
