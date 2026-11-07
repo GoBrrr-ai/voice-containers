@@ -137,14 +137,14 @@ def _packages_table(rows: list[dict], task: str) -> str:
     heads = [
         "Family",
         "Package",
-        "Image (`narandill/<name>`)",
+        "Docker image",
         "What it is",
     ]
     body = [
         [
             f"{r['emoji']}\u00a0{r['family']}",
             f"[`{r['dir']}`](packages/{task}/{r['dir']}/)",
-            f"`{r['dir']}:{r['version']}`",
+            f"[`{r['dir']}:{r['version']}`](https://hub.docker.com/r/narandill/{r['dir']})",
             f"{r['what']}; {r['streaming']}",
         ]
         for r in rows
