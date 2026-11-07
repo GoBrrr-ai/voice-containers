@@ -608,6 +608,11 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         colors.append(row_color(r))
     if not data:
         return None
+    # sort boxes by median RTF, best (lowest) at the top after invert_yaxis
+    order = sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])
+    data = [data[i] for i in order]
+    rows_used = [rows_used[i] for i in order]
+    colors = [colors[i] for i in order]
     fig, ax = plt.subplots(figsize=_figsize(len(data), 4.6, 0.31))
     apply(fig, ax)
     medals = {}

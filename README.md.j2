@@ -12,10 +12,10 @@
 </p>
 
 <p align="center">
-  <b>Production container images for NVIDIA Jetson edge GPUs</b> — a full streaming
+  <b>Production-ready Voice Container images for NVIDIA Jetson Edge GPUs</b> — a full streaming
   voice stack (speech recognition + synthesis) and a spec-driven benchmark harness.
   One docker image per package serves <b>both boards</b> (native cubins for <code>sm_87</code> +
-  <code>sm_110a</code> plus forward-compat PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1
+  <code>sm_110a</code>), built on CUDA 13.2 SBSA / JetPack 7.2.1
   userspace with the GPU driver injected from the host.
 </p>
 
@@ -60,34 +60,6 @@
   </tr>
 </table>
 
-## 📦 Packages
-
-### 🎙️ Speech recognition
-
-{{ ctx.packages.stt }}
-
-### 🔊 Speech synthesis
-
-{{ ctx.packages.tts }}
-
-## 🖥️ Supported Hardware
-
-One image per package serves **both boards** — native cubins for sm_87 and
-sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
-
-<table width="100%">
-  <thead>
-    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
-  </thead>
-  <tbody>
-    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
-    <tr><td align="center"><strong>compute capability</strong></td><td align="center">sm_110a + sm_110 PTX</td><td align="center">sm_87 + sm_87 PTX</td></tr>
-    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
-    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
-    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
-  </tbody>
-</table>
-
 ## 🚀 Quick start
 
 ```bash
@@ -106,33 +78,16 @@ docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyo
 docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
 ```
 
+> [!TIP]
 > On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
 580.00 vs the baked 13.2 userspace — minor-version compatibility). After the host
 upgrade, drop the flag.
 
-{% if ctx.stt or ctx.tts %}
-## 📊 Benchmarks
+## 📦 Packages
 
-> Rendered from `benchmarks/history.jsonl` (per-run metadata in `benchmarks/raw/`)
-by `bench plot --readme` — regenerate with `make bench-plot`.
-> Cohort: **{{ ctx.device }} · {{ ctx.power }} power · commit {{ ctx.commit }} · {{ ctx.date }}**.
-Charts: ❶❷❸ mark the top-3 places (gold/silver/bronze) for that chart's ranking
-metric; the scatter legends rank by composite score. Memory: **cgroup MiB**
-counts the container's active file cache too (the model was just read from
-disk); **anon MiB** is true process memory.
-
-{% if ctx.stt %}
 ### 🎙️ Speech recognition
 
-> LibriSpeech `test-clean` — 500 utterances, frozen manifest (seed 42).
-
-{{ ctx.stt.table }}
-
-> *{{ ctx.stt.n_utt }} utterances · {{ ctx.stt.n_configs }} configurations · 🥇 **{{ ctx.stt.winner }}** at **{{ ctx.stt.best_wer }} WER**
-(🥇🥈🥉 = composite top 3); fastest RTF p50
-**{{ ctx.stt.best_rtf }}**. Green = best in column, red = worst. GPU W is the
-tegrastats module draw over each engine's window; the packed-CPU engine has none
-(hollow point, idle draw) in the power chart.*
+{{ ctx.packages.stt }}
 
 <p align="center">
 {{ chart("stt-edge", "Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM)") }}
@@ -164,44 +119,11 @@ above 4 GiB) and is undeployable regardless of its aggregate. Retuned anchors or
 ship as v3 — never a silent rewrite of history.
 
 </details>
+<br />
 
-<p align="center">
-{{ chart("stt-wer-vs-rtf", "Speech recognition — accuracy vs speed with Pareto front") }}
-</p>
-
-
-<p align="center">
-{{ chart("stt-latency-box", "Speech recognition — per-utterance RTF distributions") }}
-</p>
-
-<p align="center">
-{{ chart("stt-power", "Speech recognition — GPU power vs accuracy") }}
-</p>
-
-<p align="center">
-{{ chart("stt-memory", "Speech recognition — peak container memory") }}
-</p>
-
-<p align="center">
-{{ chart("stt-ranking", "Speech recognition — corpus WER") }}
-</p>
-
-<p align="center">
-{{ chart("stt-heatmap", "Speech recognition — normalized metric heatmap") }}
-</p>
-{% endif %}
-{% if ctx.tts %}
 ### 🔊 Speech synthesis
 
-> LibriSpeech text — {{ ctx.tts.n_sent }} sentences, frozen manifest (seed 42).
-
-{{ ctx.tts.table }}
-
-> *{{ ctx.tts.n_sent }} sentences · {{ ctx.tts.n_configs }} configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
-**{{ ctx.tts.best_rtf }}**{% if ctx.tts.best_ttfa_ms %}; best TTFA p50 **{{ ctx.tts.best_ttfa_ms }} ms**
-(300 ms gate){% endif %}. TTFA = time to first audio: streaming engines report the first
-chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so
-their TTFA equals the synth p50/p90.*
+{{ ctx.packages.tts }}
 
 <p align="center">
 {{ chart("tts-edge", "Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending)") }}
@@ -228,6 +150,84 @@ Quality is *higher-is-better* — hence the inverted log ratio. Weights renormal
 ✗ rows breach a hard gate (TTFA p90 above 1.5 s or anon peak above 4 GiB).
 
 </details>
+<br />
+
+## 🖥️ Supported Hardware
+
+<table width="100%">
+  <thead>
+    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
+  </thead>
+  <tbody>
+    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
+    <tr><td align="center"><strong>compute capability</strong></td><td align="center"><code>sm_110a</code></td><td align="center"><code>sm_87</code></td></tr>
+    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
+    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
+    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
+  </tbody>
+</table>
+
+{% if ctx.stt or ctx.tts %}
+## 📊 Benchmarks
+
+> [!NOTE]  
+> Rendered from `benchmarks/history.jsonl` (per-run metadata in `benchmarks/raw/`) by `bench plot --readme` — regenerate with `make bench-plot`.
+
+{% if ctx.stt %}
+
+---
+
+### 🎙️ Speech recognition
+
+> LibriSpeech `test-clean` — 500 utterances, frozen manifest (seed 42).
+
+{{ ctx.stt.table }}
+
+> *{{ ctx.stt.n_utt }} utterances · {{ ctx.stt.n_configs }} configurations · 🥇 **{{ ctx.stt.winner }}** at **{{ ctx.stt.best_wer }} WER**
+(🥇🥈🥉 = composite top 3); fastest RTF p50
+**{{ ctx.stt.best_rtf }}**. Green = best in column, red = worst. GPU W is the
+tegrastats module draw over each engine's window; the packed-CPU engine has none
+(hollow point, idle draw) in the power chart.*
+
+<p align="center">
+{{ chart("stt-wer-vs-rtf", "Speech recognition — accuracy vs speed with Pareto front") }}
+</p>
+
+<p align="center">
+{{ chart("stt-latency-box", "Speech recognition — per-utterance RTF distributions") }}
+</p>
+
+<p align="center">
+{{ chart("stt-power", "Speech recognition — GPU power vs accuracy") }}
+</p>
+
+<p align="center">
+{{ chart("stt-memory", "Speech recognition — peak container memory") }}
+</p>
+
+<p align="center">
+{{ chart("stt-ranking", "Speech recognition — corpus WER") }}
+</p>
+
+<p align="center">
+{{ chart("stt-heatmap", "Speech recognition — normalized metric heatmap") }}
+</p>
+{% endif %}
+{% if ctx.tts %}
+
+---
+
+### 🔊 Speech synthesis
+
+> LibriSpeech text — {{ ctx.tts.n_sent }} sentences, frozen manifest (seed 42).
+
+{{ ctx.tts.table }}
+
+> *{{ ctx.tts.n_sent }} sentences · {{ ctx.tts.n_configs }} configurations · 🥇🥈🥉 = composite top 3 · fastest RTF p50
+**{{ ctx.tts.best_rtf }}**{% if ctx.tts.best_ttfa_ms %}; best TTFA p50 **{{ ctx.tts.best_ttfa_ms }} ms**
+(300 ms gate){% endif %}. TTFA = time to first audio: streaming engines report the first
+chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so
+their TTFA equals the synth p50/p90.*
 
 <p align="center">
 {{ chart("tts-ranking", "Speech synthesis — real-time factor ranking") }}
