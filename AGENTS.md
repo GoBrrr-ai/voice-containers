@@ -5,10 +5,11 @@ Guidance for AI coding agents (and humans) working in this repository.
 ## What this repo is
 
 `voice-containers` — production container images for NVIDIA Jetson edge GPUs
-(sm_87 Orin + sm_110 Thor): a streaming voice stack (speech recognition +
-synthesis) organized as `stt/`, `tts/` and `llm/` project dirs, shared
-`builders/`, and a spec-driven benchmark harness (`bench/`) that renders the
-README, charts and result matrices from raw data.
+(sm_87 Orin + sm_110 Thor): 16 self-contained image projects (10 speech
+recognition, 5 speech synthesis, 1 llama.cpp) under `packages/`, two shared
+`builders/`, an HTTP contract (`docs/voice-api.md`) and a spec-driven
+benchmark harness (`bench/`) that renders the README, charts and result
+matrices from summary data. See `ARCHITECTURE.md` for the dependency graph.
 
 ## Golden rules
 
@@ -16,64 +17,78 @@ README, charts and result matrices from raw data.
    `README.md.j2` (Jinja2, `StrictUndefined`) + `benchmarks/history.jsonl` +
    `assets/benchmarks/manifest.json`. Never hand-edit `README.md` — edit the
    template or the data, then regenerate (`make bench-plot`).
-2. **Never push anywhere.** Nothing goes to Docker Hub or GitHub. All images
-   are local tags `narandill/<name>:<version>` (+`latest`), one version each.
+2. **Publishing is tag-driven, nothing ad-hoc.** Images leave the machine only
+   via `vX.Y.Z` tags → `publish.yml` (build → arch gate → push to Docker Hub
+   `narandill/*`) or manually via `scripts/docker_release.py`. No `docker
+   push` outside those paths. Git pushes to `origin/main` only when the user
+   asks.
 3. **Never measure on a busy GPU.** The runner gates GPU runs on co-tenant
    memory (≥100 GB held → wait ≤30 min → defer). Never kill co-tenants.
-4. **Use the bench venv.** The user's system `python3` lacks numpy/jinja2 —
-   always run bench code with `bench/.venv/bin/python`.
-5. **No banned strings**: the purged legacy project names never appear in any
-   tracked file — not even in this rule. The exact patterns live in the git
-   history (see the purge commit); grep `README.md` against them and it must
-   return 0. `PRD` is banned too — say "spec". The spec file
-   `task/benchmark-prd.md` itself keeps its lowercase name.
+4. **Use the bench venv.** The system `python3` lacks numpy/jinja2 — always
+   run bench/pytest/plot code with `bench/.venv/bin/python` (or rely on
+   `.envrc` putting it on PATH).
+5. **Banned strings:** the pre-rename project name `edge-containers` must not
+   appear in any tracked file (`grep -ri edge-containers` over tracked files
+   returns 0). Same for `PRD` — say "spec". The spec file
+   `task/benchmark-prd.md` keeps its lowercase name.
 6. **`task/` is gitignored** and lives inside this repo. An older checkout
-   elsewhere on disk keeps a compat symlink to it — if you ever find a
-   symlink pointing into `task/`, don't delete it.
+   elsewhere on disk keeps a compat symlink into it — if you find such a
+   symlink, don't delete it.
 7. **Engine ids are internal.** `parakeet_cpp_0…3`, `kokoro_0`, `piper_3` …
    are config indices. Anything user-visible (tables, charts, cards) uses the
    original project + model names via `bench/names.py` — add new projects
    there (image → family/emoji/streaming note + display label).
+8. **Git carries summary data, not raw results.** Only `benchmarks/history.jsonl`,
+   `manifests/`, charts and metadata-only `benchmarks/raw/<run_id>/`
+   (`bench/history.py::publish_raw`) are committed; raw logs, utterances and
+   `results/` stay local. Charts are quantized on save (`bench/charts.py::
+   _shrink_png`). History rewrites are ceremony (force-push, signed) — avoid.
 
 ## Layout
 
 | Path | Purpose |
 |---|---|
-| `packages/stt/` | speech recognition: wyoming-faster-whisper, nemotron-unified-asr, parakeet-redux-stt, phonon2-stt |
-| `packages/tts/` | speech synthesis: wyoming-piper1-tts, kokoro-tts, phonon31m-tts, paradee-tts |
-| `packages/llm/` | llama-cpp (outside the voice stack) |
-| `builders/` | shared artifact builders (wheels-cu132, parakeet-cpp) — not shipped |
+| `packages/stt/` · `packages/tts/` · `packages/llm/` | the 16 image projects — authoritative list in `scripts/projects.txt` |
+| `builders/` | shared artifact builders (`parakeet-cpp` dist, `wheels-cu132`) — not shipped |
 | `bench/` | harness: datasets, engines, probes, metrics, matrix, charts, readme |
-| `benchmarks/` | `history.jsonl` (append-only) + `raw/<run_id>/` committed artifacts |
-| `assets/benchmarks/` | generated charts (2× dark PNGs) + `manifest.json` |
+| `benchmarks/` | `history.jsonl` (append-only) + metadata-only `raw/<run_id>/` |
+| `assets/` | generated benchmark charts + `logo.png`/`logo.gif` (README header) |
 | `manifests/` | frozen benchmark manifests (seed 42) — the reproducibility anchor |
-| `task/` | spec, reviews, research, voice-data (gitignored) |
-| `reports/`, `selfcheck.json` | generated outputs — gitignored |
+| `docs/` | `voice-api.md` + OpenAPI spec — the HTTP contract for non-wyoming images |
+| `deploy/` | docker-compose composing the built images (no builds) |
+| `tools/` | `voice_api_contract_test.py` — stdlib contract check (`make contract`) |
+| `scripts/` | `projects.txt` (roster), sweep runners, `docker_release.py` |
+| `task/`, `reports/`, `selfcheck.json` | workspace + generated outputs (gitignored) |
 
 Each project dir is standalone: `Dockerfile + build.sh + README +
 test/{verify_arch,smoke_*}`. Dockerfiles start with `ARG BASE_IMAGE /
 FROM ${BASE_IMAGE}` and use `uv pip install`.
 
+## The project roster — one file
+
+`scripts/projects.txt` (one `packages/...` path per line) is the single
+source of truth. The Makefile, `scripts/sweep-*.sh` and both build workflows
+read it; **adding a project = one line there** (+ `bench/names.py` if it
+benches). Image names stay flat: `narandill/<name>`.
+
 ## Commands
 
 ```bash
 make builders          # shared artifact builders (cached)
-make build-all         # docker build every engine image (loops PROJECTS in Makefile)
+make build-all         # docker build every image (roster from scripts/projects.txt)
 make verify-all        # cuobjdump arch verification (no GPU)
 make smoke-all         # GPU smoke suite (co-tenancy aware)
 make lint              # pre-commit over the repo
+make test              # unit tests (bench venv, no GPU/docker)
+make contract          # voice-api v1 wire contract (stdlib, CI-safe)
 
 make bench-prepare     # frozen manifests (LibriSpeech 500 utts / 444 sentences, seed 42)
 make bench-selfcheck   # device, CUDA arch, probes, engines report
 bench/.venv/bin/python -m bench.cli run bench/configs/thor_stt_baseline.yaml
 bench/.venv/bin/python -m bench.cli run bench/configs/thor_tts_baseline.yaml
 make bench-plot        # charts + matrix + README.md from history.jsonl (no inference)
+make bench-prune       # delete superseded benchmarks/raw dirs (--yes applies)
 ```
-
-`PROJECTS` in the Makefile / `scripts/sweep-*.sh` / `.github/workflows/*.yml`
-lists full paths (`packages/stt/...`, `packages/tts/...`, `packages/llm/...`) —
-update all four when adding a project. Docker image names stay flat
-(`narandill/<name>`).
 
 ## Benchmark data flow
 
@@ -97,11 +112,14 @@ bench plot --readme
   their window is idle noise; tables show `— (CPU)`, the power chart draws a
   hollow point annotated "GPU idle".
 - Footer commit hashes come from each run's `env.json`, not current HEAD.
+- The chain probe (`bench chain_probe`) writes `results/chain_*/` only — its
+  summary lives in task notes, never in git.
 
 ## Conventions
 
-- Commit style: short lowercase messages. If a pre-commit hook rewrites files,
-  `git add -A` and retry.
+- Commit style: short lowercase messages; all commits carry the single
+  identity `Mieszko Syty <mieszko@ms1design.pl>` (GPG-signed). If a
+  pre-commit hook rewrites files, `git add -A` and retry.
 - Charts: dark theme (`bench/theme.py`), identity colors per engine family
   (Okabe-Ito), marker shape = backend (circle CPU, square CUDA), titles say
   "Speech recognition/synthesis" — never bare "STT"/"TTS" in visible text.
@@ -112,9 +130,9 @@ bench plot --readme
 ## Validating changes
 
 ```bash
-make bench-plot                                # regenerates README.md + charts
-grep -ci "PRD" README.md                       # must be 0; purged legacy names too (rule 5)
-bash -n scripts/sweep-build.sh                 # after touching scripts
+make bench-plot                        # regenerates README.md + charts
+grep -ci edge-containers README.md     # 0 — banned-string check (rule 5)
+bash -n scripts/sweep-build.sh         # after touching scripts
 pre-commit run --all-files
 ```
 

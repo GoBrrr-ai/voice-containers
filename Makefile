@@ -1,12 +1,7 @@
 # voice-containers — build, verify, smoke and benchmark all projects.
-PROJECTS := packages/llm/llama-cpp \
-            packages/stt/wyoming-faster-whisper packages/stt/nemotron-unified-asr \
-            packages/stt/parakeet-redux-stt packages/stt/phonon2-stt \
-            packages/stt/moonshine-streaming-stt packages/stt/canary-flash-stt \
-            packages/stt/parakeet-tdt-stt packages/stt/parakeet-tdt-cpp-stt packages/stt/parakeet-tdt-ort-stt \
-            packages/stt/nemotron-streaming-stt \
-            packages/tts/wyoming-piper1-tts packages/tts/kokoro-tts \
-            packages/tts/phonon31m-tts packages/tts/paradee-tts packages/tts/pocket-tts
+# The project roster lives in scripts/projects.txt (one path per line) — the
+# single source of truth consumed here and by scripts/sweep-*.sh + workflows.
+PROJECTS := $(shell tr '\n' ' ' < scripts/projects.txt)
 
 .PHONY: builders build-all verify-all smoke-all lint test bench-prepare bench-selfcheck bench-plot bench-prune
 
