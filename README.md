@@ -58,20 +58,6 @@
       <p>Every project is <b>one Dockerfile + one script</b> — <code>make build-all</code> and everything exists locally.</p><br>
     </td>
   </tr>
-  <tr>
-    <td width="33%" valign="top" align="center"><br>
-      <h3>📏&nbsp;<a href="#-benchmarks">Benchmarked, not vibes</a></h3>
-      <p>Frozen LibriSpeech manifests (seed 42), <b>p50/p90 with hard gates</b> — charts re-render from <code>history.jsonl</code>.</p><br>
-    </td>
-    <td width="33%" valign="top" align="center"><br>
-      <h3>🧠&nbsp;<a href="#packages">LLM in the same style</a></h3>
-      <p>A tuned <b>llama.cpp</b> image for the very same boards — the assistant's brain, built like the voice.</p><br>
-    </td>
-    <td width="33%" valign="top" align="center"><br>
-      <h3>🔍&nbsp;<a href="ARCHITECTURE.md#verification-gates-every-cuda-image">Verify before you trust</a></h3>
-      <p><b>cuobjdump arch gates and GPU smoke tests</b> on every image — plus the stdlib voice-api contract in CI.</p><br>
-    </td>
-  </tr>
 </table>
 
 ## Packages
