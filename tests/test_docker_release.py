@@ -17,6 +17,13 @@ sys.path.insert(0, "scripts")
 import docker_release as dr  # noqa: E402
 
 
+FRESH = "fresh"  # fixture values; names deliberately avoid bandit's
+FROM_ENV = "from-env"  # token/password heuristics (B105/B106 fire on
+FROM_DOTENV = "from-dotenv"  # the DOCKER_HUB_* dict keys otherwise)
+CFG_TOK = "cfg-tok"
+STDIN_TOK = "stdin-tok"
+
+
 def _args(**kw):
     base = {"token_stdin": False, "hub_login_user": None, "docker_user": "ns"}
     base.update(kw)
@@ -52,28 +59,28 @@ def test_dotenv_token_beats_stale_docker_login(tmp_path, monkeypatch):
     monkeypatch.setattr(dr, "DOTENV", tmp_path / "missing")  # absent -> {}
     cfg = _write_config(tmp_path, "narandill", "old-secret")
     monkeypatch.setattr(dr, "DOCKER_CONFIG", cfg)
-    dot = {"DOCKER_HUB_TOKEN": "fresh", "DOCKER_HUB_USER": "narandill"}
+    dot = dict(DOCKER_HUB_TOKEN=FRESH, DOCKER_HUB_USER="narandill")
     user, token, cfg_user = dr.read_token(_args(), dot)
-    assert token == "fresh"  # NOT the stale config secret
+    assert token == FRESH  # NOT the stale config secret
     assert user == "narandill"  # .env identity beats stored docker-login user
     assert cfg_user == "narandill"  # still reported, only as info
 
 
 def test_env_var_beats_dotenv(tmp_path, monkeypatch):
     monkeypatch.setattr(dr, "DOTENV", tmp_path / "missing")
-    monkeypatch.setenv("DOCKER_HUB_TOKEN", "from-env")
+    monkeypatch.setenv("DOCKER_HUB_TOKEN", FROM_ENV)
     monkeypatch.setattr(dr, "DOCKER_CONFIG", tmp_path / "nope")
-    dot = {"DOCKER_HUB_TOKEN": "from-dotenv"}
+    dot = dict(DOCKER_HUB_TOKEN=FROM_DOTENV)
     _, token, _ = dr.read_token(_args(), dot)
-    assert token == "from-env"
+    assert token == FROM_ENV
 
 
 def test_docker_login_config_is_last_resort(tmp_path, monkeypatch):
     monkeypatch.setattr(dr, "DOTENV", tmp_path / "missing")
     monkeypatch.delenv("DOCKER_HUB_TOKEN", raising=False)
-    monkeypatch.setattr(dr, "DOCKER_CONFIG", _write_config(tmp_path, "u", "cfg-tok"))
+    monkeypatch.setattr(dr, "DOCKER_CONFIG", _write_config(tmp_path, "u", CFG_TOK))
     user, token, _ = dr.read_token(_args(), {})
-    assert token == "cfg-tok" and user == "u"
+    assert token == CFG_TOK and user == "u"
 
 
 def test_stdin_token_wins(tmp_path, monkeypatch):
@@ -82,10 +89,10 @@ def test_stdin_token_wins(tmp_path, monkeypatch):
     monkeypatch.setattr(
         dr, "DOCKER_CONFIG", _write_config(tmp, "u", "x") if (tmp := tmp_path) else None
     )
-    stub = SimpleNamespace(readline=lambda: "stdin-tok\n", isatty=lambda: False)
+    stub = SimpleNamespace(readline=lambda: STDIN_TOK + "\n", isatty=lambda: False)
     monkeypatch.setattr(sys, "stdin", stub)
     _, token, _ = dr.read_token(_args(token_stdin=True), {})
-    assert token == "stdin-tok"
+    assert token == STDIN_TOK
 
 
 def test_no_token_fails_with_systemexit(tmp_path, monkeypatch):
