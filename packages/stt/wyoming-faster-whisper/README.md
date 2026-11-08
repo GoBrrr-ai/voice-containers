@@ -15,7 +15,7 @@ drop-in.
 
 ```sh
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -p 10300:10300 \
-  -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.0
+  -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.1
 ```
 
 Home Assistant (Wyoming integration): add host `127.0.0.1`, port `10300`.
@@ -31,6 +31,6 @@ Home Assistant (Wyoming integration): add host `127.0.0.1`, port `10300`.
 ## Test
 
 ```sh
-./test/verify_arch.sh narandill/wyoming-faster-whisper:0.1.0   # cubins, no GPU
-./test/smoke_whisper.sh narandill/wyoming-faster-whisper:0.1.0 # GPU round-trip
+./test/verify_arch.sh narandill/wyoming-faster-whisper:0.1.1   # cubins, no GPU
+./test/smoke_whisper.sh narandill/wyoming-faster-whisper:0.1.1 # GPU round-trip
 ```

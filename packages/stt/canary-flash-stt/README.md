@@ -20,11 +20,11 @@ also fits a GPU budget (FP16 ~0.4 GB).
 ```sh
 # transcription (en)
 docker run --rm -v /data:/data --entrypoint canary-transcribe \
-  narandill/canary-flash-stt:0.1.0 /audio/x.wav
+  narandill/canary-flash-stt:0.2.0 /audio/x.wav
 
 # translation en -> de
 docker run --rm -v /data:/data --entrypoint canary-transcribe \
-  narandill/canary-flash-stt:0.1.0 /audio/x.wav --tgt de
+  narandill/canary-flash-stt:0.2.0 /audio/x.wav --tgt de
 ```
 
 **Positioning (report rank #4):** best GPU option once an FP16 bake lands;

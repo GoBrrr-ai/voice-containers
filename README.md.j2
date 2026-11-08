@@ -75,13 +75,13 @@ make smoke-all
 
 # 4) run something
 docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.1
-docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
+docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.2.0 /audio/x.wav
 
 # 5) or speak OpenAI to it — every non-wyoming image serves /v1/audio/* (docs/voice-api.md)
 docker run -d --runtime nvidia --rm -p 8080:8080 narandill/canary-flash-stt:0.2.0
 curl -s localhost:8080/v1/audio/transcriptions -F file=@speech.wav -F model=canary-180m-flash-int8
 
-docker run -d --runtime nvidia --rm -p 8880:8880 narandill/kokoro-tts:0.2.0
+docker run -d --runtime nvidia --rm -p 8880:8880 narandill/kokoro-tts:0.1.0
 curl -s localhost:8880/v1/audio/speech -H 'Content-Type: application/json' \
   -d '{"input":"Hello from the edge.","voice":"af_heart","response_format":"wav"}' -o hello.wav
 ```
