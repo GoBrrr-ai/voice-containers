@@ -163,11 +163,11 @@ between, weighted mean ×100. Vectors — **TTFA p90** (0.3 s, 1.5 s, 0.25) · *
 **quality, MOS** (4.0, 2.5, 0.25). Synth latency is excluded — it is RTF re-measured
 per sentence and would double-count throughput.
 
-$$
+```math
 S_i=\text{clip}\left(\frac{\ln(x_i/W_i)}{\ln(T_i/W_i)}, 0, 1\right)
 \qquad
 \text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
-$$
+```
 
 Quality is *higher-is-better* — hence the inverted log ratio. Weights renormalize over
 *measured* vectors and every label reports its coverage (· 75%): these are provisional
