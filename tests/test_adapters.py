@@ -116,9 +116,7 @@ def test_kokoro_synth_paths(monkeypatch):
 def test_probe_engine_loop(tmp_path, monkeypatch, capsys):
     import bench.chain_probe as cp
 
-    manifest = tmp / "mf.jsonl" if (tmp := Path("/tmp")) else tmp
     manifest = tmp_path / "mf.jsonl"
-    manifest.write_text(json.dumps({"audio_path": "a.wav", "utt_id": "u1"}) + "\n") * 1
     manifest.write_text(
         json.dumps({"audio_path": "a.wav", "utt_id": "u1"})
         + "\n"
