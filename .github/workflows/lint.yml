@@ -13,6 +13,14 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      # pre-commit builds a venv per hook (shellcheck-py compiles a wheel and
+      # pulls the binary from GitHub releases — transient 504s there failed
+      # whole runs); cache the envs so only the first run pays.
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
       - name: Install pre-commit
         run: pip install pre-commit
       - name: Run pre-commit (shellcheck, hadolint, ruff, yaml/json checks)
