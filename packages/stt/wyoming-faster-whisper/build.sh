@@ -3,7 +3,7 @@
 # Usage: ./build.sh [--push]
 set -euo pipefail
 cd "$(dirname "$0")"
-VERSION="${VERSION:-0.1.0}"
+VERSION="${VERSION:-0.1.1}"
 REPO="${DOCKER_REPO:-narandill}"
 
 TAGS=(

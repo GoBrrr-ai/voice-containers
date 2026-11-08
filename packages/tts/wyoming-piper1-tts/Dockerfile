@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
 # wyoming-piper1-tts (standalone) — the TTS half of the former combined wyoming image.
-# wyoming 1.10.2 + wyoming-piper 2.5.2 + piper-tts 1.8.0 on OUR onnxruntime-gpu
+# wyoming 1.11.0 + wyoming-piper 2.5.2 + piper-tts 1.8.0 on OUR onnxruntime-gpu
 # 1.31.1 build (sm_87 + sm_90a + sm_110a SASS, sm_110a PTX).
 # Same PIPER_* env contract as the combined image -> HA config drop-in.
 # =============================================================================
@@ -38,7 +38,7 @@ RUN mkdir -p /data/models/piper \
 
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/venv/bin/pip install --no-cache-dir "wyoming[zeroconf]==1.10.2" \
+    && /opt/venv/bin/pip install --no-cache-dir "wyoming[zeroconf]==1.11.0" \
     && /opt/venv/bin/pip install --no-cache-dir \
         /tmp/piper_tts-1.8.0-cp39-abi3-linux_aarch64.whl \
         /tmp/wyoming_piper-2.5.2-py3-none-any.whl \

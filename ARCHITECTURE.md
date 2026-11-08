@@ -83,6 +83,7 @@ HA-native and out of scope).
 
 | workflow | trigger | runner | notes |
 |---|---|---|---|
-| `lint.yml` / `tests.yml` | push/PR | hosted | pre-commit; pytest (no GPU) |
-| `build-smoke.yml` | manual dispatch | self-hosted jetson | build + optional GPU smoke, any project subset |
-| `publish.yml` | tag `v*` | self-hosted jetson | build → arch gate → push `narandill/*:<ver>`; Hub metadata via `scripts/docker_release.py` |
+| `lint.yml` | push/PR | `ubuntu-latest` | pre-commit (shellcheck, hadolint, ruff, bandit) |
+| `tests.yml` | push/PR | `ubuntu-latest` | pytest + 80% coverage gate (pure helpers, no GPU/docker); the README-repro byte-check is local (`make bench-plot`) |
+| `build-smoke.yml` | manual dispatch | `ubuntu-24.04-arm` | build + arch gate, any project subset (GPU smoke is local) |
+| `publish.yml` | tag `v*` | `ubuntu-24.04-arm` | build → arch gate → push `narandill/*:<ver>`; Hub metadata via `scripts/docker_release.py` |
