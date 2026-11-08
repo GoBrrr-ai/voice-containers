@@ -52,7 +52,7 @@ def test_dotenv_token_beats_stale_docker_login(tmp_path, monkeypatch):
     monkeypatch.setattr(dr, "DOTENV", tmp_path / "missing")  # absent -> {}
     cfg = _write_config(tmp_path, "narandill", "old-secret")
     monkeypatch.setattr(dr, "DOCKER_CONFIG", cfg)
-    dot = {"DOCKER_HUB_TOKEN": "fresh", "DOCKER_HUB_USER": "narandill"}
+    dot = {"DOCKER_HUB_TOKEN": "fresh", "DOCKER_HUB_USER": "narandill"}  # nosec B105 - fixtures
     user, token, cfg_user = dr.read_token(_args(), dot)
     assert token == "fresh"  # NOT the stale config secret
     assert user == "narandill"  # .env identity beats stored docker-login user
@@ -63,7 +63,7 @@ def test_env_var_beats_dotenv(tmp_path, monkeypatch):
     monkeypatch.setattr(dr, "DOTENV", tmp_path / "missing")
     monkeypatch.setenv("DOCKER_HUB_TOKEN", "from-env")
     monkeypatch.setattr(dr, "DOCKER_CONFIG", tmp_path / "nope")
-    dot = {"DOCKER_HUB_TOKEN": "from-dotenv"}
+    dot = {"DOCKER_HUB_TOKEN": "from-dotenv"}  # nosec B105 - fixture
     _, token, _ = dr.read_token(_args(), dot)
     assert token == "from-env"
 
