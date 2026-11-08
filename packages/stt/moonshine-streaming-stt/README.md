@@ -26,7 +26,7 @@ tighter budgets.
 ```sh
 # batch
 docker run --rm -v /data:/data --entrypoint moonshine-transcribe \
-  narandill/moonshine-streaming-stt:0.1.0 /audio/x.wav
+  narandill/moonshine-streaming-stt:0.2.0 /audio/x.wav
 
 # live partials (python, mounted script)
 #   t = Transcriber(model_path="/models/moonshine-streaming-en", model_arch=5)

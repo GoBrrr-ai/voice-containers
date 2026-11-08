@@ -49,7 +49,7 @@ build (same pattern as piper in the former combined wyoming image).
 ## Server (voice-api v1)
 
 ```sh
-docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8880:8880 narandill/kokoro-tts:0.2.0
+docker run -d --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 -p 8880:8880 narandill/kokoro-tts:0.1.0
 curl -s localhost:8880/v1/voices | jq        # 5 voices, 24 kHz, streaming
 curl -s localhost:8880/health
 curl -s localhost:8880/v1/audio/speech -H 'Content-Type: application/json' \

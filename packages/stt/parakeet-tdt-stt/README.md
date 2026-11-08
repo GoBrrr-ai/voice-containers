@@ -16,7 +16,7 @@ loaded — at the report's 0.8 GB budget limit).
 
 ```sh
 docker run --rm -v /data:/data --entrypoint parakeet-tdt-transcribe \
-  narandill/parakeet-tdt-stt:0.1.0 /audio/x.wav
+  narandill/parakeet-tdt-stt:0.2.0 /audio/x.wav
 ```
 
 **Positioning (report rank #5):** accuracy + language-coverage pick when

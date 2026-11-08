@@ -19,7 +19,7 @@ Home Assistant config is a drop-in.
 
 ```sh
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -p 10200:10200 \
-  -v /data/piper:/data narandill/wyoming-piper1-tts:0.1.0
+  -v /data/piper:/data narandill/wyoming-piper1-tts:0.1.1
 ```
 
 Home Assistant (Wyoming integration): add host `127.0.0.1`, port `10200`
@@ -44,6 +44,6 @@ Home Assistant (Wyoming integration): add host `127.0.0.1`, port `10200`
 ## Test
 
 ```sh
-./test/verify_arch.sh narandill/wyoming-piper1-tts:0.1.0   # cubins, no GPU
-./test/smoke_piper.sh narandill/wyoming-piper1-tts:0.1.0   # GPU wyoming round-trip
+./test/verify_arch.sh narandill/wyoming-piper1-tts:0.1.1   # cubins, no GPU
+./test/smoke_piper.sh narandill/wyoming-piper1-tts:0.1.1   # GPU wyoming round-trip
 ```

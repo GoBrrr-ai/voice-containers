@@ -30,12 +30,12 @@ Presets: 0.16/0.24/0.32/0.56/1.12/2.08 s (`--stream-latency` takes seconds). Off
 ```sh
 # OpenAI-compatible server (POST /v1/audio/transcriptions, WAV only)
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm -p 8080:8080 \
-  narandill/nemotron-unified-asr:0.1.0
+  narandill/nemotron-unified-asr:0.2.0
 
 # CLI batch/streaming
 docker run --runtime nvidia -e NVIDIA_DISABLE_REQUIRE=1 --rm \
   -v /audio:/audio:ro --entrypoint stt-transcribe \
-  narandill/nemotron-unified-asr:0.1.0 /audio/x.wav --json
+  narandill/nemotron-unified-asr:0.2.0 /audio/x.wav --json
 ```
 
 After the JP 7.2.1 upgrade drop `-e NVIDIA_DISABLE_REQUIRE=1`.

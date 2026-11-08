@@ -22,10 +22,10 @@ voice cloning, 7 languages (en/fr/de/pt/it/es/nl), infinitely long inputs.
 ```sh
 # batch
 docker run --rm -v /data:/data --entrypoint pocket-tts \
-  narandill/pocket-tts:0.1.0 generate --text "Hello from Jetson Thor." --output-path /data/x.wav
+  narandill/pocket-tts:0.3.0 generate --text "Hello from Jetson Thor." --output-path /data/x.wav
 
 # streaming server
-docker run --rm -p 8000:8000 narandill/pocket-tts:0.1.0 serve
+docker run --rm -p 8000:8000 narandill/pocket-tts:0.3.0 serve
 ```
 
 **Positioning (report rank #2):** the top CPU TTS pick — native streaming
