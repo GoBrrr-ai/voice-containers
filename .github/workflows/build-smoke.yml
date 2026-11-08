@@ -1,7 +1,9 @@
 name: build-smoke
 
-# Build + verify the images on the Jetson self-hosted runner.
-# GPU smoke tests are opt-in (they touch the device; the runner may be shared).
+# Build + arch-verify the images on hosted arm64 (native aarch64 — the images
+# are arm64-only; no cross-arch emulation). Hosted runners have no GPU: the
+# GPU smoke suite is a local ritual (make smoke-all / scripts/sweep-smoke.sh
+# SMOKE=1); CI stops at the cuobjdump gate.
 on:
   workflow_dispatch:
     inputs:
@@ -9,14 +11,13 @@ on:
         description: "Space-separated project names (empty = all)"
         required: false
         default: ""
-      smoke:
-        description: "Run GPU smoke tests after build"
-        type: boolean
-        default: false
 
 jobs:
   build:
-    runs-on: [self-hosted, jetson]
+    # Cold cache the first time: the shared builders compile from source
+    # (parakeet-cpp ~30 min, wheels-cu132 ~75 min), then docker layer-caches
+    # for the rest of the dispatch.
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
       - name: Build shared builders (cached)
@@ -33,6 +34,3 @@ jobs:
           done
       - name: Arch verification (cuobjdump)
         run: SMOKE=0 ./scripts/sweep-smoke.sh
-      - name: GPU smoke suite
-        if: ${{ inputs.smoke }}
-        run: SMOKE=1 ./scripts/sweep-smoke.sh

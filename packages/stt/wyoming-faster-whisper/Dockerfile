@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
 # wyoming-faster-whisper (standalone) — the STT half of the former combined wyoming image.
-# wyoming 1.10.2 + wyoming-faster-whisper 3.8.1 + faster-whisper 1.2.1 on OUR
+# wyoming 1.11.0 + wyoming-faster-whisper 3.8.1 + faster-whisper 1.2.1 on OUR
 # CTranslate2 4.8.4 build (sm_87 + sm_110 SASS/PTX, CUDA 13.2 SBSA).
 # Same WHISPER_* env contract as the combined image -> HA config drop-in.
 # =============================================================================
@@ -32,7 +32,7 @@ COPY rootfs/ /
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
     && /opt/venv/bin/pip install --no-cache-dir \
-        "wyoming[zeroconf]==1.10.2" \
+        "wyoming[zeroconf]==1.11.0" \
         "faster-whisper==1.2.1" \
         "av==15.1.0" \
         /tmp/pysilero_vad-3.4.0-cp39-abi3-manylinux_2_28_aarch64.whl \

@@ -74,7 +74,7 @@ make verify-all
 make smoke-all
 
 # 4) run something
-docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.0
+docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.1
 docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
 
 # 5) or speak OpenAI to it — every non-wyoming image serves /v1/audio/* (docs/voice-api.md)
@@ -98,7 +98,7 @@ upgrade, drop the flag.
 | Family | Package | Docker image | What it is |
 |---|---|---|---|
 | 🐤 canary | [`canary-flash-stt`](packages/stt/canary-flash-stt/) | [`canary-flash-stt:0.2.0`](https://hub.docker.com/r/narandill/canary-flash-stt) | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx; VAD-chunked (opt-in) |
-| ⚡ faster-whisper | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | [`wyoming-faster-whisper:0.1.0`](https://hub.docker.com/r/narandill/wyoming-faster-whisper) | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110); wyoming streaming |
+| ⚡ faster-whisper | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | [`wyoming-faster-whisper:0.1.1`](https://hub.docker.com/r/narandill/wyoming-faster-whisper) | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110); wyoming streaming |
 | 🌙 moonshine | [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | [`moonshine-streaming-stt:0.2.0`](https://hub.docker.com/r/narandill/moonshine-streaming-stt) | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime); **native incremental** (live partials) |
 | 🔊 nemotron-streaming | [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | [`nemotron-streaming-stt:0.2.0`](https://hub.docker.com/r/narandill/nemotron-streaming-stt) | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx; **true native** (cache-aware, graph-chunked) |
 | 🦜 parakeet-tdt | [`parakeet-tdt-cpp-stt`](packages/stt/parakeet-tdt-cpp-stt/) | [`parakeet-tdt-cpp-stt:0.1.0`](https://hub.docker.com/r/narandill/parakeet-tdt-cpp-stt) | nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp; VAD-chunked (opt-in) |
@@ -147,7 +147,7 @@ ship as v3 — never a silent rewrite of history.
 | 🗣️ kokoro | [`kokoro-tts`](packages/tts/kokoro-tts/) | [`kokoro-tts:0.1.0`](https://hub.docker.com/r/narandill/kokoro-tts) | Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a); `create_stream()` |
 | ✨ paradee | [`paradee-tts`](packages/tts/paradee-tts/) | [`paradee-tts:0.2.0`](https://hub.docker.com/r/narandill/paradee-tts) | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices); sentence-chunked |
 | 🌊 phonon-31m | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | [`phonon31m-tts:0.1.0`](https://hub.docker.com/r/narandill/phonon31m-tts) | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB); **true streaming** (TTFA ~76 ms p95) |
-| 🎺 piper1-tts | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | [`wyoming-piper1-tts:0.1.0`](https://hub.docker.com/r/narandill/wyoming-piper1-tts) | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; wyoming streaming |
+| 🎺 piper1-tts | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | [`wyoming-piper1-tts:0.1.1`](https://hub.docker.com/r/narandill/wyoming-piper1-tts) | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; wyoming streaming |
 | 🎒 pocket-tts | [`pocket-tts`](packages/tts/pocket-tts/) | [`pocket-tts:0.3.0`](https://hub.docker.com/r/narandill/pocket-tts) | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning; **true streaming** (~200 ms TTFA) |
 
 <p align="center">
@@ -363,8 +363,9 @@ metadata to `benchmarks/raw/<run_id>/` — logs and per-utterance data stay in
 | Workflow | Trigger | Runner | What it does |
 |---|---|---|---|
 | `lint.yml` | push/PR | `ubuntu-latest` | pre-commit (shellcheck, hadolint, ruff, yaml/json checks) |
-| `build-smoke.yml` | `workflow_dispatch` | `[self-hosted, jetson]` | build matrix + arch verification (+ optional GPU smoke) |
-| `publish.yml` | tag `v*` | `[self-hosted, jetson]` | build → arch gate → push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
+| `tests.yml` | `push/PR` | `ubuntu-latest` | pytest + 80% coverage gate (pure helpers, no GPU/docker) |
+| `build-smoke.yml` | `workflow_dispatch` | `ubuntu-24.04-arm` | build matrix + arch verification (GPU smoke stays local: `make smoke-all`) |
+| `publish.yml` | tag `v*` | `ubuntu-24.04-arm` | build → arch gate → push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
 
 ## 📜 Licenses
 

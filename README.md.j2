@@ -74,7 +74,7 @@ make verify-all
 make smoke-all
 
 # 4) run something
-docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.0
+docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.1
 docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
 
 # 5) or speak OpenAI to it — every non-wyoming image serves /v1/audio/* (docs/voice-api.md)
@@ -314,8 +314,9 @@ metadata to `benchmarks/raw/<run_id>/` — logs and per-utterance data stay in
 | Workflow | Trigger | Runner | What it does |
 |---|---|---|---|
 | `lint.yml` | push/PR | `ubuntu-latest` | pre-commit (shellcheck, hadolint, ruff, yaml/json checks) |
-| `build-smoke.yml` | `workflow_dispatch` | `[self-hosted, jetson]` | build matrix + arch verification (+ optional GPU smoke) |
-| `publish.yml` | tag `v*` | `[self-hosted, jetson]` | build → arch gate → push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
+| `tests.yml` | `push/PR` | `ubuntu-latest` | pytest + 80% coverage gate (pure helpers, no GPU/docker) |
+| `build-smoke.yml` | `workflow_dispatch` | `ubuntu-24.04-arm` | build matrix + arch verification (GPU smoke stays local: `make smoke-all`) |
+| `publish.yml` | tag `v*` | `ubuntu-24.04-arm` | build → arch gate → push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
 
 ## 📜 Licenses
 

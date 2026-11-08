@@ -82,14 +82,14 @@ services:
   # ------------------------------- HA-native wyoming pair (profile ha, no HTTP)
   wyoming-stt:
     <<: *voice-common
-    image: narandill/wyoming-faster-whisper:0.1.0
+    image: narandill/wyoming-faster-whisper:0.1.1
     profiles: [ha]
     ports:
       - "${WYOMING_STT_PORT:-10300}:10300"
 
   wyoming-tts:
     <<: *voice-common
-    image: narandill/wyoming-piper1-tts:0.1.0
+    image: narandill/wyoming-piper1-tts:0.1.1
     profiles: [ha]
     ports:
       - "${WYOMING_TTS_PORT:-10200}:10200"

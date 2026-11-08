@@ -1,5 +1,5 @@
-# Unit tests + the README-repro contract (README.md is GENERATED — CI fails
-# when it does not reproduce from benchmarks/history.jsonl).
+# Unit tests + the 80% coverage gate (pyproject addopts; the README-repro
+# byte-check is a local pre-push ritual — make bench-plot && git diff).
 name: tests
 
 on:
@@ -20,18 +20,3 @@ jobs:
         run: pip install -q -r bench/requirements.txt pytest pytest-cov
       - name: Unit tests (pure helpers; no GPU, no docker)
         run: python -m pytest
-
-  readme-repro:
-    # Byte-stable re-render needs the box class the charts were rendered on
-    # (fonts, matplotlib build) -> the jetson self-hosted runner.
-    runs-on: [self-hosted, jetson]
-    steps:
-      - uses: actions/checkout@v7
-      - name: Bench venv (bootstrap if the runner lacks it)
-        run: |
-          test -x bench/.venv/bin/python || python3 -m venv bench/.venv
-          bench/.venv/bin/python -m pip install -q -r bench/requirements.txt
-      - name: Re-render README + charts from committed data
-        run: make bench-plot
-      - name: Fail if the generated surfaces drifted
-        run: git diff --exit-code -- README.md assets/benchmarks
