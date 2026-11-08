@@ -12,7 +12,7 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -26,7 +26,7 @@ jobs:
     # (fonts, matplotlib build) -> the jetson self-hosted runner.
     runs-on: [self-hosted, jetson]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Bench venv (bootstrap if the runner lacks it)
         run: |
           test -x bench/.venv/bin/python || python3 -m venv bench/.venv
