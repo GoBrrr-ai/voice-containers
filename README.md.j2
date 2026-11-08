@@ -1,57 +1,66 @@
-# voice-containers
+<p align="center">
+  <img src="assets/logo.png" width="360" alt="voice-containers — a candy soundwave becoming a whale">
+</p>
+
+<h1 align="center">voice-containers</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Jetson%20Orin-eb6834" alt="Platform: Jetson AGX Orin (sm_87)">
   <img src="https://img.shields.io/badge/platform-Jetson%20Thor-8A2BE2" alt="Platform: Jetson AGX Thor (sm_110)">
   <img src="https://img.shields.io/badge/CUDA-13.2-76b900" alt="CUDA 13.2 SBSA">
-  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT">
+  <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="Apache-2.0">
 </p>
 
 <p align="center">
-  <b>Production container images for NVIDIA Jetson edge GPUs</b> — a full streaming
+  <b>Production-ready voice-container images for NVIDIA Jetson edge GPUs</b> — a full streaming
   voice stack (speech recognition + synthesis) and a spec-driven benchmark harness.
-  One docker image per package serves <b>both boards</b> (native cubins for <code>sm_87</code> +
-  <code>sm_110a</code> plus forward-compat PTX), built on CUDA 13.2 SBSA / JetPack 7.2.1
+  One Docker image per package serves <b>both boards</b> (native <code>sm_87</code> +
+  <code>sm_110a</code> cubins), built on CUDA 13.2 SBSA / JetPack 7.2.1
   userspace with the GPU driver injected from the host.
 </p>
 
 <p align="center">
-  <a href="#packages">Packages</a> •
-  <a href="#quick-start">Quick start</a> •
+  <a href="#-packages">Packages</a> •
+  <a href="#-quick-start">Quick start</a> •
   <a href="#-benchmarks">Benchmarks</a> •
-  <a href="#benchmarking">Benchmarking</a> •
-  <a href="#ci">CI</a>
+  <a href="#-benchmarking">Benchmarking</a> •
+  <a href="#-ci">CI</a>
 </p>
 
-## Packages
-
-### Speech recognition (`packages/stt/`)
-
-{{ ctx.packages.stt }}
-
-### Speech synthesis (`packages/tts/`)
-
-{{ ctx.packages.tts }}
-
-## Supported Hardware
-
-One image per package serves **both boards** — native cubins for sm_87 and
-sm_110a baked side by side, plus forward-compat PTX — so no per-board tags.
+## 🐋 Features
 
 <table width="100%">
-  <thead>
-    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
-  </thead>
-  <tbody>
-    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
-    <tr><td align="center"><strong>compute capability</strong></td><td align="center">sm_110a + sm_110 PTX</td><td align="center">sm_87 + sm_87 PTX</td></tr>
-    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
-    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
-    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
-  </tbody>
+  <tr>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🎙️&nbsp;<a href="#-packages">10 speech-recognition engines</a></h3>
+      <p>Parakeet C++, Whisper, Canary, Moonshine, streaming Nemotron — <b>one image each</b>, version pinned in its build.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🔊&nbsp;<a href="#-packages">5 speech-synthesis engines</a></h3>
+      <p>Kokoro, Piper, Phonon, Paradee, Pocket — <b>PCM chunks streamed as generated</b>, single-shot where it counts.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>⚡&nbsp;<a href="#-supported-hardware">Edge-GPU ready</a></h3>
+      <p><b>sm_87 + sm_110a cubins baked side by side</b> — one image serves Jetson Orin <i>and</i> Thor.</p><br>
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🔌&nbsp;<a href="docs/voice-api.md">OpenAI-compatible API</a></h3>
+      <p><code>/v1/audio/*</code> on every voice image — <b>stock SDKs work</b>; the wire contract is tested in CI.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🌊&nbsp;<a href="#-benchmarks">Full-duplex streaming</a></h3>
+      <p><b>SSE partials</b> while you speak, <b>chunked PCM</b> while it speaks — plus Wyoming wire for Home Assistant.</p><br>
+    </td>
+    <td width="33%" valign="top" align="center"><br>
+      <h3>🐳&nbsp;<a href="#-quick-start">Plain docker, no framework</a></h3>
+      <p>Every project is <b>one Dockerfile + one script</b> — <code>make build-all</code> and everything exists locally.</p><br>
+    </td>
+  </tr>
 </table>
 
-## Quick start
+## 🚀 Quick start
 
 ```bash
 # 1) shared artifact builders (cached; seconds on replay)
@@ -67,40 +76,33 @@ make smoke-all
 # 4) run something
 docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.0
 docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.1.0 /audio/x.wav
+
+# 5) or speak OpenAI to it — every non-wyoming image serves /v1/audio/* (docs/voice-api.md)
+docker run -d --runtime nvidia --rm -p 8080:8080 narandill/canary-flash-stt:0.2.0
+curl -s localhost:8080/v1/audio/transcriptions -F file=@speech.wav -F model=canary-180m-flash-int8
+
+docker run -d --runtime nvidia --rm -p 8880:8880 narandill/kokoro-tts:0.2.0
+curl -s localhost:8880/v1/audio/speech -H 'Content-Type: application/json' \
+  -d '{"input":"Hello from the edge.","voice":"af_heart","response_format":"wav"}' -o hello.wav
 ```
 
+> [!TIP]
 > On pre-7.2.1 hosts add `-e NVIDIA_DISABLE_REQUIRE=1` to every `docker run` (driver
 580.00 vs the baked 13.2 userspace — minor-version compatibility). After the host
 upgrade, drop the flag.
 
-{% if ctx.stt or ctx.tts %}
-## 📊 Benchmarks
+## 📦 Packages
 
-> Rendered from `benchmarks/history.jsonl` (per-run metadata in `benchmarks/raw/`)
-by `bench plot --readme` — regenerate with `make bench-plot`.
-> Cohort: **{{ ctx.device }} · {{ ctx.power }} power · commit {{ ctx.commit }} · {{ ctx.date }}**.
-Charts: ❶❷❸ mark the top-3 places (gold/silver/bronze) for that chart's ranking
-metric; the scatter legends rank by composite score. Memory: **cgroup MiB**
-counts the container's active file cache too (the model was just read from
-disk); **anon MiB** is true process memory.
+### 🎙️ Speech recognition
 
-{% if ctx.stt %}
-### Speech recognition — LibriSpeech test-clean
-
-{{ ctx.stt.table }}
-
-> *{{ ctx.stt.n_utt }} utterances · {{ ctx.stt.n_configs }} configurations · 🥇 **{{ ctx.stt.winner }}** at **{{ ctx.stt.best_wer }} WER**
-(🥇🥈🥉 = composite top 3); fastest RTF p50
-**{{ ctx.stt.best_rtf }}**. Green = best in column, red = worst. GPU W is the
-tegrastats module draw over each engine's window; the packed-CPU engine has none
-(hollow point, idle draw) in the power chart.*
+{{ ctx.packages.stt }}
 
 <p align="center">
-{{ chart("stt-edge", "Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM; profile orin-nano-8gb-v2)") }}
+{{ chart("stt-edge", "Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM)") }}
 </p>
 
 <details>
-<summary>How the edge deployment score is calculated (profile orin-nano-8gb-v2)</summary>
+<summary>How the edge deployment score is calculated — and why p95 & anon peak</summary>
 
 Each vector is scored against *absolute* anchors — never against the other engines — so
 adding a config never rewrites a historical score. A vector scores 1.0 at/better than its
@@ -110,16 +112,11 @@ weighted mean ×100 of **WER** (target 2%, worst 10%, weight 0.30) · **latency 
 (0.3 s, 1.5 s, 0.20) · **RTF p95** (0.1, 1.0, 0.15) · **VRAM, anon peak** (1 GiB,
 3 GiB, 0.35).
 
-</details>
-
 $$
 S_i=\text{clip}\left(\frac{\ln(W_i/x_i)}{\ln(W_i/T_i)}, 0, 1\right)
 \qquad
 \text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
 $$
-
-<details>
-<summary>Why p95 & anon peak — and the hard gates</summary>
 
 Latency and RTF bind the *tail* (p95 — averages hide the spikes that make an assistant
 feel broken). Memory scores the *anon peak*, the true process footprint: cgroup peak
@@ -130,11 +127,79 @@ above 4 GiB) and is undeployable regardless of its aggregate. Retuned anchors or
 ship as v3 — never a silent rewrite of history.
 
 </details>
+<br />
+
+### 🔊 Speech synthesis
+
+{{ ctx.packages.tts }}
+
+<p align="center">
+{{ chart("tts-edge", "Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending)") }}
+</p>
+
+<details>
+<summary>How the synthesis deployment-performance score is calculated — design notes & hard gates</summary>
+
+Same scheme as the STT score: 1.0 at the target, 0.0 at the worst bound, log-linear in
+between, weighted mean ×100. Vectors — **TTFA p90** (0.3 s, 1.5 s, 0.25) · **RTF p95**
+(0.1, 1.0, 0.15) · **VRAM, anon peak** (see the STT note; 1 GiB, 3 GiB, 0.35) ·
+**quality, MOS** (4.0, 2.5, 0.25). Synth latency is excluded — it is RTF re-measured
+per sentence and would double-count throughput.
+
+$$
+S_i=\text{clip}\left(\frac{\ln(x_i/W_i)}{\ln(T_i/W_i)}, 0, 1\right)
+\qquad
+\text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
+$$
+
+Quality is *higher-is-better* — hence the inverted log ratio. Weights renormalize over
+*measured* vectors and every label reports its coverage (· 75%): these are provisional
+**deployment-performance** scores (efficiency + responsiveness), not yet naturalness.
+✗ rows breach a hard gate (TTFA p90 above 1.5 s or anon peak above 4 GiB).
+
+</details>
+<br />
+
+## 🖥️ Supported Hardware
+
+<table width="100%">
+  <thead>
+    <tr><th width="25%"></th><th align="center" width="37.5%"><strong>Jetson AGX Thor</strong></th><th align="center" width="37.5%"><strong>Jetson AGX Orin</strong></th></tr>
+  </thead>
+  <tbody>
+    <tr><td align="center"><strong>status</strong></td><td align="center">✅ supported</td><td align="center">✅ supported</td></tr>
+    <tr><td align="center"><strong>compute capability</strong></td><td align="center"><code>sm_110a</code></td><td align="center"><code>sm_87</code></td></tr>
+    <tr><td align="center"><strong>host software</strong></td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td><td align="center">JetPack 7.2.1+ (CUDA 13.2 SBSA userspace, driver injected from host)</td></tr>
+    <tr><td align="center"><strong>older hosts</strong></td><td align="center" colspan="2">driver 580.00 vs baked 13.2 userspace: add <code>-e NVIDIA_DISABLE_REQUIRE=1</code> (minor-version compatibility)</td></tr>
+    <tr><td align="center"><strong>benchmarked</strong></td><td align="center">✅ measured — see <a href="#-benchmarks">Benchmarks</a></td><td align="center">— (same cubins, no numbers yet)</td></tr>
+  </tbody>
+</table>
+
+{% if ctx.stt or ctx.tts %}
+## 📊 Benchmarks
+
+> [!NOTE]
+> Rendered from `benchmarks/history.jsonl` (per-run metadata in `benchmarks/raw/`) by `bench plot --readme` — regenerate with `make bench-plot`.
+
+{% if ctx.stt %}
+
+---
+
+### 🎙️ Speech recognition
+
+> LibriSpeech `test-clean` — 500 utterances, frozen manifest (seed 42).
+
+{{ ctx.stt.table }}
+
+> *{{ ctx.stt.n_utt }} utterances · {{ ctx.stt.n_configs }} configurations · 🥇 **{{ ctx.stt.winner }}** at **{{ ctx.stt.best_wer }} WER**
+(🥇🥈🥉 = composite top 3); fastest RTF p50
+**{{ ctx.stt.best_rtf }}**. Green = best in column, red = worst. GPU W is the
+tegrastats module draw over each engine's window; the packed-CPU engine has none
+(hollow point, idle draw) in the power chart.*
 
 <p align="center">
 {{ chart("stt-wer-vs-rtf", "Speech recognition — accuracy vs speed with Pareto front") }}
 </p>
-
 
 <p align="center">
 {{ chart("stt-latency-box", "Speech recognition — per-utterance RTF distributions") }}
@@ -157,7 +222,12 @@ ship as v3 — never a silent rewrite of history.
 </p>
 {% endif %}
 {% if ctx.tts %}
-### Speech synthesis — {{ ctx.tts.n_sent }} sentences (LibriSpeech text)
+
+---
+
+### 🔊 Speech synthesis
+
+> LibriSpeech text — {{ ctx.tts.n_sent }} sentences, frozen manifest (seed 42).
 
 {{ ctx.tts.table }}
 
@@ -166,37 +236,6 @@ ship as v3 — never a silent rewrite of history.
 (300 ms gate){% endif %}. TTFA = time to first audio: streaming engines report the first
 chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completion, so
 their TTFA equals the synth p50/p90.*
-
-<p align="center">
-{{ chart("tts-edge", "Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending; profile orin-nano-8gb-v2)") }}
-</p>
-
-<details>
-<summary>How the synthesis deployment-performance score is calculated (profile orin-nano-8gb-v2)</summary>
-
-Same scheme as the STT score: 1.0 at the target, 0.0 at the worst bound, log-linear in
-between, weighted mean ×100. Vectors — **TTFA p90** (0.3 s, 1.5 s, 0.25) · **RTF p95**
-(0.1, 1.0, 0.15) · **VRAM, anon peak** (see the STT note; 1 GiB, 3 GiB, 0.35) ·
-**quality, MOS** (4.0, 2.5, 0.25). Synth latency is excluded — it is RTF re-measured
-per sentence and would double-count throughput.
-
-</details>
-
-$$
-S_i=\text{clip}\left(\frac{\ln(x_i/W_i)}{\ln(T_i/W_i)}, 0, 1\right)
-\qquad
-\text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
-$$
-
-<details>
-<summary>Design notes — quality vector, coverage, hard gates</summary>
-
-Quality is *higher-is-better* — hence the inverted log ratio. Weights renormalize over
-*measured* vectors and every label reports its coverage (· 75%): these are provisional
-**deployment-performance** scores (efficiency + responsiveness), not yet naturalness.
-✗ rows breach a hard gate (TTFA p90 above 1.5 s or anon peak above 4 GiB).
-
-</details>
 
 <p align="center">
 {{ chart("tts-ranking", "Speech synthesis — real-time factor ranking") }}
@@ -224,7 +263,7 @@ Quality is *higher-is-better* — hence the inverted log ratio. Weights renormal
 > gate logic itself is `bench/matrix.py`.
 {% endif %}
 
-## Layout
+## 🗺️ Layout
 
 ```
 packages/             the images — packages/<stt|tts|llm>/<name>/
@@ -246,7 +285,7 @@ test/{verify_arch,smoke_*}`.
 **Decoupling contract:** an engine references shared artifacts only through a single
 overridable ARG (`WHEELS_IMAGE`, `PARAKEET_DIST_IMAGE`) — see `ARCHITECTURE.md`.
 
-## Benchmarking
+## 🧪 Benchmarking
 
 ```bash
 make bench-prepare      # frozen manifests: 500 utterances + 444 sentences (LibriSpeech, seed 42)
@@ -270,7 +309,7 @@ warm file cache can't inflate the memory numbers. Every run appends to
 metadata to `benchmarks/raw/<run_id>/` — logs and per-utterance data stay in
 `results/` on the bench host.
 
-## CI
+## 🚦 CI
 
 | Workflow | Trigger | Runner | What it does |
 |---|---|---|---|
@@ -278,7 +317,7 @@ metadata to `benchmarks/raw/<run_id>/` — logs and per-utterance data stay in
 | `build-smoke.yml` | `workflow_dispatch` | `[self-hosted, jetson]` | build matrix + arch verification (+ optional GPU smoke) |
 | `publish.yml` | tag `v*` | `[self-hosted, jetson]` | build → arch gate → push all `narandill/*` tags (needs `DOCKERHUB_USER`/`DOCKERHUB_TOKEN` secrets) |
 
-## Licenses
+## 📜 Licenses
 
-Build recipes are MIT. Each image carries its engine's license — check every project's
+Apache-2.0 — see [`LICENSE`](LICENSE). Each image carries its engine's license — check every project's
 README (all engines here are permissive or OpenMDW; nothing NC).

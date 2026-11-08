@@ -77,9 +77,9 @@ def transcribe_pcm(sess: dict, cfg: dict, tok, pcm_i16: np.ndarray) -> str:
     if feats.shape[1] == 0:
         return ""
     max_pos = cfg.get("max_position_embeddings", 4096)
-    assert feats.shape[1] < max_pos, (
-        f"segment too long: {feats.shape[1]} frames >= {max_pos}"
-    )
+    assert (
+        feats.shape[1] < max_pos
+    ), f"segment too long: {feats.shape[1]} frames >= {max_pos}"
 
     enc = sess["encoder"].run(None, {"features": feats})[0]
     memory = sess["adapter"].run(

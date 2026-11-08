@@ -9,6 +9,7 @@ pre-chunk the audio yourself — wrong boundaries silently drop audio).
 For a live source, feed audio as it arrives and decode whenever
 recognizer.is_ready(stream) — same pipeline, no manual chunking.
 """
+
 import argparse
 import os
 
@@ -18,7 +19,9 @@ import soundfile as sf
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Nemotron Speech Streaming EN 0.6B STT (int8)")
+    ap = argparse.ArgumentParser(
+        description="Nemotron Speech Streaming EN 0.6B STT (int8)"
+    )
     ap.add_argument("wav")
     ap.add_argument("-o", "--out", default="")
     args = ap.parse_args()

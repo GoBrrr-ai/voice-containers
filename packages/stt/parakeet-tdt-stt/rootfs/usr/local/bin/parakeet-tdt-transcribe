@@ -5,6 +5,7 @@ Usage: parakeet-tdt-transcribe <wav> [-o out.txt]
 
 Max ~20-30 s per pass; VAD-chunk longer audio upstream (see README).
 """
+
 import argparse
 import os
 
@@ -13,7 +14,9 @@ import soundfile as sf
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Parakeet TDT 0.6B v3 STT (int8, sherpa-onnx)")
+    ap = argparse.ArgumentParser(
+        description="Parakeet TDT 0.6B v3 STT (int8, sherpa-onnx)"
+    )
     ap.add_argument("wav")
     ap.add_argument("-o", "--out", default="")
     args = ap.parse_args()

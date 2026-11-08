@@ -5,6 +5,7 @@ Offline per-file path (transcribe_without_streaming). For live partials use
 the streaming API — Transcriber.create_stream() + stream.add_audio() (see
 the image README). Model: medium-streaming-en quantized .ort bundle.
 """
+
 import argparse
 import os
 
@@ -29,7 +30,9 @@ def main() -> None:
         sr = 16000
 
     t = Transcriber(
-        model_path=os.environ.get("MOONSHINE_MODEL_DIR", "/models/moonshine-streaming-en"),
+        model_path=os.environ.get(
+            "MOONSHINE_MODEL_DIR", "/models/moonshine-streaming-en"
+        ),
         model_arch=ModelArch(int(os.environ.get("MOONSHINE_MODEL_ARCH", "5"))),
     )
     res = t.transcribe_without_streaming(pcm.tolist(), sr)
