@@ -26,11 +26,23 @@ Usage (from the repo root):
     # token from env (CI-friendly):
     DOCKER_HUB_TOKEN=... python3 scripts/docker_release.py --all --docker-user narandill
 
-Token precedence: --token-stdin > $DOCKER_HUB_TOKEN > ~/.docker/config.json
-(the base64 auth `docker login` stored — no second secret needed).
+    # token from the repo .env (gitignored; also DOCKER_HUB_USER for the login
+    # identity when it differs from the namespace) — just run it, no sourcing:
+    #   DOCKER_HUB_TOKEN=dckr_pat_...
+    #   DOCKER_HUB_USER=your-username
+    python3 scripts/docker_release.py --all --docker-user narandill
+
+Token precedence: --token-stdin > $DOCKER_HUB_TOKEN > .env DOCKER_HUB_TOKEN >
+~/.docker/config.json (the base64 auth `docker login` stored — no second
+secret needed). The login USER resolves the same way: --hub-login-user >
+$DOCKER_HUB_USER > .env DOCKER_HUB_USER > docker-login user > namespace.
+Override stale `docker login` credentials by simply setting the env/.env pair —
+or `docker logout` to drop them entirely.
 
 Create the token at hub.docker.com -> Account Settings -> Personal access
-tokens, scope Read/Write (never use the account password).
+tokens, scope Read/Write (never use the account password). The login identity
+must be the account the token belongs to; the namespace (--docker-user) is
+only where images land.
 """
 
 from __future__ import annotations
@@ -50,6 +62,7 @@ from typing import NoReturn
 ROOT = Path(__file__).resolve().parent.parent
 HUB = "https://hub.docker.com"
 DOCKER_CONFIG = Path.home() / ".docker" / "config.json"
+DOTENV = ROOT / ".env"
 # env knobs that would override the build.sh defaults the tag parser reads —
 # a shell-exported VERSION=0.9.0 would otherwise build 0.9.0 and push 0.8.0
 BUILD_ENV_SCRUB = ("VERSION", "DOCKER_REPO", "LLAMA_CPP_VERSION")
@@ -97,6 +110,23 @@ def pkg_meta(pkg: Path) -> tuple[str, str, str]:
     return pkg.name, version, repo
 
 
+def _dotenv() -> dict[str, str]:
+    """Tiny .env reader (KEY=VALUE, # comments, optional quotes; no shell
+    expansion, no export prefix needed). Missing file = empty dict."""
+    if not DOTENV.exists():
+        return {}
+    out: dict[str, str] = {}
+    for line in DOTENV.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip().strip("\"'")
+        if key:
+            out[key] = val
+    return out
+
+
 def _config_auth() -> tuple[str, str] | None:
     """(user, token) stored by `docker login`, or None."""
     if not DOCKER_CONFIG.exists():
@@ -115,11 +145,17 @@ def _config_auth() -> tuple[str, str] | None:
         return None
 
 
-def read_token(args) -> tuple[str, str, str]:
-    """Returns (login_user, token, config_user). Token never via argv."""
+def read_token(args, dot: dict[str, str]) -> tuple[str, str, str]:
+    """Returns (login_user, token, config_user). Token never via argv.
+
+    Precedence: stdin > $DOCKER_HUB_TOKEN > .env > docker-login config. The
+    login user: --hub-login-user > $DOCKER_HUB_USER > .env > config > ns —
+    the pair must belong to the same account (a stale `docker login` user
+    with a fresh token is the classic 401).
+    """
     cfg = _config_auth()
     config_user, config_token = cfg if cfg else ("", "")
-    token = ""  # nosec B105 - placeholder, filled from stdin below
+    token = ""  # nosec B105 - placeholder, filled from stdin/env/.env below
     if args.token_stdin:
         if sys.stdin.isatty():
             fail(
@@ -129,11 +165,14 @@ def read_token(args) -> tuple[str, str, str]:
         token = sys.stdin.readline().strip()
         if not token:
             print(
-                "[auth] --token-stdin got an empty line — falling back to env/config",
+                "[auth] --token-stdin got an empty line — falling back to env/.env/config",
                 file=sys.stderr,
             )
     if not token and os.environ.get("DOCKER_HUB_TOKEN"):
         token = os.environ["DOCKER_HUB_TOKEN"].strip()
+    if not token and dot.get("DOCKER_HUB_TOKEN"):
+        token = dot["DOCKER_HUB_TOKEN"].strip()
+        print(f"[auth] token from {DOTENV} (gitignored)")
     if not token and not args.token_stdin and config_token:
         token = config_token
         print(
@@ -141,11 +180,17 @@ def read_token(args) -> tuple[str, str, str]:
         )
     if not token:
         fail(
-            "no token: pipe one via --token-stdin, set DOCKER_HUB_TOKEN, or "
-            "`docker login` first (config.json fallback)"
+            "no token: pipe one via --token-stdin, set DOCKER_HUB_TOKEN (env or "
+            f"{DOTENV}), or `docker login` first (config fallback)"
         )
-    # login identity: explicit flag > stored docker-login user > namespace
-    login_user = args.hub_login_user or config_user or args.docker_user
+    # login identity: explicit flag > env > .env > stored docker-login user > ns
+    login_user = (
+        args.hub_login_user
+        or os.environ.get("DOCKER_HUB_USER", "").strip()
+        or dot.get("DOCKER_HUB_USER", "").strip()
+        or config_user
+        or args.docker_user
+    )
     return login_user, token, config_user
 
 
@@ -238,7 +283,8 @@ def main() -> int:
         ap.error(str(e))
     login_user, token, _cfg_user = ("", "", "")
     if not args.dry_run:  # dry-run must not demand (or decode) a token
-        login_user, token, _ = read_token(args)
+        dot = _dotenv()
+    login_user, token, _ = read_token(args, dot)
     if not args.dry_run and args.docker_user != login_user and not args.hub_login_user:
         print(
             f"[auth] logging in as {login_user!r}, pushing to namespace {args.docker_user!r}"
