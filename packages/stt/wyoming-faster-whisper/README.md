@@ -1,6 +1,6 @@
 # wyoming-faster-whisper (Jetson sm_87 + sm_110)
 
-Wyoming STT server: **wyoming 1.10.2** + **wyoming-faster-whisper 3.8.1** +
+Wyoming STT server: **wyoming 1.11.0** + **wyoming-faster-whisper 3.8.1** +
 **faster-whisper 1.2.1** on **our CTranslate2 4.8.4 build** (sm_87 + sm_90a +
 sm_110a SASS, sm_110a PTX; CUDA 13.2 SBSA). The STT half of the former combined
 wyoming image — same `WHISPER_*` env contract, so Home Assistant config is a

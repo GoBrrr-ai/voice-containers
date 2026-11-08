@@ -1,6 +1,6 @@
 # wyoming-piper1-tts (Jetson sm_87 + sm_110)
 
-Wyoming TTS server: **wyoming 1.10.2** + **wyoming-piper 2.5.2** +
+Wyoming TTS server: **wyoming 1.11.0** + **wyoming-piper 2.5.2** +
 **piper-tts 1.8.0** (piper1-gpl) on **our onnxruntime-gpu 1.31.1** build
 (sm_87 + sm_90a + sm_110a SASS, sm_110a PTX; CUDA 13.2 SBSA). The TTS half of
 the former combined wyoming image — same `PIPER_*` env contract (fork), so
