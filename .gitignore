@@ -14,5 +14,7 @@ __pycache__/
 .env
 reports/
 selfcheck.json
+.coverage
+.pytest_cache/
 readme_preview.html
 .playwright-mcp/
