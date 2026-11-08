@@ -5,7 +5,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 REPO="${DOCKER_REPO:-narandill}"
 SMOKE="${SMOKE:-1}"   # SMOKE=0 → arch verification only
-PROJECTS="${PROJECTS:-packages/llm/llama-cpp packages/stt/wyoming-faster-whisper packages/stt/nemotron-unified-asr packages/stt/parakeet-redux-stt packages/stt/phonon2-stt packages/stt/moonshine-streaming-stt packages/stt/canary-flash-stt packages/stt/parakeet-tdt-stt packages/stt/parakeet-tdt-cpp-stt packages/stt/parakeet-tdt-ort-stt packages/stt/nemotron-streaming-stt packages/tts/wyoming-piper1-tts packages/tts/kokoro-tts packages/tts/phonon31m-tts packages/tts/paradee-tts packages/tts/pocket-tts}"
+PROJECTS="${PROJECTS:-$(tr '\n' ' ' < scripts/projects.txt)}"
 fail=0
 for p in $PROJECTS; do
   # Single source of truth: the VERSION default in each build.sh (the inner

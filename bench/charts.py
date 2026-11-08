@@ -608,6 +608,11 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         colors.append(row_color(r))
     if not data:
         return None
+    # sort boxes by median RTF, best (lowest) at the top after invert_yaxis
+    order = sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])
+    data = [data[i] for i in order]
+    rows_used = [rows_used[i] for i in order]
+    colors = [colors[i] for i in order]
     fig, ax = plt.subplots(figsize=_figsize(len(data), 4.6, 0.31))
     apply(fig, ax)
     medals = {}
@@ -618,7 +623,11 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         medals[id(rows_used[i])] = pos
     labels = _labels(rows_used, ranks=medals)
     bp = ax.boxplot(
-        data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
+        data,
+        tick_labels=labels,
+        orientation="horizontal",
+        patch_artist=True,
+        showfliers=False,
     )
     _style_medals(ax, labels)
     for i, vals_i in enumerate(data):
@@ -793,7 +802,11 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         medals[id(rows_used[i])] = pos
     labels = _labels(rows_used, ranks=medals)
     bp = ax.boxplot(
-        data, tick_labels=labels, vert=False, patch_artist=True, showfliers=False
+        data,
+        tick_labels=labels,
+        orientation="horizontal",
+        patch_artist=True,
+        showfliers=False,
     )
     _style_medals(ax, labels)
     for i, vals_i in enumerate(data):
@@ -1014,11 +1027,11 @@ def _edge_chart(rows: list[dict], task: str, mode: Mode):
     if task == "stt":
         xlabel = f"edge deployment score (0–100; {vec_txt})"
         title = "Speech recognition — edge deployment score"
-        footer = f" · profile {EDGE_PROFILE} · ✗ = hard-gate FAIL"
+        footer = " · ✗ = hard-gate FAIL"
     else:
         xlabel = f"edge deployment-performance score (0–100; {vec_txt})"
         title = "Speech synthesis — edge deployment-performance score"
-        footer = f" · profile {EDGE_PROFILE} · ✗ = hard-gate FAIL · MOS pending"
+        footer = " · ✗ = hard-gate FAIL · MOS pending"
     _lollipop(
         ax,
         names,

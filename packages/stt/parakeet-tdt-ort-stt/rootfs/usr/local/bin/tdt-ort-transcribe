@@ -9,6 +9,7 @@ the dynamic-int8 decoder_joint (CPU EP — DynamicQuantizeLSTM/MatMulInteger
 have no CUDA kernels). Loop ported from NeMo GreedyTDTInfer and verified
 end-to-end against jfk.flac (task/research/parakeet-int4-ort-driver/).
 """
+
 import argparse
 import os
 import re
@@ -35,7 +36,9 @@ def load_sessions(model_dir: str, provider: str):
     )
     sess = {
         "featurizer": ort.InferenceSession(
-            os.path.join(model_dir, "nemo128.onnx"), so, providers=["CPUExecutionProvider"]
+            os.path.join(model_dir, "nemo128.onnx"),
+            so,
+            providers=["CPUExecutionProvider"],
         ),
         "encoder": ort.InferenceSession(
             os.path.join(model_dir, "encoder-model.int4.onnx"), so, providers=enc_prov
@@ -47,8 +50,13 @@ def load_sessions(model_dir: str, provider: str):
             providers=["CPUExecutionProvider"],
         ),
     }
-    if provider == "cuda" and sess["encoder"].get_providers()[0] != "CUDAExecutionProvider":
-        print("WARNING: CUDA EP not active on the encoder (CPU fallback)", file=sys.stderr)
+    if (
+        provider == "cuda"
+        and sess["encoder"].get_providers()[0] != "CUDAExecutionProvider"
+    ):
+        print(
+            "WARNING: CUDA EP not active on the encoder (CPU fallback)", file=sys.stderr
+        )
     return sess
 
 
@@ -79,7 +87,9 @@ def transcribe_pcm(sess: dict, vocab: dict, pcm_i16: np.ndarray) -> str:
             ["outputs", "prednet_lengths", "output_states_1", "output_states_2"],
             {
                 "encoder_outputs": frame,
-                "targets": np.array([[tokens[-1] if tokens else BLANK_ID]], dtype=np.int32),
+                "targets": np.array(
+                    [[tokens[-1] if tokens else BLANK_ID]], dtype=np.int32
+                ),
                 "target_length": np.array([1], dtype=np.int32),
                 "input_states_1": state1,
                 "input_states_2": state2,
@@ -105,7 +115,9 @@ def transcribe_pcm(sess: dict, vocab: dict, pcm_i16: np.ndarray) -> str:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="parakeet-tdt-0.6b-v3 int4 STT (plain ORT)")
+    ap = argparse.ArgumentParser(
+        description="parakeet-tdt-0.6b-v3 int4 STT (plain ORT)"
+    )
     ap.add_argument("wav")
     ap.add_argument("-o", "--out", default="")
     ap.add_argument("--provider", default=os.environ.get("TDT_ORT_PROVIDER", "cuda"))
