@@ -13,7 +13,7 @@ transformers
 # serve-mode clients (remote.py adapters, chain probe)
 openai
 # wyoming wire (version-pinned: the event API is release-sensitive)
-wyoming==1.10.2
+wyoming==1.11.0
 # probes / reports
 psutil
 matplotlib
