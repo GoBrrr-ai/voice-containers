@@ -235,6 +235,34 @@ def hub_login(user: str, token: str) -> str:
     return resp["token"]
 
 
+class HubSession:
+    """Hub v2 session that re-logins on 401, once per call.
+
+    The login JWT is short-lived (15 min observed) while a release push of
+    ~90 GB runs much longer — without this, every call after the expiry
+    fails with `unauthorized` mid-run. The PAT itself is only used here, at
+    re-login; its own expiry setting is irrelevant to the session.
+    """
+
+    def __init__(self, user: str, token: str):
+        self.user, self.token = user, token
+        self.jwt = ""
+        self.relogins = 0
+
+    def login(self) -> None:
+        self.jwt = hub_login(self.user, self.token)
+
+    def call(
+        self, path: str, method: str = "GET", body: dict | None = None
+    ) -> tuple[int, object]:
+        code, resp = hub_request(path, method, body, jwt=self.jwt)
+        if code == 401:  # session expired (or revoked) — refresh once, retry
+            self.login()
+            self.relogins += 1
+            code, resp = hub_request(path, method, body, jwt=self.jwt)
+        return code, resp
+
+
 def sh(args: list[str], **kw) -> subprocess.CompletedProcess:
     return subprocess.run(args, capture_output=True, text=True, **kw)
 
@@ -293,9 +321,10 @@ def main() -> int:
         f"[plan] namespace: {args.docker_user} | packages: {len(pkgs)} | dry-run: {args.dry_run}"
     )
 
-    jwt = ""
+    session = None
     if not args.dry_run:
-        jwt = hub_login(login_user, token)
+        session = HubSession(login_user, token)
+        session.login()
         print(f"[auth] hub api login OK as {login_user}")
         r = sh(["docker", "login", "-u", login_user, "--password-stdin"], input=token)
         if r.returncode != 0:
@@ -372,11 +401,9 @@ def main() -> int:
 
             # ensure the repo exists: GET, then POST (409 on POST = someone
             # created it concurrently — same as exists)
-            code, resp = hub_request(
-                f"/v2/repositories/{args.docker_user}/{name}/", jwt=jwt
-            )
+            code, resp = session.call(f"/v2/repositories/{args.docker_user}/{name}/")
             if code == 404:
-                code, resp = hub_request(
+                code, resp = session.call(
                     f"/v2/repositories/{args.docker_user}/",
                     "POST",
                     {
@@ -386,7 +413,6 @@ def main() -> int:
                         "full_description": full_desc,
                         "is_private": False,
                     },
-                    jwt=jwt,
                 )
                 if code in (200, 201, 409):
                     print("        hub: repository created")
@@ -400,11 +426,10 @@ def main() -> int:
                 continue
 
             # description/README sync on EVERY release
-            code, resp = hub_request(
+            code, resp = session.call(
                 f"/v2/repositories/{args.docker_user}/{name}/",
                 "PATCH",
                 {"description": desc, "full_description": full_desc},
-                jwt=jwt,
             )
             if code == 200:
                 print("        hub: description + README synced")

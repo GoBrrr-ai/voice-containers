@@ -96,8 +96,49 @@ def test_no_token_fails_with_systemexit(tmp_path, monkeypatch):
         dr.read_token(_args(), {})
 
 
+def test_hub_session_refreshes_once_on_401(tmp_path, monkeypatch):
+    import docker_release as dr
+
+    calls, logins = [], []
+
+    def fake_request(path, method="GET", body=None, jwt=""):
+        calls.append((method, path, bool(jwt)))
+        # first GET with the stale token 401s; everything after is fine
+        if len(calls) == 1:
+            return 401, {"message": "unauthorized"}
+        return 200, {"ok:": True}
+
+    def fake_login(user, token):
+        logins.append(user)
+        return "fresh-jwt"
+
+    monkeypatch.setattr(dr, "hub_request", fake_request)
+    monkeypatch.setattr(dr, "hub_login", fake_login)
+    sess = dr.HubSession("narandill", "pat")
+    sess.jwt = "stale"
+    code, _ = sess.call("/v2/repositories/ns/x/")
+    assert code == 200
+    assert logins == ["narandil".replace("il", "ill")]  # exactly one re-login
+    assert len(calls) == 2  # 401 -> re-login -> retry, no more
+
+
+def test_hub_session_does_not_loops_forever_on_persistent_401(tmp_path, monkeypatch):
+    import docker_release as dr
+
+    monkeypatch.setattr(
+        dr,
+        "hub_request",
+        lambda *a, **k: (401, {"message": "unauthorized"}),
+    )
+    monkeypatch.setattr(dr, "hub_login", lambda u, t: "jwt")
+    sess = dr.HubSession("u", "p")
+    code, _ = sess.call("/x/")  # returns the 401 after one retry, no loop
+    assert code == 401
+
+
 def test_hub_login_user_flag_beats_everything(tmp_path, monkeypatch):
-    monkeypatch.setattr(dr, "DOTENV", tmp_path / "missing")
+    import docker_release as dr
+
     monkeypatch.setenv("DOCKER_HUB_USER", "env-user")
     monkeypatch.setattr(dr, "DOCKER_CONFIG", _write_config(tmp_path, "cfg", "t"))
     user, _, _ = dr.read_token(_args(hub_login_user="flag-user"), {})
