@@ -123,11 +123,11 @@ weighted mean ×100 of **WER** (target 2%, worst 10%, weight 0.30) · **latency 
 (0.3 s, 1.5 s, 0.20) · **RTF p95** (0.1, 1.0, 0.15) · **VRAM, anon peak** (1 GiB,
 3 GiB, 0.35).
 
-$$
+```math
 S_i=\text{clip}\left(\frac{\ln(W_i/x_i)}{\ln(W_i/T_i)}, 0, 1\right)
 \qquad
 \text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
-$$
+```
 
 Latency and RTF bind the *tail* (p95 — averages hide the spikes that make an assistant
 feel broken). Memory scores the *anon peak*, the true process footprint: cgroup peak
@@ -163,11 +163,11 @@ between, weighted mean ×100. Vectors — **TTFA p90** (0.3 s, 1.5 s, 0.25) · *
 **quality, MOS** (4.0, 2.5, 0.25). Synth latency is excluded — it is RTF re-measured
 per sentence and would double-count throughput.
 
-$$
+```math
 S_i=\text{clip}\left(\frac{\ln(x_i/W_i)}{\ln(T_i/W_i)}, 0, 1\right)
 \qquad
 \text{score}=100\cdot\frac{\sum_i w_i S_i}{\sum_i w_i}
-$$
+```
 
 Quality is *higher-is-better* — hence the inverted log ratio. Weights renormalize over
 *measured* vectors and every label reports its coverage (· 75%): these are provisional
