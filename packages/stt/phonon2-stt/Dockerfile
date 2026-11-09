@@ -54,6 +54,16 @@ RUN echo "/opt/parakeet-dist/lib" > /etc/ld.so.conf.d/parakeet-dist.conf \
     && chmod +x /usr/local/bin/parakeet-entrypoint.sh /usr/local/bin/stt-transcribe \
     && ldconfig
 
+# Strip the CUDA forward-compat pair the cu13.2 base ships at
+# /usr/local/cuda/compat{,_orin}: nvidia-container-toolkit 1.19.1 injects a
+# createContainer hook (`enable-cuda-compat`) into every container create and
+# that hook panics parsing these libs' ELF notes (slice [:73] vs cap 71) —
+# docker run dies with exit 125 before the entrypoint, no logs. The 595.58.03
+# libs are never newer than the fleet's 595.78 driver, so the hook could only
+# no-op; libcuda.so.1 is host-injected at run time regardless.
+# Post-mortem + repro: docs/postmortem-cuda-compat-hook.md
+RUN rm -rf /usr/local/cuda/compat /usr/local/cuda/compat_orin
+
 ENV PATH="/opt/parakeet-dist/bin:${PATH}" \
     PARAKEET_MODEL=/models/phonon-2.5-english-q8_0.gguf \
     # ultra-light CPU variant: docker run -e PARAKEET_DEVICE=cpu -e PARAKEET_MODEL=/models/phonon-2.5-english-packed.gguf ...
