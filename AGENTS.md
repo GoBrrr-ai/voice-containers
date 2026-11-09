@@ -43,6 +43,8 @@ matrices from summary data. See `ARCHITECTURE.md` for the dependency graph.
    (`bench/history.py::publish_raw`) are committed; raw logs, utterances and
    `results/` stay local. Charts are quantized on save (`bench/charts.py::
    _shrink_png`). History rewrites are ceremony (force-push, signed) — avoid.
+9. **GPU runtime images:** strip `/usr/local/cuda/compat*` in the final stage; see
+   `docs/postmortem-cuda-compat-hook.md` (ctk 1.19.1 createContainer hook panic).
 
 ## Layout
 
