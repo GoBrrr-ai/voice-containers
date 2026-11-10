@@ -80,7 +80,7 @@ The piper image ships its voice baked — no HF at boot
    serve-mode baseline `20261103_212058`): p50 within ~2× on the same board
    class is expected — the bench is clean-window, deployment shares the pool.
 5. AEC: if speaker echo pollutes STT, wire the server-side AEC3 per the
-   AEC3 integration notes under `task/research/webrtc-aec-audio-path/`
+   AEC3 integration notes
    (reference = our own TTS PCM; capture via `hw:APE,x` + SFC — the APE
    research verdict).
 
