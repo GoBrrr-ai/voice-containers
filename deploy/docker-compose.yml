@@ -24,7 +24,7 @@ x-voice-common: &voice-common
   # healthchecks are baked into the images (30s interval, 300s start period)
 
 services:
-  # ------------------------------------------------ voice-api pair (legacy path)
+  # ------------------------------------------------ voice-api pair
   stt:
     <<: *voice-common
     image: ${STT_IMAGE:-narandill/parakeet-redux-stt:0.1.0}
