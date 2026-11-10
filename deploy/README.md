@@ -1,7 +1,7 @@
 # edge-voice — deployment
 
 The voice stack as a `docker compose` deployment: the **voice-api pair**
-(HTTP, legacy-style) by default, an optional **llama.cpp** LLM, and an optional
+(HTTP) by default, an optional **llama.cpp** LLM, and an optional
 **HA-native wyoming pair** — the same images benchmarked in the README
 (serve mode), now wired for a board.
 
