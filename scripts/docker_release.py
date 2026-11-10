@@ -310,6 +310,7 @@ def main() -> int:
     except ValueError as e:
         ap.error(str(e))
     login_user, token, _cfg_user = ("", "", "")
+    dot: dict[str, str] = {}
     if not args.dry_run:  # dry-run must not demand (or decode) a token
         dot = _dotenv()
     login_user, token, _ = read_token(args, dot)
