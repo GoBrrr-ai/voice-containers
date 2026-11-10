@@ -57,13 +57,15 @@ def test_dotenv_parses_quotes_comments_and_blanks(tmp_path, monkeypatch):
 
 def test_dotenv_token_beats_stale_docker_login(tmp_path, monkeypatch):
     monkeypatch.setattr(dr, "DOTENV", tmp_path / "missing")  # absent -> {}
-    cfg = _write_config(tmp_path, "futureproofhomes", "old-secret")
+    monkeypatch.delenv("DOCKER_HUB_TOKEN", raising=False)  # hermetic: no ambient creds
+    monkeypatch.delenv("DOCKER_HUB_USER", raising=False)
+    cfg = _write_config(tmp_path, "legacy-org", "old-secret")
     monkeypatch.setattr(dr, "DOCKER_CONFIG", cfg)
     dot = dict(DOCKER_HUB_TOKEN=FRESH, DOCKER_HUB_USER="narandill")
     user, token, cfg_user = dr.read_token(_args(), dot)
     assert token == FRESH  # NOT the stale config secret
     assert user == "narandill"  # .env identity beats stored docker-login user
-    assert cfg_user == "futureproofhomes"  # still reported, only as info
+    assert cfg_user == "legacy-org"  # still reported, only as info
 
 
 def test_env_var_beats_dotenv(tmp_path, monkeypatch):
@@ -78,6 +80,7 @@ def test_env_var_beats_dotenv(tmp_path, monkeypatch):
 def test_docker_login_config_is_last_resort(tmp_path, monkeypatch):
     monkeypatch.setattr(dr, "DOTENV", tmp_path / "missing")
     monkeypatch.delenv("DOCKER_HUB_TOKEN", raising=False)
+    monkeypatch.delenv("DOCKER_HUB_USER", raising=False)  # hermetic: no ambient user
     monkeypatch.setattr(dr, "DOCKER_CONFIG", _write_config(tmp_path, "u", CFG_TOK))
     user, token, _ = dr.read_token(_args(), {})
     assert token == CFG_TOK and user == "u"
