@@ -11,7 +11,9 @@ for p in $PROJECTS; do
   # Single source of truth: the VERSION default in each build.sh (the inner
   # most-specific `:-X` — llama-cpp nests it inside LLAMA_CPP_VERSION).
   v="$(grep -oE 'VERSION:-[0-9.]+' "$p/build.sh" 2>/dev/null | head -1 | sed 's/.*VERSION:-//')"
-  v="${v:-0.1.0}"; img="$REPO/$p:$v"
+  v="${v:-0.1.0}"
+  # image names are FLAT (narandill/<name>, per AGENTS.md) -- $p is the repo path
+  name="$(basename "$p")"; img="$REPO/$name:$v"
   echo "== verify $p ($img)"
   if [ -x "$p/test/verify_arch.sh" ]; then "$p/test/verify_arch.sh" "$img" || fail=1
   else echo "  (no arch verification — CPU-only or none needed)"; fi
