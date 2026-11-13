@@ -173,7 +173,7 @@ def plot(readme: bool = True, include: str = "baseline,gpu_variants,orin_targete
 
     ``include``: comma-separated run_name substrings — the published matrix
     covers the baseline cohorts plus focused variant runs. Charts render
-    dark-theme 2x PNGs into assets/benchmarks/ with a manifest; the README
+    dark-theme SVGs into assets/benchmarks/ with a manifest; the README
     is rendered from README.md.j2 (StrictUndefined). Never re-runs inference.
     """
     from . import charts

@@ -109,7 +109,7 @@ upgrade, drop the flag.
 | 🦜 parakeet.cpp | [`phonon2-stt`](packages/stt/phonon2-stt/) | [`phonon2-stt:0.2.0`](https://hub.docker.com/r/narandill/phonon2-stt) | fermion phonon-2.5 (q8_0 GPU + q4_k Orin-budget + packed CPU); VAD-chunked (opt-in) |
 
 <p align="center">
-<img src="assets/benchmarks/stt/stt-edge.png" alt="Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM)" width="100%">
+<img src="assets/benchmarks/stt/stt-edge.svg" alt="Speech recognition — edge deployment score (WER · latency p95 · RTF p95 · VRAM)" width="100%">
 </p>
 
 <details>
@@ -151,7 +151,7 @@ ship as v3 — never a silent rewrite of history.
 | 🎒 pocket-tts | [`pocket-tts`](packages/tts/pocket-tts/) | [`pocket-tts:0.3.0`](https://hub.docker.com/r/narandill/pocket-tts) | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning; **true streaming** (~200 ms TTFA) |
 
 <p align="center">
-<img src="assets/benchmarks/tts/tts-edge.png" alt="Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending)" width="100%">
+<img src="assets/benchmarks/tts/tts-edge.svg" alt="Speech synthesis — edge deployment-performance score (TTFA p90 · RTF p95 · VRAM; quality/MOS vector pending)" width="100%">
 </p>
 
 <details>
@@ -237,27 +237,27 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 (hollow point, idle draw) in the power chart.*
 
 <p align="center">
-<img src="assets/benchmarks/stt/stt-wer-vs-rtf.png" alt="Speech recognition — accuracy vs speed with Pareto front" width="100%">
+<img src="assets/benchmarks/stt/stt-wer-vs-rtf.svg" alt="Speech recognition — accuracy vs speed with Pareto front" width="100%">
 </p>
 
 <p align="center">
-<img src="assets/benchmarks/stt/stt-latency-box.png" alt="Speech recognition — per-utterance RTF distributions" width="100%">
+<img src="assets/benchmarks/stt/stt-latency-box.svg" alt="Speech recognition — per-utterance RTF distributions" width="100%">
 </p>
 
 <p align="center">
-<img src="assets/benchmarks/stt/stt-power.png" alt="Speech recognition — GPU power vs accuracy" width="100%">
+<img src="assets/benchmarks/stt/stt-power.svg" alt="Speech recognition — GPU power vs accuracy" width="100%">
 </p>
 
 <p align="center">
-<img src="assets/benchmarks/stt/stt-memory.png" alt="Speech recognition — peak container memory" width="100%">
+<img src="assets/benchmarks/stt/stt-memory.svg" alt="Speech recognition — peak container memory" width="100%">
 </p>
 
 <p align="center">
-<img src="assets/benchmarks/stt/stt-ranking.png" alt="Speech recognition — corpus WER" width="100%">
+<img src="assets/benchmarks/stt/stt-ranking.svg" alt="Speech recognition — corpus WER" width="100%">
 </p>
 
 <p align="center">
-<img src="assets/benchmarks/stt/stt-heatmap.png" alt="Speech recognition — normalized metric heatmap" width="100%">
+<img src="assets/benchmarks/stt/stt-heatmap.svg" alt="Speech recognition — normalized metric heatmap" width="100%">
 </p>
 
 
@@ -287,24 +287,24 @@ chunk; single-chunk engines (paradee, piper1-tts) deliver at synthesis completio
 their TTFA equals the synth p50/p90.*
 
 <p align="center">
-<img src="assets/benchmarks/tts/tts-ranking.png" alt="Speech synthesis — real-time factor ranking" width="100%">
+<img src="assets/benchmarks/tts/tts-ranking.svg" alt="Speech synthesis — real-time factor ranking" width="100%">
 </p>
 
 <p align="center">
-<img src="assets/benchmarks/tts/tts-ttfa.png" alt="Speech synthesis — time to first audio with p90 ticks" width="100%">
+<img src="assets/benchmarks/tts/tts-ttfa.svg" alt="Speech synthesis — time to first audio with p90 ticks" width="100%">
 </p>
 
 
 <p align="center">
-<img src="assets/benchmarks/tts/tts-synth-box.png" alt="Speech synthesis — synthesis latency distributions" width="100%">
+<img src="assets/benchmarks/tts/tts-synth-box.svg" alt="Speech synthesis — synthesis latency distributions" width="100%">
 </p>
 
 <p align="center">
-<img src="assets/benchmarks/tts/tts-memory.png" alt="Speech synthesis — peak container memory" width="100%">
+<img src="assets/benchmarks/tts/tts-memory.svg" alt="Speech synthesis — peak container memory" width="100%">
 </p>
 
 <p align="center">
-<img src="assets/benchmarks/tts/tts-heatmap.png" alt="Speech synthesis — normalized metric heatmap" width="100%">
+<img src="assets/benchmarks/tts/tts-heatmap.svg" alt="Speech synthesis — normalized metric heatmap" width="100%">
 </p>
 
 

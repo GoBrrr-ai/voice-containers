@@ -41,8 +41,9 @@ matrices from summary data. See `ARCHITECTURE.md` for the dependency graph.
 8. **Git carries summary data, not raw results.** Only `benchmarks/history.jsonl`,
    `manifests/`, charts and metadata-only `benchmarks/raw/<run_id>/`
    (`bench/history.py::publish_raw`) are committed; raw logs, utterances and
-   `results/` stay local. Charts are quantized on save (`bench/charts.py::
-   _shrink_png`). History rewrites are ceremony (force-push, signed) — avoid.
+   `results/` stay local. Charts render as text-embedded SVG, byte-stable
+   across runs (`bench/charts.py`; no raster step). History rewrites are
+   ceremony (force-push, signed) — avoid.
 9. **GPU runtime images:** strip `/usr/local/cuda/compat*` in the final stage; see
    `docs/postmortem-cuda-compat-hook.md` (ctk 1.19.1 createContainer hook panic).
 
@@ -99,7 +100,7 @@ bench run  →  results/<run_id>/         (+ tegrastats, docker stats, utterance
            →  benchmarks/history.jsonl  one line per engine config (append-only)
            →  benchmarks/raw/<run_id>/  baseline-class runs publish metadata only (no raw logs)
 bench plot --readme
-           →  assets/benchmarks/<task>/*.png + manifest.json
+           →  assets/benchmarks/<task>/*.svg + manifest.json
            →  reports/matrix/{matrix_<task>.csv,.json,index_<task>.html}
            →  README.md                 rendered from README.md.j2
 ```

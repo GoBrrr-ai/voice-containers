@@ -1,6 +1,7 @@
 """Chart design system — one visual language, dark mode.
 
-Static charts render the dark palette into ``assets/benchmarks/`` as 2x PNG.
+Static charts render the dark palette into ``assets/benchmarks/`` as SVG
+(vector, text kept as ``<text>`` — no raster step, git-friendly diffs).
 Color = identity, assigned per ENGINE FAMILY (never by rank): all parakeet.cpp
 models share one hue, marker shape encodes backend (circle = CPU, square =
 CUDA), variant by direct label. Okabe-Ito hues — colorblind-safe on the dark
@@ -67,7 +68,19 @@ def _plt():
             "matplotlib missing — install bench requirements (pip install -r bench/requirements.txt)"
         ) from e
     plt.rcParams.update(
-        {"font.size": 11, "font.family": "DejaVu Sans", "savefig.dpi": 200}
+        {
+            "font.size": 11,
+            "font.family": "DejaVu Sans",
+            "savefig.dpi": 200,
+            # text as <text>, not glyph paths: ~5x smaller files, selectable
+            # and searchable in the browser; viewers without DejaVu Sans
+            # substitute their default sans (positions are baked, so only
+            # glyph shapes vary by a hair)
+            "svg.fonttype": "none",
+            # pin the element-id salt: ids become sha(salt+content) instead
+            # of per-render uuid4 -> byte-stable re-renders, quiet git diffs
+            "svg.hashsalt": "voice-containers",
+        }
     )
     return plt
 

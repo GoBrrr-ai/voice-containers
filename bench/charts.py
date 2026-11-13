@@ -1,7 +1,7 @@
 """Chart generation from the benchmark history.
 
 ``render_all`` builds every chart that has data into
-``assets/benchmarks/<task>/<name>.png`` (dark theme, 2x) and writes
+``assets/benchmarks/<task>/<name>.svg`` (dark theme, vector) and writes
 ``manifest.json``; ``readme.py`` resolves ``{{ chart("name") }}`` from it.
 Charts needing per-utterance data read the raw run dirs under
 ``benchmarks/raw/`` (fallback: results/).
@@ -33,8 +33,6 @@ from . import matrix as _matrix
 from . import names as _names
 from . import theme
 from .theme import DARK, Mode, apply, footer, row_color
-
-DPI = 200  # 2x PNG per spec 10.3 (vs matplotlib's default 100)
 
 # top-3 places: dingbat medals (DejaVu Sans) + classic medal colors
 _MEDAL = {1: "❶", 2: "❷", 3: "❸"}
@@ -1092,6 +1090,16 @@ def _memory_chart(rows: list[dict], mode: Mode):
         "{:,.0f} MiB",
         "peak container memory (MiB, lower is better ↓)",
     )
+    if ax.get_xscale() == "log":
+        # plain-number ticks: a sub-2-decade span makes matplotlib mix
+        # 4 × 10² minors with 10³ majors; label 2/5-per-decade minors as
+        # comma ints instead (MiB values, always >= 100 — no 0.02 mush)
+        from matplotlib.ticker import FuncFormatter, LogLocator
+
+        fmt = FuncFormatter(lambda v, _pos: f"{v:,.0f}")
+        ax.xaxis.set_major_formatter(fmt)
+        ax.xaxis.set_minor_formatter(fmt)
+        ax.xaxis.set_minor_locator(LogLocator(base=10, subs=(2.0, 5.0)))
     _title(ax, "Peak container memory")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     _footer_common(fig, rows)
@@ -1127,7 +1135,7 @@ def _heatmap(rows: list[dict], task: str, mode: Mode):
             col = [__import__("math").log10(v) for v in col]
         grid.append(_matrix._norm(col, lower))
     g = np.array(grid).T  # rows=configs, cols=metrics
-    # stt's 8 columns made the figure over-wide (the README displays the PNG
+    # stt's 8 columns made the figure over-wide (the README displays the SVG
     # at ~1/2 scale), so its cells are compact with bigger fonts; tts keeps
     # the original wide layout
     geom = (
@@ -1222,31 +1230,6 @@ TASK_CHARTS = {
 }
 
 
-def _shrink_png(p: Path) -> None:
-    """Palette-quantize a rendered chart in place (~3.6x smaller file).
-
-    Flat dark-theme plots survive 256 colors visually intact; measured
-    alternatives (jpeg q85, webp) were all bigger. Best effort on purpose —
-    a failed optimization must never fail the render.
-    """
-    try:
-        from PIL import Image
-
-        img = Image.open(p)
-        img.load()
-        for method in (3, 2, 1, 0):  # libimagequant, fastoctree, maxcoverage, mediancut
-            try:
-                quantized = img.quantize(colors=256, method=method)
-                break
-            except ValueError:
-                continue
-        else:
-            return
-        quantized.save(p, optimize=True)
-    except Exception:
-        pass
-
-
 def render_all(bench_root: Path, include: str = "baseline") -> dict:
     """Render every chart that has data; write manifest.json. Returns it."""
     plt = _plt()
@@ -1262,16 +1245,16 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
             return False
         d = out_dir / task
         d.mkdir(parents=True, exist_ok=True)
-        p = d / f"{name}.png"
+        p = d / f"{name}.svg"
         fig.savefig(
             p,
-            dpi=DPI,
             facecolor=fig.get_facecolor(),
             bbox_inches="tight",
             pad_inches=0.2,
+            # Date=None keeps bytes stable across renders -> clean git diffs
+            metadata={"Date": None},
         )
         plt.close(fig)
-        _shrink_png(p)
         manifest.setdefault(name, []).append(
             {"task": task, "dark": str(p.relative_to(bench_root))}
         )
@@ -1288,10 +1271,10 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
                 save(name, task, lambda b=build: b(bench_root, scored))
             else:
                 save(name, task, lambda b=build: b(scored))
-    # prune stale renders
-    for png in out_dir.rglob("*.png"):
-        if png.resolve() not in keep:
-            png.unlink()
+    # prune stale renders (legacy pngs from the pre-SVG era included)
+    for img in out_dir.rglob("*"):
+        if img.suffix in {".png", ".svg"} and img.resolve() not in keep:
+            img.unlink()
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=1, sort_keys=True) + "\n"

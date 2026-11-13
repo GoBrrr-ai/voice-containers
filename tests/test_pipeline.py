@@ -1,7 +1,7 @@
 """Full-render smoke: synthetic bench tree -> every registered chart + README.
 
 Exercises the entire pure path — history parse, cohort selection, scoring,
-all chart builders, PNG quantize, manifest, README render — with zero
+all chart builders, SVG render, manifest, README render — with zero
 GPU/docker/network. This is the regression net for "README.md is GENERATED".
 """
 
@@ -104,7 +104,7 @@ def test_render_readme_from_synthetic_tree(bench_env, tmp_path: Path):
     text = p.read_text()
     assert "## 🐋 Features" in text
     assert "parakeet-tdt-cpp-stt" in text  # packages table links
-    assert "stt-ranking.png" in text  # chart embeds
+    assert "stt-ranking.svg" in text  # chart embeds
     # jinja StrictUndefined: any missing ctx key would raise above
 
 
