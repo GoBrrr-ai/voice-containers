@@ -1122,8 +1122,8 @@ def _tidy_svg(p: Path) -> None:
 
 def _tokenize_svg(p: Path) -> None:
     """Swap baked theme hexes for CSS custom properties and inject the
-    token <style>: one self-adaptive file instead of a picture pair —
-    :root carries light, an embedded prefers-color-scheme query dark.
+    token <style>: one self-adaptive file — :root carries dark (the
+    default), an embedded prefers-color-scheme:light query the light set.
     Hexes outside the token table (theme-constant engine hues) stay."""
     import re as _re
 

@@ -131,10 +131,9 @@ def span_wants_log(values, min_span: float = 10.0) -> bool:
 
 # color tokens for the self-adaptive svg: (light, dark) per role. Every
 # theme-derived hex the renderer emits maps to ``var(--token)``; the svg
-# carries :root = light and a prefers-color-scheme override = dark. Viewers
-# without the media query (plain readers, RSS) get light — readable
-# everywhere; modern browsers adapt. Theme-constant hues (engine identity
-# colors) stay literal.
+# carries :root = dark — the default, and what theme-less viewers (plain
+# readers, RSS) get — with a prefers-color-scheme:light override. Theme
+# constants: engine identity hues stay literal.
 TOKENS = {
     "bg": ("#ffffff", "#0d1117"),
     "panel": ("#f6f8fa", "#161b22"),
@@ -160,7 +159,8 @@ def token_map() -> dict[str, str]:
 
 
 def token_css() -> str:
-    """The <style> block injected into every chart svg."""
-    light = ";".join(f"--{n}:{v}" for n, (v, _d) in TOKENS.items())
+    """The <style> block injected into every chart svg. Dark is the default
+    (:root); light applies via an explicit prefers-color-scheme query."""
     dark = ";".join(f"--{n}:{d}" for n, (_l, d) in TOKENS.items())
-    return f":root{{{light}}}" "@media (prefers-color-scheme:dark){:root{" + dark + "}}"
+    light = ";".join(f"--{n}:{lt}" for n, (lt, _d) in TOKENS.items())
+    return f":root{{{dark}}}@media (prefers-color-scheme:light){{:root{{" + light + "}}"
