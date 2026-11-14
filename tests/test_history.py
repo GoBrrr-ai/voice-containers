@@ -137,6 +137,42 @@ def test_publish_raw_scrubs_and_slims(tmp_path):
     assert dst2 == dst
 
 
+def test_publish_raw_writes_slim_utterance_extract(tmp_path):
+    """The committed extract carries chart fields only — the full record
+    (refs, ttfa, utt ids) stays in results/; charts still get their
+    ok-filter and the exact numbers."""
+    import json
+
+    from bench.history import UTT_EXTRACT_KEYS, publish_raw
+
+    run = _run_dir(tmp_path)[0]
+    full = {  # the results/ shape — none of the extra keys are needed
+        "engine_id": "e1",
+        "status": "ok",
+        "utt_id": "6930-75918-0019",
+        "proc_ns": 1_200_000_000,
+        "synth_ns": 2_500_000_000,
+        "audio_s": 6.5,
+        "ref_norm": "a long reference transcript",
+        "ttfa_ns": 300_000_000,
+    }
+    (run / "utterances.jsonl").write_text(
+        "".join(json.dumps(full, ensure_ascii=False) + "\n" for _ in range(3)),
+        encoding="utf-8",
+    )
+    dst = publish_raw(run, tmp_path / "b")
+    lines = (dst / "utterances.jsonl").read_text().splitlines()
+    assert len(lines) == 3
+    row = json.loads(lines[0])
+    assert set(row) == set(UTT_EXTRACT_KEYS)
+    assert row["proc_ns"] == 1_200_000_000 and row["audio_s"] == 6.5
+    assert row["status"] == "ok"  # charts' ok-filter stays expressible
+    # no utterances -> no extract file, publish still fine
+    (run / "utterances.jsonl").unlink()
+    dst2 = publish_raw(run, tmp_path / "b")
+    assert not (dst2 / "utterances.jsonl").exists()
+
+
 def test_load_run_dir_tolerates_odd_container_names(tmp_path):
     from bench.history import _load_run_dir, _derive_metrics
 

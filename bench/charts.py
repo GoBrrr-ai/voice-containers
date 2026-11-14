@@ -4,7 +4,8 @@
 ``assets/benchmarks/<task>/<name>.svg`` (dark theme, vector) and writes
 ``manifest.json``; ``readme.py`` resolves ``{{ chart("name") }}`` from it.
 Charts needing per-utterance data read the raw run dirs under
-``benchmarks/raw/`` (fallback: results/).
+``benchmarks/raw/`` — the committed slim per-utterance extract (fallback:
+results/ full logs).
 
 Label discipline (the 28-config roster made these non-negotiable):
 - one engine can hold several rows (cuda + cpu twins) — every chart gets
@@ -1230,6 +1231,15 @@ TASK_CHARTS = {
 }
 
 
+def _tidy_svg(p: Path) -> None:
+    """Strip per-line trailing whitespace (pre-commit parity): matplotlib
+    pads every path coordinate line; the repo's trim hook would strip it on
+    commit anyway — emitting the normalized form directly keeps re-renders
+    byte-identical to what's committed (quiet git diffs)."""
+    text = p.read_text(encoding="utf-8")
+    p.write_text("\n".join(ln.rstrip() for ln in text.splitlines()) + "\n")
+
+
 def render_all(bench_root: Path, include: str = "baseline") -> dict:
     """Render every chart that has data; write manifest.json. Returns it."""
     plt = _plt()
@@ -1254,6 +1264,7 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
             # Date=None keeps bytes stable across renders -> clean git diffs
             metadata={"Date": None},
         )
+        _tidy_svg(p)
         plt.close(fig)
         manifest.setdefault(name, []).append(
             {"task": task, "dark": str(p.relative_to(bench_root))}

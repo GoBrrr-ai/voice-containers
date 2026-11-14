@@ -19,6 +19,12 @@ RAW_EXCLUDE = {"audio"}  # TTS wavs stay out of the committed raws
 RAW_META_NAMES = {"summary.json", "env.json", "run_meta.jsonl"}
 RAW_META_PREFIXES = ("container_",)  # engine -> container map, tiny
 
+# the slim per-utterance extract committed alongside the meta (below):
+# exactly the fields the box charts consume — the "synthetic report" that
+# makes `bench plot` reproduce every chart from git alone. The full
+# utterance record (refs, ttfa, hashes, utt ids...) stays in results/.
+UTT_EXTRACT_KEYS = ("engine_id", "status", "proc_ns", "synth_ns", "audio_s")
+
 
 def _derive_metrics(m: dict, run_dir: Path, eid: str) -> None:
     """Fill metric gaps from the raw utterances so tables/charts are complete.
@@ -165,21 +171,42 @@ def _scrub_paths(text: str, bench_root: Path) -> str:
 def _is_raw_meta(name: str) -> bool:
     """Slim-repo policy: committed raws carry metadata, never bulk data.
 
-    charts/README render from benchmarks/history.jsonl alone, so the
-    committed per-run raws hold only the audit trail (summary / env /
-    run_meta / container map). Bulky probes — tegrastats, docker stats,
-    per-utterance csv/jsonl, engine logs, job blobs — remain only in
-    results/ on the bench host.
+    charts/README render from benchmarks/history.jsonl plus the slim
+    utterance extract (``_utterance_extract``), so the committed per-run
+    raws hold the audit trail (summary / env / run_meta / container map).
+    Bulky probes — tegrastats, docker stats, full per-utterance records,
+    engine logs, job blobs, audio — remain only in results/ on the bench
+    host.
     """
     return name in RAW_META_NAMES or name.startswith(RAW_META_PREFIXES)
 
 
-def publish_raw(run_dir: Path, bench_root: Path) -> Path:
-    """Copy a run's metadata into benchmarks/raw/<run_id>/ (no bulk data).
+def _utterance_extract(run_dir: Path) -> str | None:
+    """Slim per-utterance extract for the committed raws (see
+    ``UTT_EXTRACT_KEYS``): one jsonl line per utterance, chart fields only.
+    ``None`` when the run has no utterance log."""
+    src = run_dir / "utterances.jsonl"
+    if not src.exists():
+        return None
+    out = []
+    for line in src.read_text(errors="replace").splitlines():
+        if not line.strip():
+            continue
+        u = json.loads(line)
+        row = {k: u[k] for k in UTT_EXTRACT_KEYS if k in u}
+        if row.get("engine_id"):
+            out.append(json.dumps(row, ensure_ascii=False))
+    return "\n".join(out) + "\n" if out else None
 
-    Text artifacts get host-path scrubbing — committed raws stay
-    repo-relative (no /home/<user> leakage); the results/ copies keep
-    runtime-absolute paths.
+
+def publish_raw(run_dir: Path, bench_root: Path) -> Path:
+    """Copy a run's audit trail into benchmarks/raw/<run_id>/ (no bulk data).
+
+    Meta files (summary / env / run_meta / container map) plus the slim
+    per-utterance extract that the box charts consume — ``bench plot``
+    reproduces every chart from git alone. Text artifacts get host-path
+    scrubbing — committed raws stay repo-relative (no /home/<user>
+    leakage); the results/ copies keep runtime-absolute paths.
     """
     run_dir = Path(run_dir)
     bench_root = Path(bench_root)
@@ -199,6 +226,9 @@ def publish_raw(run_dir: Path, bench_root: Path) -> Path:
             target.write_text(text)
         else:
             shutil.copy2(p, target)
+    slim = _utterance_extract(run_dir)
+    if slim:
+        (dst / "utterances.jsonl").write_text(slim)
     return dst
 
 
