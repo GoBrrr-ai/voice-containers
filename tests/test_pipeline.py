@@ -23,10 +23,10 @@ def test_render_all_produces_every_chart(bench_env):
     expected = {name for task in TASK_CHARTS for name in TASK_CHARTS[task]}
     for name in expected:
         entry = manifest[name]
-        assert set(entry["variants"]) == {"dark", "light"}, name
-        for rel in entry["variants"].values():
-            p = bench_env.root / rel
-            assert p.exists() and p.stat().st_size > 1000, name
+        p = bench_env.root / entry["src"]
+        assert p.exists() and p.stat().st_size > 1000, name
+        svg = p.read_text()
+        assert "var(--bg)" in svg and "prefers-color-scheme" in svg, name
 
 
 def test_render_all_include_filter_can_exclude_everything(bench_env):
@@ -95,8 +95,7 @@ def test_render_readme_from_synthetic_tree(bench_env, tmp_path: Path):
     text = p.read_text()
     assert "## 🐋 Features" in text
     assert "parakeet-tdt-cpp-stt" in text  # packages table links
-    assert "stt-ranking.dark.svg" in text  # chart embeds (picture pair)
-    assert "prefers-color-scheme" in text
+    assert "stt-ranking.svg" in text  # chart embeds (adaptive svg)
     # jinja StrictUndefined: any missing ctx key would raise above
 
 

@@ -126,10 +126,11 @@ bench plot --readme
 - Commit style: short lowercase messages; all commits carry the single
   identity `Mieszko Syty <mieszko@ms1design.pl>` (GPG-signed). If a
   pre-commit hook rewrites files, `git add -A` and retry.
-- Charts: dual theme, dark + light (`bench/theme.py`; README `<picture>`
-  switches on `prefers-color-scheme`), identity colors per engine family
-  (Okabe-Ito), marker shape = backend (circle CPU, square CUDA), titles say
-  "Speech recognition/synthesis" — never bare "STT"/"TTS" in visible text.
+- Charts: one self-adaptive SVG per chart — theme colors as CSS tokens,
+  embedded `prefers-color-scheme` (both palettes in `bench/theme.py::TOKENS`);
+  identity colors per engine family (Okabe-Ito), marker shape = backend
+  (circle CPU, square CUDA), titles say "Speech recognition/synthesis" —
+  never bare "STT"/"TTS" in visible text.
 - Metric columns are p50 **and** p90; direction-aware coloring (best green /
   worst red) uses GitHub-renderable LaTeX (`$\color{...}{\text{...}}$`).
 - Gates live in `matrix.csv` only, not in README tables.

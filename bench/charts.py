@@ -1,7 +1,8 @@
 """Chart generation from the benchmark history.
 
 ``render_all`` builds every chart that has data into
-``assets/benchmarks/<task>/<name>.svg`` (dark + light, vector) and writes
+``assets/benchmarks/<task>/<name>.svg`` — a single self-adaptive vector
+file (theme colors as CSS tokens, light+dark in one) — and writes
 ``manifest.json``; ``readme.py`` resolves ``{{ chart("name") }}`` from it.
 Charts needing distribution data read the precomputed box statistics
 (``diststats.json``, published by ``history.publish_raw``) from
@@ -33,7 +34,15 @@ import matplotlib.patheffects as patheffects
 from . import matrix as _matrix
 from . import names as _names
 from . import theme
-from .theme import DARK, LIGHT, Mode, apply, footer, row_color
+from .theme import (
+    DARK,
+    Mode,
+    token_css,
+    token_map,
+    apply,
+    footer,
+    row_color,
+)
 
 # top-3 places: dingbat medals (DejaVu Sans) + classic medal colors.
 # On the light surface the raw metals wash out — medal_colors() darkens them.
@@ -43,7 +52,7 @@ MEDAL_COLORS_LIGHT = {1: "#B8860B", 2: "#6E7781", 3: "#A0522D"}
 
 
 def medal_colors(mode: Mode) -> dict:
-    return MEDAL_COLORS_LIGHT if mode is LIGHT or mode.name == "light" else MEDAL_COLORS
+    return MEDAL_COLORS_LIGHT if mode.name == "light" else MEDAL_COLORS
 
 
 def _plt():
@@ -1111,6 +1120,21 @@ def _tidy_svg(p: Path) -> None:
     p.write_text("\n".join(ln.rstrip() for ln in text.splitlines()) + "\n")
 
 
+def _tokenize_svg(p: Path) -> None:
+    """Swap baked theme hexes for CSS custom properties and inject the
+    token <style>: one self-adaptive file instead of a picture pair —
+    :root carries light, an embedded prefers-color-scheme query dark.
+    Hexes outside the token table (theme-constant engine hues) stay."""
+    import re as _re
+
+    text = p.read_text(encoding="utf-8")
+    for hex_color, var in token_map().items():
+        text = text.replace(hex_color, var)
+    style = f"<style>{token_css()}</style>"
+    text = _re.sub(r"(<svg[^>]*>)", r"\1" + style, text, count=1)
+    p.write_text(text, encoding="utf-8")
+
+
 def render_all(bench_root: Path, include: str = "baseline") -> dict:
     """Render every chart that has data; write manifest.json. Returns it."""
     plt = _plt()
@@ -1121,30 +1145,28 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
     keep = set()
 
     def save(name: str, task: str, build) -> bool:
-        """Render every theme variant; manifest entry carries the paths."""
-        variants = {}
-        for mode in (DARK, LIGHT):
-            fig = build(mode)
-            if fig is None:
-                continue
-            d = out_dir / task
-            d.mkdir(parents=True, exist_ok=True)
-            p = d / f"{name}.{mode.name}.svg"
-            fig.savefig(
-                p,
-                facecolor=fig.get_facecolor(),
-                bbox_inches="tight",
-                pad_inches=0.2,
-                # Date=None keeps bytes stable across renders -> clean git diffs
-                metadata={"Date": None},
-            )
-            _tidy_svg(p)
-            plt.close(fig)
-            variants[mode.name] = str(p.relative_to(bench_root))
-            keep.add(p.resolve())
-        if not variants:
+        """One render, one adaptive file: geometry is theme-independent and
+        every theme hex becomes a CSS token (see ``_tokenize_svg``). The
+        builders' default mode is the dark bake; the token css carries light."""
+        fig = build()
+        if fig is None:
             return False
-        manifest[name] = {"task": task, "variants": variants}
+        d = out_dir / task
+        d.mkdir(parents=True, exist_ok=True)
+        p = d / f"{name}.svg"
+        fig.savefig(
+            p,
+            facecolor=fig.get_facecolor(),
+            bbox_inches="tight",
+            pad_inches=0.2,
+            # Date=None keeps bytes stable across renders -> clean git diffs
+            metadata={"Date": None},
+        )
+        _tidy_svg(p)
+        _tokenize_svg(p)
+        plt.close(fig)
+        manifest[name] = {"task": task, "src": str(p.relative_to(bench_root))}
+        keep.add(p.resolve())
         return True
 
     for task, charts in TASK_CHARTS.items():
@@ -1154,9 +1176,9 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
         scored = _matrix.score_cohort([dict(r) for r in task_rows], task)
         for name, build in charts.items():
             if "bench_root" in build.__code__.co_varnames[: build.__code__.co_argcount]:
-                save(name, task, lambda m, b=build: b(bench_root, scored, mode=m))
+                save(name, task, lambda b=build: b(bench_root, scored))
             else:
-                save(name, task, lambda m, b=build: b(scored, mode=m))
+                save(name, task, lambda b=build: b(scored))
     # prune stale renders
     for svg in out_dir.rglob("*.svg"):
         if svg.resolve() not in keep:
@@ -1165,7 +1187,7 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=1, sort_keys=True) + "\n"
     )
-    print(f"[bench] {sum(len(v) for v in manifest.values())} charts -> {out_dir}")
+    print(f"[bench] {len(manifest)} charts -> {out_dir}")
     return manifest
 
 

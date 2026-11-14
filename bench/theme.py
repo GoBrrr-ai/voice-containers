@@ -1,11 +1,12 @@
-"""Chart design system — one visual language, two surfaces.
+"""Chart design system — one visual language, adaptive surfaces.
 
-Every chart renders twice (dark + light) into ``assets/benchmarks/`` as
-SVG (vector, text kept as ``<text>``); the README switches via
-``<picture> + prefers-color-scheme``. Color = identity, assigned per
-ENGINE FAMILY (never by rank): all parakeet.cpp models share one hue,
-marker shape encodes backend (circle = CPU, square = CUDA), variant by
-direct label. Okabe-Ito hues — colorblind-safe on both surfaces.
+Every chart is a SINGLE self-adaptive SVG: theme-dependent colors are
+emitted as CSS custom properties (``var(--token)``); the file carries both
+palettes — ``:root`` light, an embedded ``prefers-color-scheme`` query
+dark — so the same asset renders correctly on GitHub's light and dark
+modes with no picture pair. Colors = identity, per ENGINE FAMILY (never
+by rank) via ``TOKENS``; theme-constant hues (Okabe-Ito) stay literal.
+Marker shape encodes backend (circle = CPU, square = CUDA).
 """
 
 from __future__ import annotations
@@ -126,3 +127,40 @@ def span_wants_log(values, min_span: float = 10.0) -> bool:
         return False
     lo, hi = min(vals), max(vals)
     return hi / max(lo, 1e-12) >= min_span
+
+
+# color tokens for the self-adaptive svg: (light, dark) per role. Every
+# theme-derived hex the renderer emits maps to ``var(--token)``; the svg
+# carries :root = light and a prefers-color-scheme override = dark. Viewers
+# without the media query (plain readers, RSS) get light — readable
+# everywhere; modern browsers adapt. Theme-constant hues (engine identity
+# colors) stay literal.
+TOKENS = {
+    "bg": ("#ffffff", "#0d1117"),
+    "panel": ("#f6f8fa", "#161b22"),
+    "text": ("#1f2328", "#e6edf3"),
+    "dim": ("#57606a", "#8b949e"),
+    "grid": ("#d0d7de", "#30363d"),
+    "green": ("#1a7f37", "#3fb950"),
+    "red": ("#cf222e", "#f85149"),
+    "m1": ("#b8860b", "#ffd700"),  # medals, darkened for the light surface
+    "m2": ("#6e7781", "#c0c0c0"),
+    "m3": ("#a0522d", "#cd7f32"),
+    "lens": ("#dce3ea", "#202a36"),  # magnifier inset, contrast step vs panel
+}
+
+
+def token_map() -> dict[str, str]:
+    """hex -> css var, both palettes (the baked render may be either)."""
+    out: dict[str, str] = {}
+    for name, (light, dark) in TOKENS.items():
+        out[light.lower()] = f"var(--{name})"
+        out[dark.lower()] = f"var(--{name})"
+    return out
+
+
+def token_css() -> str:
+    """The <style> block injected into every chart svg."""
+    light = ";".join(f"--{n}:{v}" for n, (v, _d) in TOKENS.items())
+    dark = ";".join(f"--{n}:{d}" for n, (_l, d) in TOKENS.items())
+    return f":root{{{light}}}" "@media (prefers-color-scheme:dark){:root{" + dark + "}}"
