@@ -88,8 +88,8 @@ def test_empty_rows_return_none(bench_env):
     rows = _m.select_rows(bench_env.root, "baseline")
     stt = _m.score_cohort([dict(r) for r in rows if r["task"] == "stt"], "stt")
     assert charts.stt_latency_box(bench_env.root, stt) is not None
-    # no utterances anywhere -> boxes vanish -> None
-    (bench_env.root / "benchmarks" / "raw" / "run_a" / "utterances.jsonl").unlink()
+    # no dist stats anywhere -> boxes vanish -> None
+    (bench_env.root / "benchmarks" / "raw" / "run_a" / "diststats.json").unlink()
     assert charts.stt_latency_box(bench_env.root, stt) is None
 
 

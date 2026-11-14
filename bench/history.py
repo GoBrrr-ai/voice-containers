@@ -19,11 +19,47 @@ RAW_EXCLUDE = {"audio"}  # TTS wavs stay out of the committed raws
 RAW_META_NAMES = {"summary.json", "env.json", "run_meta.jsonl"}
 RAW_META_PREFIXES = ("container_",)  # engine -> container map, tiny
 
-# the slim per-utterance extract committed alongside the meta (below):
-# exactly the fields the box charts consume — the "synthetic report" that
-# makes `bench plot` reproduce every chart from git alone. The full
-# utterance record (refs, ttfa, hashes, utt ids...) stays in results/.
-UTT_EXTRACT_KEYS = ("engine_id", "status", "proc_ns", "synth_ns", "audio_s")
+
+def dist_stats(utts: list[dict]) -> dict:
+    """Precomputed box-plot statistics per engine from raw utterance rows
+    (ok-filtered) — the sufficient statistic for the distribution charts,
+    published as ``diststats.json``: quantiles match ``boxplot`` (linear
+    interpolation), whiskers reach the extreme datum within 1.5 IQR, and
+    p90 rides along for the green tick. Per-utterance records never leave
+    results/."""
+    import numpy as np
+
+    per: dict[str, dict[str, list]] = {}
+    for u in utts:
+        eid = u.get("engine_id")
+        if not eid or u.get("status") != "ok":
+            continue
+        if u.get("proc_ns") and u.get("audio_s"):
+            per.setdefault(eid, {}).setdefault("rtf", []).append(
+                u["proc_ns"] / 1e9 / max(u["audio_s"], 1e-9)
+            )
+        if u.get("synth_ns"):
+            per.setdefault(eid, {}).setdefault("synth", []).append(u["synth_ns"] / 1e9)
+    out: dict = {}
+    for eid, series in per.items():
+        entry = {}
+        for name, vals in series.items():
+            a = np.asarray(vals, dtype=float)
+            q1, med, q3 = np.percentile(a, [25, 50, 75])
+            iqr = q3 - q1
+            lo, hi = a[a >= q1 - 1.5 * iqr], a[a <= q3 + 1.5 * iqr]
+            entry[name] = {
+                "n": int(a.size),
+                "q1": float(q1),
+                "med": float(med),
+                "q3": float(q3),
+                "whislo": float(lo.min() if lo.size else a.min()),
+                "whishi": float(hi.max() if hi.size else a.max()),
+                "p90": float(np.percentile(a, 90)),
+            }
+        if entry:
+            out[eid] = entry
+    return out
 
 
 def _derive_metrics(m: dict, run_dir: Path, eid: str) -> None:
@@ -171,42 +207,25 @@ def _scrub_paths(text: str, bench_root: Path) -> str:
 def _is_raw_meta(name: str) -> bool:
     """Slim-repo policy: committed raws carry metadata, never bulk data.
 
-    charts/README render from benchmarks/history.jsonl plus the slim
-    utterance extract (``_utterance_extract``), so the committed per-run
-    raws hold the audit trail (summary / env / run_meta / container map).
-    Bulky probes — tegrastats, docker stats, full per-utterance records,
-    engine logs, job blobs, audio — remain only in results/ on the bench
-    host.
+    charts/README render from benchmarks/history.jsonl plus the published
+    box statistics (``dist_stats`` -> ``diststats.json``), so the committed
+    per-run raws hold the audit trail (summary / env / run_meta / container
+    map). Bulky probes — tegrastats, docker stats, full per-utterance
+    records, engine logs, job blobs, audio — remain only in results/ on
+    the bench host.
     """
     return name in RAW_META_NAMES or name.startswith(RAW_META_PREFIXES)
-
-
-def _utterance_extract(run_dir: Path) -> str | None:
-    """Slim per-utterance extract for the committed raws (see
-    ``UTT_EXTRACT_KEYS``): one jsonl line per utterance, chart fields only.
-    ``None`` when the run has no utterance log."""
-    src = run_dir / "utterances.jsonl"
-    if not src.exists():
-        return None
-    out = []
-    for line in src.read_text(errors="replace").splitlines():
-        if not line.strip():
-            continue
-        u = json.loads(line)
-        row = {k: u[k] for k in UTT_EXTRACT_KEYS if k in u}
-        if row.get("engine_id"):
-            out.append(json.dumps(row, ensure_ascii=False))
-    return "\n".join(out) + "\n" if out else None
 
 
 def publish_raw(run_dir: Path, bench_root: Path) -> Path:
     """Copy a run's audit trail into benchmarks/raw/<run_id>/ (no bulk data).
 
-    Meta files (summary / env / run_meta / container map) plus the slim
-    per-utterance extract that the box charts consume — ``bench plot``
-    reproduces every chart from git alone. Text artifacts get host-path
-    scrubbing — committed raws stay repo-relative (no /home/<user>
-    leakage); the results/ copies keep runtime-absolute paths.
+    Meta files (summary / env / run_meta / container map) plus the
+    precomputed box statistics (``diststats.json``) the distribution
+    charts consume — ``bench plot`` reproduces every chart from git
+    alone. Text artifacts get host-path scrubbing — committed raws stay
+    repo-relative (no /home/<user> leakage); the results/ copies keep
+    runtime-absolute paths.
     """
     run_dir = Path(run_dir)
     bench_root = Path(bench_root)
@@ -226,9 +245,18 @@ def publish_raw(run_dir: Path, bench_root: Path) -> Path:
             target.write_text(text)
         else:
             shutil.copy2(p, target)
-    slim = _utterance_extract(run_dir)
-    if slim:
-        (dst / "utterances.jsonl").write_text(slim)
+    utt_p = run_dir / "utterances.jsonl"
+    if utt_p.exists():
+        rows = [
+            json.loads(line)
+            for line in utt_p.read_text(errors="replace").splitlines()
+            if line.strip()
+        ]
+        stats = dist_stats(rows)
+        if stats:
+            (dst / "diststats.json").write_text(
+                json.dumps(stats, ensure_ascii=False) + "\n"
+            )
     return dst
 
 

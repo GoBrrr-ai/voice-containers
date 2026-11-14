@@ -40,8 +40,9 @@ matrices from summary data. See `ARCHITECTURE.md` for the dependency graph.
    there (image → family/emoji/streaming note + display label).
 8. **Git carries summary data, not raw results.** Only `benchmarks/history.jsonl`,
    `manifests/`, charts and metadata-only `benchmarks/raw/<run_id>/`
-   (`bench/history.py::publish_raw`: audit trail + slim per-utterance extract
-   — the box-plot input that makes `bench plot` reproducible from git alone)
+   (`bench/history.py::publish_raw`: audit trail + precomputed box
+   statistics — the distribution-chart input that makes `bench plot`
+   reproducible from git alone)
    are committed; raw logs, full utterance records, audio and `results/` stay
    local. Charts render as text-embedded SVG, byte-stable
    across runs (`bench/charts.py`; no raster step). History rewrites are
@@ -100,7 +101,7 @@ make bench-prune       # delete superseded benchmarks/raw dirs (--yes applies)
 ```
 bench run  →  results/<run_id>/         (+ tegrastats, docker stats, utterances.jsonl)
            →  benchmarks/history.jsonl  one line per engine config (append-only)
-           →  benchmarks/raw/<run_id>/  baseline runs: audit trail + slim utterance extract (no raw logs/audio)
+           →  benchmarks/raw/<run_id>/  baseline runs: audit trail + box stats (no raw logs/audio)
 bench plot --readme
            →  assets/benchmarks/<task>/*.svg + manifest.json
            →  reports/matrix/{matrix_<task>.csv,.json,index_<task>.html}

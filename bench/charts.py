@@ -3,9 +3,9 @@
 ``render_all`` builds every chart that has data into
 ``assets/benchmarks/<task>/<name>.svg`` (dark theme, vector) and writes
 ``manifest.json``; ``readme.py`` resolves ``{{ chart("name") }}`` from it.
-Charts needing per-utterance data read the raw run dirs under
-``benchmarks/raw/`` — the committed slim per-utterance extract (fallback:
-results/ full logs).
+Charts needing distribution data read the precomputed box statistics
+(``diststats.json``, published by ``history.publish_raw``) from
+``benchmarks/raw/``.
 
 Label discipline (the 28-config roster made these non-negotiable):
 - one engine can hold several rows (cuda + cpu twins) — every chart gets
@@ -44,26 +44,11 @@ def _plt():
     return theme._plt()
 
 
-def _resolve_raw(bench_root: Path, run_id: str) -> Path | None:
-    for cand in (
-        bench_root / "benchmarks" / "raw" / run_id,
-        bench_root / "results" / run_id,
-    ):
-        if (cand / "utterances.jsonl").exists():
-            return cand
-    return None
-
-
-def _load_utterances(bench_root: Path, run_id: str, engine_id: str) -> list[dict]:
-    raw = _resolve_raw(bench_root, run_id)
-    if not raw:
-        return []
-    rows = []
-    for line in (raw / "utterances.jsonl").read_text().splitlines():
-        r = json.loads(line)
-        if r.get("engine_id") == engine_id and r.get("status") == "ok":
-            rows.append(r)
-    return rows
+def _load_dist(bench_root: Path, run_id: str) -> dict:
+    """Published box statistics for a run: engine -> series -> stats
+    (see ``history.dist_stats``). Empty when the run carries none."""
+    p = Path(bench_root) / "benchmarks" / "raw" / run_id / "diststats.json"
+    return json.loads(p.read_text()) if p.exists() else {}
 
 
 def _labels(rows: list[dict], ranks: dict | None = None) -> list[str]:
@@ -590,49 +575,61 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     return fig
 
 
-def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
+def _dist_box(
+    bench_root: Path,
+    rows: list[dict],
+    series: str,
+    mode: Mode,
+    title: str,
+    xlabel: str,
+    footer: str,
+    base_h: float,
+):
+    """Distribution box plot drawn from the published sufficient statistics
+    (``history.dist_stats`` -> ``bxp``) — no per-utterance data reaches the
+    chart layer, and both box charts share one geometry."""
     plt = _plt()
-    data, colors, rows_used = [], [], []
+    dists: dict[str, dict] = {}
+    boxes, p90s, colors, rows_used = [], [], [], []
     for r in rows:
-        utts = _load_utterances(bench_root, r["run_id"], r["engine_id"])
-        rtfs = [
-            u["proc_ns"] / 1e9 / max(u.get("audio_s") or 1, 1e-9)
-            for u in utts
-            if u.get("proc_ns")
-        ]
-        if not rtfs:
+        run_dist = dists.setdefault(r["run_id"], _load_dist(bench_root, r["run_id"]))
+        st = (run_dist.get(r["engine_id"]) or {}).get(series)
+        if not st:
             continue
-        data.append(rtfs)
+        boxes.append(
+            {
+                **{k: st[k] for k in ("med", "q1", "q3", "whislo", "whishi")},
+                "fliers": [],
+            }
+        )
+        p90s.append(st["p90"])
         rows_used.append(r)
         colors.append(row_color(r))
-    if not data:
+    if not boxes:
         return None
-    # sort boxes by median RTF, best (lowest) at the top after invert_yaxis
-    order = sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])
-    data = [data[i] for i in order]
+    # sort boxes by median, best (lowest) at the top after invert_yaxis
+    order = sorted(range(len(boxes)), key=lambda i: boxes[i]["med"])
+    boxes = [boxes[i] for i in order]
+    p90s = [p90s[i] for i in order]
     rows_used = [rows_used[i] for i in order]
     colors = [colors[i] for i in order]
-    fig, ax = plt.subplots(figsize=_figsize(len(data), 4.6, 0.31))
-    apply(fig, ax)
-    medals = {}
-    for pos, i in enumerate(
-        sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])[:3],
-        1,
-    ):
-        medals[id(rows_used[i])] = pos
+    # rows_used is median-sorted already -> the first three ARE top-3
+    medals = {id(r): pos for pos, r in enumerate(rows_used[:3], 1)}
     labels = _labels(rows_used, ranks=medals)
-    bp = ax.boxplot(
-        data,
-        tick_labels=labels,
+    for box, lab in zip(boxes, labels):
+        box["label"] = lab
+    fig, ax = plt.subplots(figsize=_figsize(len(boxes), base_h, 0.31))
+    apply(fig, ax)
+    bp = ax.bxp(
+        boxes,
+        positions=range(len(boxes)),
         orientation="horizontal",
         patch_artist=True,
-        showfliers=False,
     )
     _style_medals(ax, labels)
-    for i, vals_i in enumerate(data):
-        p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
+    for i, p90 in enumerate(p90s):
         ax.plot(
-            [p90, p90], [i + 0.75, i + 1.25], color=mode.green, linewidth=1.8, zorder=4
+            [p90, p90], [i - 0.25, i + 0.25], color=mode.green, linewidth=1.8, zorder=4
         )
     for patch, c in zip(bp["boxes"], colors):
         patch.set_facecolor(c)
@@ -641,12 +638,25 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         for line in bp[el]:
             line.set_color(mode.text_dim)
     ax.invert_yaxis()
-    _title(ax, "Speech recognition — per-utterance RTF distribution")
-    ax.set_xlabel("RTF per utterance (lower is better ↓, log)")
+    _title(ax, title)
+    ax.set_xlabel(xlabel)
     ax.set_xscale("log")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows, extra=" · green tick = p90 · ❶❷❸ = best median RTF")
+    _footer_common(fig, rows, extra=footer)
     return fig
+
+
+def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
+    return _dist_box(
+        bench_root,
+        rows,
+        "rtf",
+        mode,
+        title="Speech recognition — per-utterance RTF distribution",
+        xlabel="RTF per utterance (lower is better ↓, log)",
+        footer=" · green tick = p90 · ❶❷❸ = best median RTF",
+        base_h=4.6,
+    )
 
 
 def stt_memory(rows: list[dict], mode: Mode = DARK):
@@ -775,53 +785,16 @@ def tts_ttfa(rows: list[dict], mode: Mode = DARK):
 
 
 def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
-    plt = _plt()
-    data, colors, rows_used = [], [], []
-    for r in rows:
-        utts = _load_utterances(bench_root, r["run_id"], r["engine_id"])
-        vals = [u["synth_ns"] / 1e9 for u in utts if u.get("synth_ns")]
-        if not vals:
-            continue
-        data.append(vals)
-        rows_used.append(r)
-        colors.append(row_color(r))
-    if not data:
-        return None
-    fig, ax = plt.subplots(figsize=_figsize(len(data), 4.2, 0.31))
-    apply(fig, ax)
-    medals = {}
-    for pos, i in enumerate(
-        sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])[:3],
-        1,
-    ):
-        medals[id(rows_used[i])] = pos
-    labels = _labels(rows_used, ranks=medals)
-    bp = ax.boxplot(
-        data,
-        tick_labels=labels,
-        orientation="horizontal",
-        patch_artist=True,
-        showfliers=False,
+    return _dist_box(
+        bench_root,
+        rows,
+        "synth",
+        mode,
+        title="Speech synthesis — synthesis latency distribution",
+        xlabel="synthesis latency per sentence (s, lower is better ↓, log)",
+        footer=" · green tick = p90 · ❶❷❸ = best median latency",
+        base_h=4.2,
     )
-    _style_medals(ax, labels)
-    for i, vals_i in enumerate(data):
-        p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
-        ax.plot(
-            [p90, p90], [i + 0.75, i + 1.25], color=mode.green, linewidth=1.8, zorder=4
-        )
-    for patch, c in zip(bp["boxes"], colors):
-        patch.set_facecolor(c)
-        patch.set_alpha(0.75)
-    for el in ("whiskers", "caps", "medians"):
-        for line in bp[el]:
-            line.set_color(mode.text_dim)
-    ax.invert_yaxis()
-    _title(ax, "Speech synthesis — synthesis latency distribution")
-    ax.set_xlabel("synthesis latency per sentence (s, lower is better ↓, log)")
-    ax.set_xscale("log")
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows, extra=" · green tick = p90 · ❶❷❸ = best median latency")
-    return fig
 
 
 def tts_memory(rows: list[dict], mode: Mode = DARK):
