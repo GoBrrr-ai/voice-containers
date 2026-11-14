@@ -40,9 +40,13 @@ matrices from summary data. See `ARCHITECTURE.md` for the dependency graph.
    there (image → family/emoji/streaming note + display label).
 8. **Git carries summary data, not raw results.** Only `benchmarks/history.jsonl`,
    `manifests/`, charts and metadata-only `benchmarks/raw/<run_id>/`
-   (`bench/history.py::publish_raw`) are committed; raw logs, utterances and
-   `results/` stay local. Charts are quantized on save (`bench/charts.py::
-   _shrink_png`). History rewrites are ceremony (force-push, signed) — avoid.
+   (`bench/history.py::publish_raw`: audit trail + precomputed box
+   statistics — the distribution-chart input that makes `bench plot`
+   reproducible from git alone)
+   are committed; raw logs, full utterance records, audio and `results/` stay
+   local. Charts render as text-embedded SVG, byte-stable
+   across runs (`bench/charts.py`; no raster step). History rewrites are
+   ceremony (force-push, signed) — avoid.
 9. **GPU runtime images:** strip `/usr/local/cuda/compat*` in the final stage; see
    `docs/postmortem-cuda-compat-hook.md` (ctk 1.19.1 createContainer hook panic).
 
@@ -97,9 +101,9 @@ make bench-prune       # delete superseded benchmarks/raw dirs (--yes applies)
 ```
 bench run  →  results/<run_id>/         (+ tegrastats, docker stats, utterances.jsonl)
            →  benchmarks/history.jsonl  one line per engine config (append-only)
-           →  benchmarks/raw/<run_id>/  baseline-class runs publish metadata only (no raw logs)
+           →  benchmarks/raw/<run_id>/  baseline runs: audit trail + box stats (no raw logs/audio)
 bench plot --readme
-           →  assets/benchmarks/<task>/*.png + manifest.json
+           →  assets/benchmarks/<task>/*.svg + manifest.json
            →  reports/matrix/{matrix_<task>.csv,.json,index_<task>.html}
            →  README.md                 rendered from README.md.j2
 ```
@@ -122,9 +126,11 @@ bench plot --readme
 - Commit style: short lowercase messages; all commits carry the single
   identity `Mieszko Syty <mieszko@ms1design.pl>` (GPG-signed). If a
   pre-commit hook rewrites files, `git add -A` and retry.
-- Charts: dark theme (`bench/theme.py`), identity colors per engine family
-  (Okabe-Ito), marker shape = backend (circle CPU, square CUDA), titles say
-  "Speech recognition/synthesis" — never bare "STT"/"TTS" in visible text.
+- Charts: one self-adaptive SVG per chart — theme colors as CSS tokens,
+  embedded `prefers-color-scheme` (both palettes in `bench/theme.py::TOKENS`);
+  identity colors per engine family (Okabe-Ito), marker shape = backend
+  (circle CPU, square CUDA), titles say "Speech recognition/synthesis" —
+  never bare "STT"/"TTS" in visible text.
 - Metric columns are p50 **and** p90; direction-aware coloring (best green /
   worst red) uses GitHub-renderable LaTeX (`$\color{...}{\text{...}}$`).
 - Gates live in `matrix.csv` only, not in README tables.

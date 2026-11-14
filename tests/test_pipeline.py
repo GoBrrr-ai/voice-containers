@@ -1,7 +1,7 @@
 """Full-render smoke: synthetic bench tree -> every registered chart + README.
 
 Exercises the entire pure path — history parse, cohort selection, scoring,
-all chart builders, PNG quantize, manifest, README render — with zero
+all chart builders, SVG render, manifest, README render — with zero
 GPU/docker/network. This is the regression net for "README.md is GENERATED".
 """
 
@@ -22,11 +22,11 @@ def test_render_all_produces_every_chart(bench_env):
     manifest = charts.render_all(bench_env.root, "baseline")
     expected = {name for task in TASK_CHARTS for name in TASK_CHARTS[task]}
     for name in expected:
-        entries = manifest[name]
-        assert entries, name
-        for e in entries:
-            p = bench_env.root / e["dark"]
-            assert p.exists() and p.stat().st_size > 1000, name
+        entry = manifest[name]
+        p = bench_env.root / entry["src"]
+        assert p.exists() and p.stat().st_size > 1000, name
+        svg = p.read_text()
+        assert "var(--bg)" in svg and "prefers-color-scheme" in svg, name
 
 
 def test_render_all_include_filter_can_exclude_everything(bench_env):
@@ -50,26 +50,17 @@ def test_chart_rebuild_matches_render_all_rows(bench_env):
 
 
 def test_light_mode_renders(bench_env):
+    from bench import theme as _theme
     from bench import matrix as _m
-    from bench.theme import Mode
 
-    light = Mode(
-        name="light",
-        bg="#ffffff",
-        panel="#f6f8fa",
-        text="#1f2328",
-        text_dim="#57606a",
-        grid="#d0d7de",
-        green="#1a7f37",
-        red="#cf222e",
-    )
+    light = _theme.LIGHT
 
     rows = _m.select_rows(bench_env.root, "baseline")
     stt = _m.score_cohort([dict(r) for r in rows if r["task"] == "stt"], "stt")
     tts = _m.score_cohort([dict(r) for r in rows if r["task"] == "tts"], "tts")
     for build, rows_ in (
         (charts.stt_edge, stt),
-        (charts.tts_heatmap, tts),
+        (charts.tts_ranking, tts),
         (charts.stt_latency_box, stt),
     ):
         fig = (
@@ -88,8 +79,8 @@ def test_empty_rows_return_none(bench_env):
     rows = _m.select_rows(bench_env.root, "baseline")
     stt = _m.score_cohort([dict(r) for r in rows if r["task"] == "stt"], "stt")
     assert charts.stt_latency_box(bench_env.root, stt) is not None
-    # no utterances anywhere -> boxes vanish -> None
-    (bench_env.root / "benchmarks" / "raw" / "run_a" / "utterances.jsonl").unlink()
+    # no dist stats anywhere -> boxes vanish -> None
+    (bench_env.root / "benchmarks" / "raw" / "run_a" / "diststats.json").unlink()
     assert charts.stt_latency_box(bench_env.root, stt) is None
 
 
@@ -104,7 +95,7 @@ def test_render_readme_from_synthetic_tree(bench_env, tmp_path: Path):
     text = p.read_text()
     assert "## 🐋 Features" in text
     assert "parakeet-tdt-cpp-stt" in text  # packages table links
-    assert "stt-ranking.png" in text  # chart embeds
+    assert "stt-ranking.svg" in text  # chart embeds (adaptive svg)
     # jinja StrictUndefined: any missing ctx key would raise above
 
 

@@ -137,6 +137,36 @@ def test_publish_raw_scrubs_and_slims(tmp_path):
     assert dst2 == dst
 
 
+def test_publish_raw_writes_diststats(tmp_path):
+    """publish_raw distills the full per-utterance record into box
+    statistics — chart-sufficient, ok-filtered, and free of raw dumps: the
+    committed per-utterance rows never leave results/."""
+    import json
+
+    from bench.history import publish_raw
+
+    run = _run_dir(tmp_path)[0]
+    ok = {"engine_id": "e1", "status": "ok", "audio_s": 4.0}
+    rows = [{**ok, "proc_ns": 1.2e8 + i * 1e7} for i in range(6)]
+    rows += [{**ok, "synth_ns": 3.0e8 + i * 1e7} for i in range(3)]
+    rows.append({"engine_id": "e1", "status": "skip", "proc_ns": 1.0})
+    (run / "utterances.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8"
+    )
+    dst = publish_raw(run, tmp_path / "b")
+    stats = json.loads((dst / "diststats.json").read_text())
+    rtf, syn = stats["e1"]["rtf"], stats["e1"]["synth"]
+    assert rtf["n"] == 6 and syn["n"] == 3  # skip row filtered
+    for s in (rtf, syn):
+        assert s["whislo"] <= s["q1"] <= s["med"] <= s["q3"] <= s["whishi"]
+        assert s["p90"] >= s["med"]
+    assert "utterances.jsonl" not in {p.name for p in dst.iterdir()}
+    # no utterances -> no diststats, publish still fine
+    (run / "utterances.jsonl").unlink()
+    dst2 = publish_raw(run, tmp_path / "b")
+    assert not (dst2 / "diststats.json").exists()
+
+
 def test_load_run_dir_tolerates_odd_container_names(tmp_path):
     from bench.history import _load_run_dir, _derive_metrics
 

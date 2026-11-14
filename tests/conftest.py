@@ -137,16 +137,20 @@ def bench_env(tmp_path: Path):
     (root / "benchmarks").mkdir()
     (root / "benchmarks" / "history.jsonl").write_text("\n".join(lines) + "\n")
 
+    from bench.history import dist_stats
+
+    per_run: dict[str, list] = {}
     for run_id, task, rows in (
         ("run_a", "stt", [r for r in stt if r["run_id"] == "run_a"]),
         ("run_a", "tts", list(tts)),
-    ):
+    ):  # one run id may carry both tasks -> merge before distilling
+        per_run.setdefault(run_id, []).extend(
+            u for r in rows for u in _utterances(task, r["engine_id"])
+        )
+    for run_id, utts in per_run.items():
         d = root / "benchmarks" / "raw" / run_id
         d.mkdir(parents=True, exist_ok=True)
-        with open(d / "utterances.jsonl", "a") as f:
-            for r in rows:
-                for line in _utterances(task, r["engine_id"]):
-                    f.write(json.dumps(line) + "\n")
+        (d / "diststats.json").write_text(json.dumps(dist_stats(utts)) + "\n")
 
     # packages/ mirror: only the build.sh files, so collect_packages sees the
     # full roster (it cross-checks names.PACKAGES) without copying trees

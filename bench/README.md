@@ -44,7 +44,7 @@ baseline-class runs also publish their raw artifacts (no audio) to
 
 ```bash
 bench/.venv/bin/python -m bench.cli plot --readme
-# charts (dark 2x PNGs + manifest.json) -> assets/benchmarks/<task>/
+# charts (dark SVGs + manifest.json) -> assets/benchmarks/<task>/
 # README.md rendered from README.md.j2 (StrictUndefined) — tables colored
 # green/best, red/worst per column; charts embedded via a manifest
 

@@ -20,6 +20,48 @@ RAW_META_NAMES = {"summary.json", "env.json", "run_meta.jsonl"}
 RAW_META_PREFIXES = ("container_",)  # engine -> container map, tiny
 
 
+def dist_stats(utts: list[dict]) -> dict:
+    """Precomputed box-plot statistics per engine from raw utterance rows
+    (ok-filtered) — the sufficient statistic for the distribution charts,
+    published as ``diststats.json``: quantiles match ``boxplot`` (linear
+    interpolation), whiskers reach the extreme datum within 1.5 IQR, and
+    p90 rides along for the green tick. Per-utterance records never leave
+    results/."""
+    import numpy as np
+
+    per: dict[str, dict[str, list]] = {}
+    for u in utts:
+        eid = u.get("engine_id")
+        if not eid or u.get("status") != "ok":
+            continue
+        if u.get("proc_ns") and u.get("audio_s"):
+            per.setdefault(eid, {}).setdefault("rtf", []).append(
+                u["proc_ns"] / 1e9 / max(u["audio_s"], 1e-9)
+            )
+        if u.get("synth_ns"):
+            per.setdefault(eid, {}).setdefault("synth", []).append(u["synth_ns"] / 1e9)
+    out: dict = {}
+    for eid, series in per.items():
+        entry = {}
+        for name, vals in series.items():
+            a = np.asarray(vals, dtype=float)
+            q1, med, q3 = np.percentile(a, [25, 50, 75])
+            iqr = q3 - q1
+            lo, hi = a[a >= q1 - 1.5 * iqr], a[a <= q3 + 1.5 * iqr]
+            entry[name] = {
+                "n": int(a.size),
+                "q1": float(q1),
+                "med": float(med),
+                "q3": float(q3),
+                "whislo": float(lo.min() if lo.size else a.min()),
+                "whishi": float(hi.max() if hi.size else a.max()),
+                "p90": float(np.percentile(a, 90)),
+            }
+        if entry:
+            out[eid] = entry
+    return out
+
+
 def _derive_metrics(m: dict, run_dir: Path, eid: str) -> None:
     """Fill metric gaps from the raw utterances so tables/charts are complete.
 
@@ -165,19 +207,23 @@ def _scrub_paths(text: str, bench_root: Path) -> str:
 def _is_raw_meta(name: str) -> bool:
     """Slim-repo policy: committed raws carry metadata, never bulk data.
 
-    charts/README render from benchmarks/history.jsonl alone, so the
-    committed per-run raws hold only the audit trail (summary / env /
-    run_meta / container map). Bulky probes — tegrastats, docker stats,
-    per-utterance csv/jsonl, engine logs, job blobs — remain only in
-    results/ on the bench host.
+    charts/README render from benchmarks/history.jsonl plus the published
+    box statistics (``dist_stats`` -> ``diststats.json``), so the committed
+    per-run raws hold the audit trail (summary / env / run_meta / container
+    map). Bulky probes — tegrastats, docker stats, full per-utterance
+    records, engine logs, job blobs, audio — remain only in results/ on
+    the bench host.
     """
     return name in RAW_META_NAMES or name.startswith(RAW_META_PREFIXES)
 
 
 def publish_raw(run_dir: Path, bench_root: Path) -> Path:
-    """Copy a run's metadata into benchmarks/raw/<run_id>/ (no bulk data).
+    """Copy a run's audit trail into benchmarks/raw/<run_id>/ (no bulk data).
 
-    Text artifacts get host-path scrubbing — committed raws stay
+    Meta files (summary / env / run_meta / container map) plus the
+    precomputed box statistics (``diststats.json``) the distribution
+    charts consume — ``bench plot`` reproduces every chart from git
+    alone. Text artifacts get host-path scrubbing — committed raws stay
     repo-relative (no /home/<user> leakage); the results/ copies keep
     runtime-absolute paths.
     """
@@ -199,6 +245,18 @@ def publish_raw(run_dir: Path, bench_root: Path) -> Path:
             target.write_text(text)
         else:
             shutil.copy2(p, target)
+    utt_p = run_dir / "utterances.jsonl"
+    if utt_p.exists():
+        rows = [
+            json.loads(line)
+            for line in utt_p.read_text(errors="replace").splitlines()
+            if line.strip()
+        ]
+        stats = dist_stats(rows)
+        if stats:
+            (dst / "diststats.json").write_text(
+                json.dumps(stats, ensure_ascii=False) + "\n"
+            )
     return dst
 
 

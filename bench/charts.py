@@ -1,17 +1,19 @@
 """Chart generation from the benchmark history.
 
 ``render_all`` builds every chart that has data into
-``assets/benchmarks/<task>/<name>.png`` (dark theme, 2x) and writes
+``assets/benchmarks/<task>/<name>.svg`` — a single self-adaptive vector
+file (theme colors as CSS tokens, light+dark in one) — and writes
 ``manifest.json``; ``readme.py`` resolves ``{{ chart("name") }}`` from it.
-Charts needing per-utterance data read the raw run dirs under
-``benchmarks/raw/`` (fallback: results/).
+Charts needing distribution data read the precomputed box statistics
+(``diststats.json``, published by ``history.publish_raw``) from
+``benchmarks/raw/``.
 
 Label discipline (the 28-config roster made these non-negotiable):
 - one engine can hold several rows (cuda + cpu twins) — every chart gets
   UNIQUE per-row labels via ``_labels``; categorical axes merge duplicate
   names, which silently drops bars and strands annotations;
 - every chart marks its top-3 places with ❶❷❸ (gold/silver/bronze, bold)
-  by the metric that chart ranks by — scatters and the heatmap use the
+  by the metric that chart ranks by — scatters use the
   composite rank from ``score_cohort``;
 - comparisons run on lollipops (stems + dots), never bars: a bar on a
   log axis starts at an arbitrary axis minimum and reads as length
@@ -32,39 +34,36 @@ import matplotlib.patheffects as patheffects
 from . import matrix as _matrix
 from . import names as _names
 from . import theme
-from .theme import DARK, Mode, apply, footer, row_color
+from .theme import (
+    DARK,
+    Mode,
+    token_css,
+    token_map,
+    apply,
+    footer,
+    row_color,
+)
 
-DPI = 200  # 2x PNG per spec 10.3 (vs matplotlib's default 100)
-
-# top-3 places: dingbat medals (DejaVu Sans) + classic medal colors
+# top-3 places: dingbat medals (DejaVu Sans) + classic medal colors.
+# On the light surface the raw metals wash out — medal_colors() darkens them.
 _MEDAL = {1: "❶", 2: "❷", 3: "❸"}
 MEDAL_COLORS = {1: "#FFD700", 2: "#C0C0C0", 3: "#CD7F32"}  # gold silver bronze
+MEDAL_COLORS_LIGHT = {1: "#B8860B", 2: "#6E7781", 3: "#A0522D"}
+
+
+def medal_colors(mode: Mode) -> dict:
+    return MEDAL_COLORS_LIGHT if mode.name == "light" else MEDAL_COLORS
 
 
 def _plt():
     return theme._plt()
 
 
-def _resolve_raw(bench_root: Path, run_id: str) -> Path | None:
-    for cand in (
-        bench_root / "benchmarks" / "raw" / run_id,
-        bench_root / "results" / run_id,
-    ):
-        if (cand / "utterances.jsonl").exists():
-            return cand
-    return None
-
-
-def _load_utterances(bench_root: Path, run_id: str, engine_id: str) -> list[dict]:
-    raw = _resolve_raw(bench_root, run_id)
-    if not raw:
-        return []
-    rows = []
-    for line in (raw / "utterances.jsonl").read_text().splitlines():
-        r = json.loads(line)
-        if r.get("engine_id") == engine_id and r.get("status") == "ok":
-            rows.append(r)
-    return rows
+def _load_dist(bench_root: Path, run_id: str) -> dict:
+    """Published box statistics for a run: engine -> series -> stats
+    (see ``history.dist_stats``). Empty when the run carries none."""
+    p = Path(bench_root) / "benchmarks" / "raw" / run_id / "diststats.json"
+    return json.loads(p.read_text()) if p.exists() else {}
 
 
 def _labels(rows: list[dict], ranks: dict | None = None) -> list[str]:
@@ -100,13 +99,13 @@ def _top3(rows: list[dict], key: str, lower: bool = True) -> dict[int, int]:
     return {id(r): i for i, r in enumerate(rs[:3], 1)}
 
 
-def _style_medals(ax, labels: list[str]) -> None:
+def _style_medals(ax, labels: list[str], mode: Mode = DARK) -> None:
     """Bold + gold/silver/bronze the y-tick labels of the medal rows."""
     for t, lab in zip(ax.get_yticklabels(), labels):
         for rank, medal in _MEDAL.items():
             if lab.startswith(medal):
                 t.set_fontweight("bold")
-                t.set_color(MEDAL_COLORS[rank])
+                t.set_color(medal_colors(mode)[rank])
 
 
 def _title(ax, text: str, mode: Mode = DARK) -> None:
@@ -159,11 +158,11 @@ def _pretty_dataset(row: dict) -> str:
     return f"{out} · {n:,} {unit}" if n else out
 
 
-def _footer_common(fig, rows: list[dict], extra: str = "") -> None:
+def _footer_common(fig, rows: list[dict], mode: Mode = DARK, extra: str = "") -> None:
     r0 = rows[0]
     footer(
         fig,
-        DARK,
+        mode,
         left=(
             f"voice-containers bench · {_pretty_device(r0.get('device_label', '?'))} · "
             f"{_pretty_dataset(r0)}"
@@ -253,7 +252,7 @@ def _lollipop(
         _value_label(ax, label_x[i], i, txt, mode)
     ax.set_yticks(y, names)
     ax.invert_yaxis()
-    _style_medals(ax, names)
+    _style_medals(ax, names, mode)
     ax.set_xlabel(xlabel)
 
 
@@ -272,8 +271,8 @@ def _scatter_fig(n: int, mode: Mode):
         figsize=(12.8, max(5.4, 1.2 + 0.30 * n)),
         gridspec_kw={"width_ratios": [2.55, 1.0], "wspace": 0.05},
     )
-    apply(fig, ax)
-    apply(fig, axl)
+    apply(fig, ax, mode)
+    apply(fig, axl, mode)
     axl.set_xticks([])
     axl.set_yticks([])
     axl.set_facecolor(mode.bg)
@@ -312,7 +311,7 @@ def _legend_panel(axl, entries: list[tuple[dict, str]], mode: Mode) -> None:
                 0.065,
                 y,
                 f"{_MEDAL[rank]} {lab}",
-                color=MEDAL_COLORS[rank],
+                color=medal_colors(mode)[rank],
                 fontsize=8.8,
                 fontweight="bold",
                 va="center",
@@ -338,7 +337,7 @@ def _rank_text(
     if rank < 1:
         return
     if rank <= 3:
-        txt, color = _MEDAL[rank], MEDAL_COLORS[rank]
+        txt, color = _MEDAL[rank], medal_colors(mode)[rank]
         effects = [patheffects.withStroke(linewidth=1.2, foreground=mode.bg)]
     else:
         txt = str(rank)
@@ -434,8 +433,10 @@ def _add_lens(fig, ax, pts, mode: Mode, pareto=None, xlog: bool = False) -> None
         return
 
     axins = ax.inset_axes([best[1][0], best[1][1], lw, lh])
-    apply(fig, axins)
-    axins.set_facecolor("#202a36")  # lighter than the panel behind it
+    apply(fig, axins, mode)
+    # lens surface: a step lighter than the panel on dark, a step darker on
+    # light — the magnified rank numbers must hold contrast on either
+    axins.set_facecolor("#202a36" if mode.name != "light" else "#dce3ea")
     if xlog:
         axins.set_xscale("log")
     axins.set_xlim(xmin, xmax)
@@ -483,16 +484,16 @@ def stt_ranking(rows: list[dict], mode: Mode = DARK):
     )
     plt = _plt()
     fig, ax = plt.subplots(figsize=_figsize(len(rows), 4.2, 0.27))
-    apply(fig, ax)
+    apply(fig, ax, mode)
     names = _labels(rows, ranks=_top3(rows, "wer"))
     wers = [_matrix._metric(r, "wer") * 100 for r in rows]
     colors = [row_color(r) for r in rows]
     _lollipop(
         ax, names, wers, colors, mode, "{:.2f}%", "corpus WER % (lower is better ↓)"
     )
-    _title(ax, "Speech recognition — corpus WER")
+    _title(ax, "Speech recognition — corpus WER", mode)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows)
+    _footer_common(fig, rows, mode)
     return fig
 
 
@@ -582,58 +583,73 @@ def stt_wer_vs_rtf(rows: list[dict], mode: Mode = DARK):
     _add_lens(fig, ax, lens_pts, mode, pareto=pf_xy, xlog=True)
     ax.set_xlabel("RTF p50 — audio-s per s (lower is better ↓, log)")
     ax.set_ylabel("corpus WER % (lower is better ↓)")
-    _title(ax, "Speech recognition — accuracy vs speed")
+    _title(ax, "Speech recognition — accuracy vs speed", mode)
     # no tight_layout here: the lens inset axes are incompatible with it
     fig.subplots_adjust(left=0.07, right=0.985, top=0.88, bottom=0.17)
     _footer_common(
-        fig, rows, extra=" · marker = rank (❶❷❸ top-3) · size = memory · line = p50→p90"
+        fig,
+        rows,
+        mode,
+        extra=" · marker = rank (❶❷❸ top-3) · size = memory · line = p50→p90",
     )
     return fig
 
 
-def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
+def _dist_box(
+    bench_root: Path,
+    rows: list[dict],
+    series: str,
+    mode: Mode,
+    title: str,
+    xlabel: str,
+    footer: str,
+    base_h: float,
+):
+    """Distribution box plot drawn from the published sufficient statistics
+    (``history.dist_stats`` -> ``bxp``) — no per-utterance data reaches the
+    chart layer, and both box charts share one geometry."""
     plt = _plt()
-    data, colors, rows_used = [], [], []
+    dists: dict[str, dict] = {}
+    boxes, p90s, colors, rows_used = [], [], [], []
     for r in rows:
-        utts = _load_utterances(bench_root, r["run_id"], r["engine_id"])
-        rtfs = [
-            u["proc_ns"] / 1e9 / max(u.get("audio_s") or 1, 1e-9)
-            for u in utts
-            if u.get("proc_ns")
-        ]
-        if not rtfs:
+        run_dist = dists.setdefault(r["run_id"], _load_dist(bench_root, r["run_id"]))
+        st = (run_dist.get(r["engine_id"]) or {}).get(series)
+        if not st:
             continue
-        data.append(rtfs)
+        boxes.append(
+            {
+                **{k: st[k] for k in ("med", "q1", "q3", "whislo", "whishi")},
+                "fliers": [],
+            }
+        )
+        p90s.append(st["p90"])
         rows_used.append(r)
         colors.append(row_color(r))
-    if not data:
+    if not boxes:
         return None
-    # sort boxes by median RTF, best (lowest) at the top after invert_yaxis
-    order = sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])
-    data = [data[i] for i in order]
+    # sort boxes by median, best (lowest) at the top after invert_yaxis
+    order = sorted(range(len(boxes)), key=lambda i: boxes[i]["med"])
+    boxes = [boxes[i] for i in order]
+    p90s = [p90s[i] for i in order]
     rows_used = [rows_used[i] for i in order]
     colors = [colors[i] for i in order]
-    fig, ax = plt.subplots(figsize=_figsize(len(data), 4.6, 0.31))
-    apply(fig, ax)
-    medals = {}
-    for pos, i in enumerate(
-        sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])[:3],
-        1,
-    ):
-        medals[id(rows_used[i])] = pos
+    # rows_used is median-sorted already -> the first three ARE top-3
+    medals = {id(r): pos for pos, r in enumerate(rows_used[:3], 1)}
     labels = _labels(rows_used, ranks=medals)
-    bp = ax.boxplot(
-        data,
-        tick_labels=labels,
+    for box, lab in zip(boxes, labels):
+        box["label"] = lab
+    fig, ax = plt.subplots(figsize=_figsize(len(boxes), base_h, 0.31))
+    apply(fig, ax, mode)
+    bp = ax.bxp(
+        boxes,
+        positions=range(len(boxes)),
         orientation="horizontal",
         patch_artist=True,
-        showfliers=False,
     )
-    _style_medals(ax, labels)
-    for i, vals_i in enumerate(data):
-        p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
+    _style_medals(ax, labels, mode)
+    for i, p90 in enumerate(p90s):
         ax.plot(
-            [p90, p90], [i + 0.75, i + 1.25], color=mode.green, linewidth=1.8, zorder=4
+            [p90, p90], [i - 0.25, i + 0.25], color=mode.green, linewidth=1.8, zorder=4
         )
     for patch, c in zip(bp["boxes"], colors):
         patch.set_facecolor(c)
@@ -642,20 +658,29 @@ def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
         for line in bp[el]:
             line.set_color(mode.text_dim)
     ax.invert_yaxis()
-    _title(ax, "Speech recognition — per-utterance RTF distribution")
-    ax.set_xlabel("RTF per utterance (lower is better ↓, log)")
+    _title(ax, title, mode)
+    ax.set_xlabel(xlabel)
     ax.set_xscale("log")
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows, extra=" · green tick = p90 · ❶❷❸ = best median RTF")
+    _footer_common(fig, rows, mode, extra=footer)
     return fig
+
+
+def stt_latency_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
+    return _dist_box(
+        bench_root,
+        rows,
+        "rtf",
+        mode,
+        title="Speech recognition — per-utterance RTF distribution",
+        xlabel="RTF per utterance (lower is better ↓, log)",
+        footer=" · green tick = p90 · ❶❷❸ = best median RTF",
+        base_h=4.6,
+    )
 
 
 def stt_memory(rows: list[dict], mode: Mode = DARK):
     return _memory_chart(rows, mode)
-
-
-def stt_heatmap(rows: list[dict], mode: Mode = DARK):
-    return _heatmap(rows, "stt", mode)
 
 
 def stt_power(rows: list[dict], mode: Mode = DARK):
@@ -695,7 +720,7 @@ def stt_power(rows: list[dict], mode: Mode = DARK):
         "mean GPU power over the engine window (W) — hollow = CPU engine (idle draw)"
     )
     ax.set_ylabel("corpus WER % (lower is better ↓)")
-    _title(ax, "Speech recognition — GPU power vs accuracy")
+    _title(ax, "Speech recognition — GPU power vs accuracy", mode)
     # no tight_layout here: the lens inset axes are incompatible with it
     fig.subplots_adjust(left=0.07, right=0.985, top=0.88, bottom=0.17)
     _footer_common(
@@ -714,7 +739,7 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
     )
     plt = _plt()
     fig, ax = plt.subplots(figsize=_figsize(len(rows), 4.4, 0.30))
-    apply(fig, ax)
+    apply(fig, ax, mode)
     names = _labels(rows, ranks=_top3(rows, "rtf"))
     rtfs = [_matrix._metric(r, "rtf") for r in rows]
     p90s = [_matrix._metric(r, "rtf_p90") or 0 for r in rows]
@@ -734,9 +759,9 @@ def tts_ranking(rows: list[dict], mode: Mode = DARK):
         ax.legend(
             loc="upper right", frameon=False, fontsize=8, labelcolor=mode.text_dim
         )
-    _title(ax, "Speech synthesis — real-time factor")
+    _title(ax, "Speech synthesis — real-time factor", mode)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows)
+    _footer_common(fig, rows, mode)
     return fig
 
 
@@ -749,7 +774,7 @@ def tts_ttfa(rows: list[dict], mode: Mode = DARK):
         return None
     pts.sort(key=lambda x: x[1])
     fig, ax = plt.subplots(figsize=_figsize(len(pts), 4.0, 0.30))
-    apply(fig, ax)
+    apply(fig, ax, mode)
     names = _labels([r for r, _ in pts], ranks=_top3([r for r, _ in pts], "ttfa_s"))
     vals = [v * 1000 for _, v in pts]
     colors = [row_color(r) for r, _ in pts]
@@ -773,68 +798,27 @@ def tts_ttfa(rows: list[dict], mode: Mode = DARK):
     ax.annotate(
         "300 ms gate", (300 * 1.06, len(vals) - 1.1), fontsize=8, color=mode.red
     )
-    _title(ax, "Speech synthesis — time to first audio")
+    _title(ax, "Speech synthesis — time to first audio", mode)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows)
+    _footer_common(fig, rows, mode)
     return fig
 
 
 def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
-    plt = _plt()
-    data, colors, rows_used = [], [], []
-    for r in rows:
-        utts = _load_utterances(bench_root, r["run_id"], r["engine_id"])
-        vals = [u["synth_ns"] / 1e9 for u in utts if u.get("synth_ns")]
-        if not vals:
-            continue
-        data.append(vals)
-        rows_used.append(r)
-        colors.append(row_color(r))
-    if not data:
-        return None
-    fig, ax = plt.subplots(figsize=_figsize(len(data), 4.2, 0.31))
-    apply(fig, ax)
-    medals = {}
-    for pos, i in enumerate(
-        sorted(range(len(data)), key=lambda i: sorted(data[i])[len(data[i]) // 2])[:3],
-        1,
-    ):
-        medals[id(rows_used[i])] = pos
-    labels = _labels(rows_used, ranks=medals)
-    bp = ax.boxplot(
-        data,
-        tick_labels=labels,
-        orientation="horizontal",
-        patch_artist=True,
-        showfliers=False,
+    return _dist_box(
+        bench_root,
+        rows,
+        "synth",
+        mode,
+        title="Speech synthesis — synthesis latency distribution",
+        xlabel="synthesis latency per sentence (s, lower is better ↓, log)",
+        footer=" · green tick = p90 · ❶❷❸ = best median latency",
+        base_h=4.2,
     )
-    _style_medals(ax, labels)
-    for i, vals_i in enumerate(data):
-        p90 = sorted(vals_i)[min(len(vals_i) - 1, int(len(vals_i) * 0.9))]
-        ax.plot(
-            [p90, p90], [i + 0.75, i + 1.25], color=mode.green, linewidth=1.8, zorder=4
-        )
-    for patch, c in zip(bp["boxes"], colors):
-        patch.set_facecolor(c)
-        patch.set_alpha(0.75)
-    for el in ("whiskers", "caps", "medians"):
-        for line in bp[el]:
-            line.set_color(mode.text_dim)
-    ax.invert_yaxis()
-    _title(ax, "Speech synthesis — synthesis latency distribution")
-    ax.set_xlabel("synthesis latency per sentence (s, lower is better ↓, log)")
-    ax.set_xscale("log")
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows, extra=" · green tick = p90 · ❶❷❸ = best median latency")
-    return fig
 
 
 def tts_memory(rows: list[dict], mode: Mode = DARK):
     return _memory_chart(rows, mode)
-
-
-def tts_heatmap(rows: list[dict], mode: Mode = DARK):
-    return _heatmap(rows, "tts", mode)
 
 
 # -------------------------------------------------------------- shared
@@ -1009,7 +993,7 @@ def _edge_chart(rows: list[dict], task: str, mode: Mode):
     evals.sort(key=lambda e: (bool(e[3]), -e[1]))
     plt = _plt()
     fig, ax = plt.subplots(figsize=_figsize(len(evals), 4.2, 0.27))
-    apply(fig, ax)
+    apply(fig, ax, mode)
     passing = [e for e in evals if not e[3]]
     ranks = {id(e[0]): i for i, e in enumerate(passing[:3], 1)}
     labels_raw = _labels([e[0] for e in evals], ranks=ranks)
@@ -1051,10 +1035,10 @@ def _edge_chart(rows: list[dict], task: str, mode: Mode):
             for rank, medal in _MEDAL.items():
                 if lab.startswith(medal):
                     t.set_fontweight("bold")
-                    t.set_color(MEDAL_COLORS[rank])
-    _title(ax, title)
+                    t.set_color(medal_colors(mode)[rank])
+    _title(ax, title, mode)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows, extra=footer)
+    _footer_common(fig, rows, mode, extra=footer)
     return fig
 
 
@@ -1077,7 +1061,7 @@ def _memory_chart(rows: list[dict], mode: Mode):
     pts.sort(key=lambda x: -x[1])
     plt = _plt()
     fig, ax = plt.subplots(figsize=_figsize(len(pts), 4.2, 0.27))
-    apply(fig, ax)
+    apply(fig, ax, mode)
     names = _labels(
         [r for r, _ in pts], ranks=_top3([r for r, _ in pts], "mem_peak_mib")
     )
@@ -1092,112 +1076,19 @@ def _memory_chart(rows: list[dict], mode: Mode):
         "{:,.0f} MiB",
         "peak container memory (MiB, lower is better ↓)",
     )
-    _title(ax, "Peak container memory")
+    if ax.get_xscale() == "log":
+        # plain-number ticks: a sub-2-decade span makes matplotlib mix
+        # 4 × 10² minors with 10³ majors; label 2/5-per-decade minors as
+        # comma ints instead (MiB values, always >= 100 — no 0.02 mush)
+        from matplotlib.ticker import FuncFormatter, LogLocator
+
+        fmt = FuncFormatter(lambda v, _pos: f"{v:,.0f}")
+        ax.xaxis.set_major_formatter(fmt)
+        ax.xaxis.set_minor_formatter(fmt)
+        ax.xaxis.set_minor_locator(LogLocator(base=10, subs=(2.0, 5.0)))
+    _title(ax, "Peak container memory", mode)
     fig.tight_layout(rect=(0, 0.08, 1, 1))
-    _footer_common(fig, rows)
-    return fig
-
-
-def _heatmap(rows: list[dict], task: str, mode: Mode):
-    """Configurations × metrics, cells colored by normalized score (spec chart 5)."""
-    import numpy as np
-
-    plt = _plt()
-    # only metrics present in EVERY row (absent columns dropped, not rows)
-    metric_keys = [
-        h
-        for h, _ in _matrix.METRICS[task]
-        if all(_matrix._metric(r, h) is not None for r in rows)
-    ]
-    if len(metric_keys) < 3:
-        return None
-    lower_of = dict(_matrix.METRICS[task])
-    ordered = sorted(rows, key=lambda x: x.get("rank", 999))
-    ranks = {id(r): r["rank"] for r in ordered if r.get("rank") and r["rank"] <= 3}
-    labels = _labels(ordered, ranks=ranks)
-    raw_vals = [[_matrix._metric(r, k) for k in metric_keys] for r in ordered]
-    if len(raw_vals) < 2:
-        return None
-    grid = []
-    for j, k in enumerate(metric_keys):
-        lower = lower_of[k]
-        col = [rv[j] for rv in raw_vals]
-        if k in _matrix.LOG_METRICS:
-            col = [max(v, 1e-9) for v in col]
-            col = [__import__("math").log10(v) for v in col]
-        grid.append(_matrix._norm(col, lower))
-    g = np.array(grid).T  # rows=configs, cols=metrics
-    # stt's 8 columns made the figure over-wide (the README displays the PNG
-    # at ~1/2 scale), so its cells are compact with bigger fonts; tts keeps
-    # the original wide layout
-    geom = (
-        dict(w=1.5, cw=0.95, h=1.1, ch=0.62, tick=10, ylab=10.5, cell=9.5, cb=8)
-        if task == "stt"
-        else dict(w=1.9, cw=1.55, h=1.2, ch=0.55, tick=8.5, ylab=8.5, cell=7.5, cb=7)
-    )
-    fig, ax = plt.subplots(
-        figsize=(
-            geom["w"] + geom["cw"] * len(metric_keys),
-            geom["h"] + geom["ch"] * len(labels),
-        )
-    )
-    apply(fig, ax)
-    im = ax.imshow(g, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
-    pretty = {
-        "wer": "WER",
-        "cer": "CER",
-        "ser": "SER",
-        "hallucination_rate": "halluc.",
-        "rtf": "RTF p50",
-        "offline_latency_s": "lat p50 (s)",
-        "synth_latency_s": "synth p50 (s)",
-        "ttfa_s": "TTFA p50 (s)",
-        "mem_peak_mib": "mem (MiB)",
-        "gpu_power_w_mean": "GPU power (W)",
-    }
-    ax.set_xticks(
-        range(len(metric_keys)),
-        [pretty.get(k, k) for k in metric_keys],
-        rotation=30,
-        ha="right",
-        fontsize=geom["tick"],
-    )
-    ax.set_yticks(range(len(labels)), labels, fontsize=geom["ylab"])
-    _style_medals(ax, labels)
-    for i in range(len(labels)):
-        for j in range(len(metric_keys)):
-            raw = raw_vals[i][j]
-            txt = (
-                f"{raw:.3f}" if (isinstance(raw, float) and raw < 10) else f"{raw:,.0f}"
-            )
-            # pick the text color from the cell's own luminance — white on the
-            # pale yellow/green mid tones was unreadable
-            rgba = im.cmap(im.norm(g[i][j]))  # g: configs × metrics (transposed)
-            lum = 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]
-            ax.text(
-                j,
-                i,
-                txt,
-                ha="center",
-                va="center",
-                fontsize=geom["cell"],
-                color=mode.bg if lum > 0.55 else mode.text,
-            )
-    ax.grid(False)
-    cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
-    cb.ax.tick_params(colors=mode.text_dim, labelsize=geom["cb"])
-    cb.set_label("normalized score (1 = best)", color=mode.text_dim, fontsize=8)
-    _title(
-        ax,
-        "Speech "
-        + ("recognition" if task == "stt" else "synthesis")
-        + " — normalized metric heatmap",
-        mode,
-    )
-    _footer_common(
-        fig, rows, extra=" · green = better (direction-aware) · ❶❷❸ = top-3 composite"
-    )
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    _footer_common(fig, rows, mode)
     return fig
 
 
@@ -1208,7 +1099,6 @@ TASK_CHARTS = {
         "stt-wer-vs-rtf": stt_wer_vs_rtf,
         "stt-latency-box": stt_latency_box,
         "stt-memory": stt_memory,
-        "stt-heatmap": stt_heatmap,
         "stt-power": stt_power,
     },
     "tts": {
@@ -1217,34 +1107,32 @@ TASK_CHARTS = {
         "tts-ttfa": tts_ttfa,
         "tts-synth-box": tts_synth_box,
         "tts-memory": tts_memory,
-        "tts-heatmap": tts_heatmap,
     },
 }
 
 
-def _shrink_png(p: Path) -> None:
-    """Palette-quantize a rendered chart in place (~3.6x smaller file).
+def _tidy_svg(p: Path) -> None:
+    """Strip per-line trailing whitespace (pre-commit parity): matplotlib
+    pads every path coordinate line; the repo's trim hook would strip it on
+    commit anyway — emitting the normalized form directly keeps re-renders
+    byte-identical to what's committed (quiet git diffs)."""
+    text = p.read_text(encoding="utf-8")
+    p.write_text("\n".join(ln.rstrip() for ln in text.splitlines()) + "\n")
 
-    Flat dark-theme plots survive 256 colors visually intact; measured
-    alternatives (jpeg q85, webp) were all bigger. Best effort on purpose —
-    a failed optimization must never fail the render.
-    """
-    try:
-        from PIL import Image
 
-        img = Image.open(p)
-        img.load()
-        for method in (3, 2, 1, 0):  # libimagequant, fastoctree, maxcoverage, mediancut
-            try:
-                quantized = img.quantize(colors=256, method=method)
-                break
-            except ValueError:
-                continue
-        else:
-            return
-        quantized.save(p, optimize=True)
-    except Exception:
-        pass
+def _tokenize_svg(p: Path) -> None:
+    """Swap baked theme hexes for CSS custom properties and inject the
+    token <style>: one self-adaptive file — :root carries dark (the
+    default), an embedded prefers-color-scheme:light query the light set.
+    Hexes outside the token table (theme-constant engine hues) stay."""
+    import re as _re
+
+    text = p.read_text(encoding="utf-8")
+    for hex_color, var in token_map().items():
+        text = text.replace(hex_color, var)
+    style = f"<style>{token_css()}</style>"
+    text = _re.sub(r"(<svg[^>]*>)", r"\1" + style, text, count=1)
+    p.write_text(text, encoding="utf-8")
 
 
 def render_all(bench_root: Path, include: str = "baseline") -> dict:
@@ -1257,24 +1145,27 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
     keep = set()
 
     def save(name: str, task: str, build) -> bool:
+        """One render, one adaptive file: geometry is theme-independent and
+        every theme hex becomes a CSS token (see ``_tokenize_svg``). The
+        builders' default mode is the dark bake; the token css carries light."""
         fig = build()
         if fig is None:
             return False
         d = out_dir / task
         d.mkdir(parents=True, exist_ok=True)
-        p = d / f"{name}.png"
+        p = d / f"{name}.svg"
         fig.savefig(
             p,
-            dpi=DPI,
             facecolor=fig.get_facecolor(),
             bbox_inches="tight",
             pad_inches=0.2,
+            # Date=None keeps bytes stable across renders -> clean git diffs
+            metadata={"Date": None},
         )
+        _tidy_svg(p)
+        _tokenize_svg(p)
         plt.close(fig)
-        _shrink_png(p)
-        manifest.setdefault(name, []).append(
-            {"task": task, "dark": str(p.relative_to(bench_root))}
-        )
+        manifest[name] = {"task": task, "src": str(p.relative_to(bench_root))}
         keep.add(p.resolve())
         return True
 
@@ -1289,14 +1180,14 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
             else:
                 save(name, task, lambda b=build: b(scored))
     # prune stale renders
-    for png in out_dir.rglob("*.png"):
-        if png.resolve() not in keep:
-            png.unlink()
+    for svg in out_dir.rglob("*.svg"):
+        if svg.resolve() not in keep:
+            svg.unlink()
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=1, sort_keys=True) + "\n"
     )
-    print(f"[bench] {sum(len(v) for v in manifest.values())} charts -> {out_dir}")
+    print(f"[bench] {len(manifest)} charts -> {out_dir}")
     return manifest
 
 

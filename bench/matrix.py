@@ -78,7 +78,7 @@ WEIGHTS = {
 # metric -> weight component. WEIGHTS are keyed by review rubric component
 # ("accuracy", "latency", ...) while METRICS are raw metric names — without
 # this map every lookup missed and scored 0 (rank degenerated to input
-# order: the TTS heatmap starred the SLOWEST engine). Metrics absent here
+# order: the charts once starred the SLOWEST engine). Metrics absent here
 # (cer/ser/hallucination_rate) are diagnostics and carry no composite weight.
 _WEIGHT_KEY = {
     "wer": "accuracy",
