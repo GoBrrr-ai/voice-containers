@@ -216,10 +216,6 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 <p align="center">
 {{ chart("stt-ranking", "Speech recognition — corpus WER") }}
 </p>
-
-<p align="center">
-{{ chart("stt-heatmap", "Speech recognition — normalized metric heatmap") }}
-</p>
 {% endif %}
 {% if ctx.tts %}
 
@@ -252,10 +248,6 @@ their TTFA equals the synth p50/p90.*
 
 <p align="center">
 {{ chart("tts-memory", "Speech synthesis — peak container memory") }}
-</p>
-
-<p align="center">
-{{ chart("tts-heatmap", "Speech synthesis — normalized metric heatmap") }}
 </p>
 {% endif %}
 

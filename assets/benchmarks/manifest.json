@@ -5,12 +5,6 @@
    "task": "stt"
   }
  ],
- "stt-heatmap": [
-  {
-   "dark": "assets/benchmarks/stt/stt-heatmap.svg",
-   "task": "stt"
-  }
- ],
  "stt-latency-box": [
   {
    "dark": "assets/benchmarks/stt/stt-latency-box.svg",
@@ -44,12 +38,6 @@
  "tts-edge": [
   {
    "dark": "assets/benchmarks/tts/tts-edge.svg",
-   "task": "tts"
-  }
- ],
- "tts-heatmap": [
-  {
-   "dark": "assets/benchmarks/tts/tts-heatmap.svg",
    "task": "tts"
   }
  ],

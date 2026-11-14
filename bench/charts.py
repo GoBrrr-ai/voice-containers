@@ -12,7 +12,7 @@ Label discipline (the 28-config roster made these non-negotiable):
   UNIQUE per-row labels via ``_labels``; categorical axes merge duplicate
   names, which silently drops bars and strands annotations;
 - every chart marks its top-3 places with ❶❷❸ (gold/silver/bronze, bold)
-  by the metric that chart ranks by — scatters and the heatmap use the
+  by the metric that chart ranks by — scatters use the
   composite rank from ``score_cohort``;
 - comparisons run on lollipops (stems + dots), never bars: a bar on a
   log axis starts at an arbitrary axis minimum and reads as length
@@ -653,10 +653,6 @@ def stt_memory(rows: list[dict], mode: Mode = DARK):
     return _memory_chart(rows, mode)
 
 
-def stt_heatmap(rows: list[dict], mode: Mode = DARK):
-    return _heatmap(rows, "stt", mode)
-
-
 def stt_power(rows: list[dict], mode: Mode = DARK):
     pts = [
         (r, _matrix._metric(r, "gpu_power_w_mean"), _matrix._metric(r, "wer"))
@@ -830,10 +826,6 @@ def tts_synth_box(bench_root: Path, rows: list[dict], mode: Mode = DARK):
 
 def tts_memory(rows: list[dict], mode: Mode = DARK):
     return _memory_chart(rows, mode)
-
-
-def tts_heatmap(rows: list[dict], mode: Mode = DARK):
-    return _heatmap(rows, "tts", mode)
 
 
 # -------------------------------------------------------------- shared
@@ -1107,109 +1099,6 @@ def _memory_chart(rows: list[dict], mode: Mode):
     return fig
 
 
-def _heatmap(rows: list[dict], task: str, mode: Mode):
-    """Configurations × metrics, cells colored by normalized score (spec chart 5)."""
-    import numpy as np
-
-    plt = _plt()
-    # only metrics present in EVERY row (absent columns dropped, not rows)
-    metric_keys = [
-        h
-        for h, _ in _matrix.METRICS[task]
-        if all(_matrix._metric(r, h) is not None for r in rows)
-    ]
-    if len(metric_keys) < 3:
-        return None
-    lower_of = dict(_matrix.METRICS[task])
-    ordered = sorted(rows, key=lambda x: x.get("rank", 999))
-    ranks = {id(r): r["rank"] for r in ordered if r.get("rank") and r["rank"] <= 3}
-    labels = _labels(ordered, ranks=ranks)
-    raw_vals = [[_matrix._metric(r, k) for k in metric_keys] for r in ordered]
-    if len(raw_vals) < 2:
-        return None
-    grid = []
-    for j, k in enumerate(metric_keys):
-        lower = lower_of[k]
-        col = [rv[j] for rv in raw_vals]
-        if k in _matrix.LOG_METRICS:
-            col = [max(v, 1e-9) for v in col]
-            col = [__import__("math").log10(v) for v in col]
-        grid.append(_matrix._norm(col, lower))
-    g = np.array(grid).T  # rows=configs, cols=metrics
-    # stt's 8 columns made the figure over-wide (the README displays the SVG
-    # at ~1/2 scale), so its cells are compact with bigger fonts; tts keeps
-    # the original wide layout
-    geom = (
-        dict(w=1.5, cw=0.95, h=1.1, ch=0.62, tick=10, ylab=10.5, cell=9.5, cb=8)
-        if task == "stt"
-        else dict(w=1.9, cw=1.55, h=1.2, ch=0.55, tick=8.5, ylab=8.5, cell=7.5, cb=7)
-    )
-    fig, ax = plt.subplots(
-        figsize=(
-            geom["w"] + geom["cw"] * len(metric_keys),
-            geom["h"] + geom["ch"] * len(labels),
-        )
-    )
-    apply(fig, ax)
-    im = ax.imshow(g, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
-    pretty = {
-        "wer": "WER",
-        "cer": "CER",
-        "ser": "SER",
-        "hallucination_rate": "halluc.",
-        "rtf": "RTF p50",
-        "offline_latency_s": "lat p50 (s)",
-        "synth_latency_s": "synth p50 (s)",
-        "ttfa_s": "TTFA p50 (s)",
-        "mem_peak_mib": "mem (MiB)",
-        "gpu_power_w_mean": "GPU power (W)",
-    }
-    ax.set_xticks(
-        range(len(metric_keys)),
-        [pretty.get(k, k) for k in metric_keys],
-        rotation=30,
-        ha="right",
-        fontsize=geom["tick"],
-    )
-    ax.set_yticks(range(len(labels)), labels, fontsize=geom["ylab"])
-    _style_medals(ax, labels)
-    for i in range(len(labels)):
-        for j in range(len(metric_keys)):
-            raw = raw_vals[i][j]
-            txt = (
-                f"{raw:.3f}" if (isinstance(raw, float) and raw < 10) else f"{raw:,.0f}"
-            )
-            # pick the text color from the cell's own luminance — white on the
-            # pale yellow/green mid tones was unreadable
-            rgba = im.cmap(im.norm(g[i][j]))  # g: configs × metrics (transposed)
-            lum = 0.299 * rgba[0] + 0.587 * rgba[1] + 0.114 * rgba[2]
-            ax.text(
-                j,
-                i,
-                txt,
-                ha="center",
-                va="center",
-                fontsize=geom["cell"],
-                color=mode.bg if lum > 0.55 else mode.text,
-            )
-    ax.grid(False)
-    cb = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
-    cb.ax.tick_params(colors=mode.text_dim, labelsize=geom["cb"])
-    cb.set_label("normalized score (1 = best)", color=mode.text_dim, fontsize=8)
-    _title(
-        ax,
-        "Speech "
-        + ("recognition" if task == "stt" else "synthesis")
-        + " — normalized metric heatmap",
-        mode,
-    )
-    _footer_common(
-        fig, rows, extra=" · green = better (direction-aware) · ❶❷❸ = top-3 composite"
-    )
-    fig.tight_layout(rect=(0, 0.08, 1, 1))
-    return fig
-
-
 TASK_CHARTS = {
     "stt": {
         "stt-ranking": stt_ranking,
@@ -1217,7 +1106,6 @@ TASK_CHARTS = {
         "stt-wer-vs-rtf": stt_wer_vs_rtf,
         "stt-latency-box": stt_latency_box,
         "stt-memory": stt_memory,
-        "stt-heatmap": stt_heatmap,
         "stt-power": stt_power,
     },
     "tts": {
@@ -1226,7 +1114,6 @@ TASK_CHARTS = {
         "tts-ttfa": tts_ttfa,
         "tts-synth-box": tts_synth_box,
         "tts-memory": tts_memory,
-        "tts-heatmap": tts_heatmap,
     },
 }
 

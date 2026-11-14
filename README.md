@@ -256,10 +256,6 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 <img src="assets/benchmarks/stt/stt-ranking.svg" alt="Speech recognition — corpus WER" width="100%">
 </p>
 
-<p align="center">
-<img src="assets/benchmarks/stt/stt-heatmap.svg" alt="Speech recognition — normalized metric heatmap" width="100%">
-</p>
-
 
 
 ---
@@ -301,10 +297,6 @@ their TTFA equals the synth p50/p90.*
 
 <p align="center">
 <img src="assets/benchmarks/tts/tts-memory.svg" alt="Speech synthesis — peak container memory" width="100%">
-</p>
-
-<p align="center">
-<img src="assets/benchmarks/tts/tts-heatmap.svg" alt="Speech synthesis — normalized metric heatmap" width="100%">
 </p>
 
 

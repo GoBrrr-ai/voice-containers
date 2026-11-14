@@ -69,7 +69,7 @@ def test_light_mode_renders(bench_env):
     tts = _m.score_cohort([dict(r) for r in rows if r["task"] == "tts"], "tts")
     for build, rows_ in (
         (charts.stt_edge, stt),
-        (charts.tts_heatmap, tts),
+        (charts.tts_ranking, tts),
         (charts.stt_latency_box, stt),
     ):
         fig = (
