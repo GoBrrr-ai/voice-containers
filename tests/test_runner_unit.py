@@ -58,16 +58,12 @@ def test_validate_config_rejects():
 
 
 # ---------------------------------------------------------- container path mapping
-def test_container_audio_path_relative_and_absolute(tmp_path):
+def test_container_audio_path_relative_contract(tmp_path):
     assert (
         runner._container_audio_path("a/b.wav", tmp_path) == "/data/bench-cache/a/b.wav"
     )
-    real = tmp_path / "x.wav"
-    real.touch()
-    assert (
-        runner._container_audio_path(str(real), tmp_path) == "/data/bench-cache/x.wav"
-    )
-    with pytest.raises(ValueError):
+    # relative-only contract: absolute paths are rejected with a regenerate hint
+    with pytest.raises(ValueError, match="cache-relative"):
         runner._container_audio_path("/elsewhere/x.wav", tmp_path)
 
 

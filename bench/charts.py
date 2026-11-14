@@ -1142,10 +1142,10 @@ def render_all(bench_root: Path, include: str = "baseline") -> dict:
                 save(name, task, lambda b=build: b(bench_root, scored))
             else:
                 save(name, task, lambda b=build: b(scored))
-    # prune stale renders (legacy pngs from the pre-SVG era included)
-    for img in out_dir.rglob("*"):
-        if img.suffix in {".png", ".svg"} and img.resolve() not in keep:
-            img.unlink()
+    # prune stale renders
+    for svg in out_dir.rglob("*.svg"):
+        if svg.resolve() not in keep:
+            svg.unlink()
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=1, sort_keys=True) + "\n"

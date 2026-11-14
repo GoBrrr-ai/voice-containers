@@ -429,22 +429,15 @@ def _run_served(
 def _container_audio_path(host_path: str, cache_root: Path) -> str:
     """Map a manifest audio_path to its container mount (/data/bench-cache/...).
 
-    Manifests store cache-relative paths; absolute paths under cache_root are
-    tolerated (legacy manifests) — anything else is a hard error.
-    """
+    Manifests store cache-relative paths (prepare's contract, enforced at
+    `bench prepare`); anything else is a hard error."""
     p = Path(host_path)
     if p.is_absolute():
-        try:
-            rel = p.resolve().relative_to(cache_root)
-        except ValueError as e:
-            raise ValueError(
-                f"manifest audio_path {host_path!r} is outside cache_dir "
-                f"{cache_root} — regenerate the manifest (prepare now stores "
-                "cache-relative paths)"
-            ) from e
-    else:
-        rel = p
-    return "/data/bench-cache/" + str(rel)
+        raise ValueError(
+            f"manifest audio_path {host_path!r} must be cache-relative — "
+            "regenerate the manifest (prepare stores cache-relative paths)"
+        )
+    return "/data/bench-cache/" + str(p)
 
 
 def run_container_job(
