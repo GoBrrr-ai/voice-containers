@@ -1,11 +1,11 @@
-"""Chart design system — one visual language, dark mode.
+"""Chart design system — one visual language, two surfaces.
 
-Static charts render the dark palette into ``assets/benchmarks/`` as SVG
-(vector, text kept as ``<text>`` — no raster step, git-friendly diffs).
-Color = identity, assigned per ENGINE FAMILY (never by rank): all parakeet.cpp
-models share one hue, marker shape encodes backend (circle = CPU, square =
-CUDA), variant by direct label. Okabe-Ito hues — colorblind-safe on the dark
-surface.
+Every chart renders twice (dark + light) into ``assets/benchmarks/`` as
+SVG (vector, text kept as ``<text>``); the README switches via
+``<picture> + prefers-color-scheme``. Color = identity, assigned per
+ENGINE FAMILY (never by rank): all parakeet.cpp models share one hue,
+marker shape encodes backend (circle = CPU, square = CUDA), variant by
+direct label. Okabe-Ito hues — colorblind-safe on both surfaces.
 """
 
 from __future__ import annotations
@@ -33,6 +33,18 @@ DARK = Mode(
     grid="#30363d",
     green="#3fb950",
     red="#f85149",
+)
+
+# GitHub primer light — the README's light-mode surface
+LIGHT = Mode(
+    name="light",
+    bg="#ffffff",
+    panel="#f6f8fa",
+    text="#1f2328",
+    text_dim="#57606a",
+    grid="#d0d7de",
+    green="#1a7f37",
+    red="#cf222e",
 )
 
 # fixed identity hues per engine family (Okabe-Ito)

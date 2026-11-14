@@ -1,68 +1,79 @@
 {
- "stt-edge": [
-  {
-   "dark": "assets/benchmarks/stt/stt-edge.svg",
-   "task": "stt"
+ "stt-edge": {
+  "task": "stt",
+  "variants": {
+   "dark": "assets/benchmarks/stt/stt-edge.dark.svg",
+   "light": "assets/benchmarks/stt/stt-edge.light.svg"
   }
- ],
- "stt-latency-box": [
-  {
-   "dark": "assets/benchmarks/stt/stt-latency-box.svg",
-   "task": "stt"
+ },
+ "stt-latency-box": {
+  "task": "stt",
+  "variants": {
+   "dark": "assets/benchmarks/stt/stt-latency-box.dark.svg",
+   "light": "assets/benchmarks/stt/stt-latency-box.light.svg"
   }
- ],
- "stt-memory": [
-  {
-   "dark": "assets/benchmarks/stt/stt-memory.svg",
-   "task": "stt"
+ },
+ "stt-memory": {
+  "task": "stt",
+  "variants": {
+   "dark": "assets/benchmarks/stt/stt-memory.dark.svg",
+   "light": "assets/benchmarks/stt/stt-memory.light.svg"
   }
- ],
- "stt-power": [
-  {
-   "dark": "assets/benchmarks/stt/stt-power.svg",
-   "task": "stt"
+ },
+ "stt-power": {
+  "task": "stt",
+  "variants": {
+   "dark": "assets/benchmarks/stt/stt-power.dark.svg",
+   "light": "assets/benchmarks/stt/stt-power.light.svg"
   }
- ],
- "stt-ranking": [
-  {
-   "dark": "assets/benchmarks/stt/stt-ranking.svg",
-   "task": "stt"
+ },
+ "stt-ranking": {
+  "task": "stt",
+  "variants": {
+   "dark": "assets/benchmarks/stt/stt-ranking.dark.svg",
+   "light": "assets/benchmarks/stt/stt-ranking.light.svg"
   }
- ],
- "stt-wer-vs-rtf": [
-  {
-   "dark": "assets/benchmarks/stt/stt-wer-vs-rtf.svg",
-   "task": "stt"
+ },
+ "stt-wer-vs-rtf": {
+  "task": "stt",
+  "variants": {
+   "dark": "assets/benchmarks/stt/stt-wer-vs-rtf.dark.svg",
+   "light": "assets/benchmarks/stt/stt-wer-vs-rtf.light.svg"
   }
- ],
- "tts-edge": [
-  {
-   "dark": "assets/benchmarks/tts/tts-edge.svg",
-   "task": "tts"
+ },
+ "tts-edge": {
+  "task": "tts",
+  "variants": {
+   "dark": "assets/benchmarks/tts/tts-edge.dark.svg",
+   "light": "assets/benchmarks/tts/tts-edge.light.svg"
   }
- ],
- "tts-memory": [
-  {
-   "dark": "assets/benchmarks/tts/tts-memory.svg",
-   "task": "tts"
+ },
+ "tts-memory": {
+  "task": "tts",
+  "variants": {
+   "dark": "assets/benchmarks/tts/tts-memory.dark.svg",
+   "light": "assets/benchmarks/tts/tts-memory.light.svg"
   }
- ],
- "tts-ranking": [
-  {
-   "dark": "assets/benchmarks/tts/tts-ranking.svg",
-   "task": "tts"
+ },
+ "tts-ranking": {
+  "task": "tts",
+  "variants": {
+   "dark": "assets/benchmarks/tts/tts-ranking.dark.svg",
+   "light": "assets/benchmarks/tts/tts-ranking.light.svg"
   }
- ],
- "tts-synth-box": [
-  {
-   "dark": "assets/benchmarks/tts/tts-synth-box.svg",
-   "task": "tts"
+ },
+ "tts-synth-box": {
+  "task": "tts",
+  "variants": {
+   "dark": "assets/benchmarks/tts/tts-synth-box.dark.svg",
+   "light": "assets/benchmarks/tts/tts-synth-box.light.svg"
   }
- ],
- "tts-ttfa": [
-  {
-   "dark": "assets/benchmarks/tts/tts-ttfa.svg",
-   "task": "tts"
+ },
+ "tts-ttfa": {
+  "task": "tts",
+  "variants": {
+   "dark": "assets/benchmarks/tts/tts-ttfa.dark.svg",
+   "light": "assets/benchmarks/tts/tts-ttfa.light.svg"
   }
- ]
+ }
 }

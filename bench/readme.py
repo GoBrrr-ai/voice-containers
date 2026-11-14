@@ -3,7 +3,8 @@
 ``render_readme`` renders ``README.md`` from ``README.md.j2`` with:
 - ``ctx``          — headline numbers + per-task colored tables from history,
                      plus the Packages tables (versions parsed from build.sh)
-- ``chart(name)``  — ``<img>`` resolved from assets/benchmarks/manifest.json
+- ``chart(name)``  — ``<picture>`` (dark/light, prefers-color-scheme) from
+                     assets/benchmarks/manifest.json
 - ``root``         — relative asset prefix
 
 StrictUndefined: a missing key is a hard error, never a silent blank.
@@ -255,10 +256,21 @@ def _env(bench_root: Path) -> jinja2.Environment:
     manifest = _manifest(bench_root)
 
     def chart(name: str, alt: str = "", width: str = "100%") -> str:
-        entries = manifest.get(name) or []
-        if not entries:
+        entry = manifest.get(name) or {}
+        variants = entry.get("variants") or {}
+        dark, light = variants.get("dark"), variants.get("light")
+        if not dark and not light:
             return ""
-        return f'<img src="{entries[0]["dark"]}" alt="{alt or name}" width="{width}">'
+        if dark and light:  # GitHub picks by prefers-color-scheme; light = fallback
+            return (
+                "<picture>\n"
+                f'  <source media="(prefers-color-scheme: dark)" srcset="{dark}">\n'
+                f'  <source media="(prefers-color-scheme: light)" srcset="{light}">\n'
+                f'  <img src="{light}" alt="{alt or name}" width="{width}">\n'
+                "</picture>"
+            )
+        src = dark or light
+        return f'<img src="{src}" alt="{alt or name}" width="{width}">'
 
     env = jinja2.Environment(
         undefined=jinja2.StrictUndefined,
