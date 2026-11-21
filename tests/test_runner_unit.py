@@ -155,8 +155,8 @@ def test_wait_served_http():
     srv = HTTPServer(("127.0.0.1", 0), _Health)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
-        assert runner._wait_served("openai", srv.server_address[1], timeout_s=3)
-        assert not runner._wait_served("openai", runner._free_port(), timeout_s=1)
+        assert runner._wait_served(srv.server_address[1], timeout_s=3)
+        assert not runner._wait_served(runner._free_port(), timeout_s=1)
     finally:
         srv.shutdown()
         srv.server_close()

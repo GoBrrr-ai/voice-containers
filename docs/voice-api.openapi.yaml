@@ -17,8 +17,10 @@ servers:
     description: TTS images (kokoro, paradee, phonon31m)
   - url: http://localhost:8000
     description: pocket-tts
-  - url: http://localhost:10200
-    description: wyoming-piper1-tts (HA-native TCP — NOT this schema)
+  - url: http://localhost:8090
+    description: faster-whisper-stt (CTranslate2; SSE partials on stream=true)
+  - url: http://localhost:8091
+    description: piper1-tts (per-sentence pcm chunks)
 paths:
   /health:
     get:

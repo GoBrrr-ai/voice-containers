@@ -21,16 +21,15 @@ own licenses.
  Speech recognition — runtimes
 ================================================================================
 
-- faster-whisper + CTranslate2 (wyoming-faster-whisper) ............ MIT
+- faster-whisper + CTranslate2 .................................... MIT
 - parakeet.cpp — github.com/mudler/parakeet.cpp ................... MIT
 - sherpa-onnx — github.com/k2-fsa/sherpa-onnx ............. Apache-2.0
 - onnxruntime / onnxruntime-gpu — microsoft/onnxruntime ........... MIT
-- wyoming protocol libraries — rhasspy/home-assistant ............. MIT
 - Moonshine runtime (moonshine-streaming-stt) .......... see upstream repo
 - phonon runtime — github.com/fermionresearch/phonon ... see upstream repo
 
-The wyoming fork adaptations in builders/wheels-cu132/patches*/ are applied at
-image build time; patched files keep their original notices.
+Patched wheels keep their original notices; the patch files live in
+`builders/wheels-cu132/patches/`.
 
 ================================================================================
  Speech recognition — models

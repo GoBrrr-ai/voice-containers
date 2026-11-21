@@ -1,6 +1,6 @@
 #!/bin/sh
 # OpenAI-compatible ASR server (POST /v1/audio/transcriptions, WAV uploads).
-# One model, one request at a time — see README for a wyoming/HA front end.
+# One model, one request at a time — the voice-api surface is docs/voice-api.md.
 # Env: PARAKEET_MODEL (required), PARAKEET_HOST, PARAKEET_PORT,
 #      PARAKEET_THREADS, PARAKEET_CONCURRENCY, PARAKEET_EXTRA_ARGS.
 set -eu

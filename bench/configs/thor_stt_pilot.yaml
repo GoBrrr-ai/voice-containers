@@ -20,10 +20,10 @@ engines:
       model: /models/nemotron-labs-unified-asr-0.6b-q8_0.gguf
       lang: en
   - name: faster_whisper          # wave-1 baseline (tiny-int8, CT2 GPU)
-    image: narandill/wyoming-faster-whisper:0.1.0
+    image: narandill/faster-whisper-stt:0.2.0
     backends: [cuda]
     opts:
-      model: rhasspy/faster-whisper-tiny-int8  # wyoming "tiny-int8" alias resolved
+      model: rhasspy/faster-whisper-tiny-int8  # the bare "tiny-int8" alias, resolved
       device: cuda
       compute_type: default
 streaming: {chunk_ms: 160, realtime_pass: false}

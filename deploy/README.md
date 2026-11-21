@@ -1,9 +1,9 @@
 # edge-voice — deployment
 
 The voice stack as a `docker compose` deployment: the **voice-api pair**
-(HTTP) by default, an optional **llama.cpp** LLM, and an optional
-**HA-native wyoming pair** — the same images benchmarked in the README
-(serve mode), now wired for a board.
+(HTTP) by default, an optional **llama.cpp** LLM, and optional **dedicated
+engine stacks** — the same images benchmarked in the README (serve mode),
+every one of them speaking the same OpenAI-style contract.
 
 ## Board recipes
 
@@ -47,15 +47,21 @@ docker compose --profile stream --profile llm up -d
 Pairs with the `tts` service over the same voice-api contract
 (`docs/voice-api.md`); `VOICE_API_TOKEN` applies identically.
 
-### Home Assistant (wyoming, HA-native)
+### Dedicated engine stacks (profiles `whisper` / `piper`)
 
 ```sh
-docker compose --profile ha up -d
+docker compose --profile whisper --profile piper up -d
 ```
 
-Point HA's Wyoming integration at `orin-nano:10300` (STT) and `:10200` (TTS).
-The piper image ships its voice baked — no HF at boot
-(`PIPER_OFFLINE=true` remains the hard airgap switch).
+- `stt-whisper` — faster-whisper on CTranslate2 (`:8090`); SSE partial
+  transcripts on `POST /v1/audio/transcriptions?stream=true`.
+- `tts-piper` — piper1-tts (`:8091`); per-sentence pcm chunks on
+  `POST /v1/audio/speech` with `"response_format": "pcm"`. The voice ships
+  baked — no downloads at boot (`WHISPER_OFFLINE=true` is the airgap switch
+  on the STT side).
+
+Both honor `VOICE_API_TOKEN` like every other voice-api service; host ports
+via `WHISPER_PORT` / `PIPER_PORT` in `.env`.
 
 ## Pool budget (Orin Nano 8 GB, Option A)
 

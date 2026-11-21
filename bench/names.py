@@ -12,9 +12,9 @@ FAMILY_OF_PROJECT = {
     "nemotron-unified-asr": "parakeet.cpp",
     "parakeet-redux-stt": "parakeet.cpp",
     "phonon2-stt": "parakeet.cpp",
-    "wyoming-faster-whisper": "faster-whisper",
+    "faster-whisper-stt": "faster-whisper",
     "kokoro-tts": "kokoro",
-    "wyoming-piper1-tts": "piper1-tts",
+    "piper1-tts": "piper1-tts",
     "phonon31m-tts": "phonon-31m",
     "paradee-tts": "paradee",
     "moonshine-streaming-stt": "moonshine",
@@ -30,7 +30,7 @@ FAMILY_OF_PROJECT = {
 # Real brand colors where they exist; the rest stay on the Okabe-Ito palette.
 BRAND_COLORS = {
     "parakeet.cpp": "#76B900",  # NVIDIA green — the runtime carries NVIDIA parakeet models
-    "piper1-tts": "#41BDF5",  # Home Assistant blue — Piper is HA's official TTS
+    "piper1-tts": "#41BDF5",  # assistant-app blue — piper's ecosystem hue
 }
 # Okabe-Ito identity hues for families without a brand color
 DEFAULT_FAMILY_COLORS = {
@@ -71,7 +71,7 @@ MODEL_COLORS = {
     "kokoro 82M int8": "#009E73",  # Okabe-Ito green
     "paradee 8M int8 (GPU)": "#F0E442",  # Okabe-Ito yellow
     "paradee 8M int8 (CPU)": "#F0E442",  # same model — backend variant
-    "piper1-tts libritts-r medium": "#41BDF5",  # Home Assistant blue (brand)
+    "piper1-tts libritts-r medium": "#41BDF5",  # assistant-app blue (brand)
     "phonon-31m (CPU)": "#CC79A7",  # Okabe-Ito pink
     "pocket-tts 100M": "#E69F00",  # Okabe-Ito orange
     "pocket-tts 18M": "#E69F00",  # same family — size variant
@@ -104,9 +104,9 @@ EMOJI = {
 # never drift). Key = directory/image name under packages/<task>/; table rows
 # sort by (family, name). Golden rule: register every new package here.
 PACKAGES = {
-    "wyoming-faster-whisper": {
+    "faster-whisper-stt": {
         "what": "faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110)",
-        "streaming": "wyoming streaming",
+        "streaming": "**SSE partials** (per decode window)",
     },
     "nemotron-unified-asr": {
         "what": "nvidia nemotron-unified-asr 0.6B (q8_0 GPU + q4_k Orin-budget) on parakeet.cpp",
@@ -128,9 +128,9 @@ PACKAGES = {
         "what": "nvidia parakeet-tdt-0.6b-v3 int4 MatMulNBits (391 MB, featurizer incl.) on our onnxruntime-gpu",
         "streaming": "VAD-chunked (opt-in)",
     },
-    "wyoming-piper1-tts": {
+    "piper1-tts": {
         "what": "piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1",
-        "streaming": "wyoming streaming",
+        "streaming": "**per-sentence chunks** (pcm)",
     },
     "kokoro-tts": {
         "what": "Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a)",
@@ -211,7 +211,7 @@ def display(row: dict) -> str:
         return "parakeet-tdt 0.6B v3 int4 (ORT)"
     if proj == "parakeet-redux-stt":
         return "redux packed (CPU)" if "packed" in model else "parakeet-redux 178M q8_0"
-    if proj == "wyoming-faster-whisper":
+    if proj == "faster-whisper-stt":
         return "faster-whisper tiny int8"
     if proj == "kokoro-tts":
         return "kokoro 82M int8"
@@ -219,7 +219,7 @@ def display(row: dict) -> str:
         return "phonon-31m (CPU)"
     if proj == "paradee-tts":
         return "paradee 8M int8 (GPU)" if backend == "cuda" else "paradee 8M int8 (CPU)"
-    if proj == "wyoming-piper1-tts":
+    if proj == "piper1-tts":
         return "piper1-tts libritts-r medium"
     if proj == "moonshine-streaming-stt":
         if str(row.get("engine_id") or "").startswith("moonshine_ort"):

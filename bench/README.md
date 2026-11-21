@@ -22,12 +22,12 @@ JSONL schema already carries their fields.
 
 | Adapter | Image | Backends | Notes |
 |---|---|---|---|
-| `faster_whisper` | `narandill/wyoming-faster-whisper` | cuda, cpu | CT2 GPU; model via HF cache volume |
+| `faster_whisper` | `narandill/faster-whisper-stt` | cuda, cpu | CT2 GPU; model via HF cache volume |
 | `parakeet_cpp` | the 3 STT images (unified/redux/phonon) | cuda, cpu | CLI subprocess; `--stream` for streaming runs |
 | `kokoro` | `narandill/kokoro-tts` | cuda, cpu | `create` + `create_stream` |
 | `ptts` | `narandill/phonon31m-tts` | cpu (by design) | `tts.stream` |
 | `paradee` | `narandill/paradee-tts` | cuda, cpu | int8 graph |
-| `piper` | `narandill/wyoming-piper1-tts` | cuda, cpu | `PiperVoice.synthesize_wav` |
+| `piper` | `narandill/piper1-tts` | cuda, cpu | `PiperVoice.synthesize_wav` |
 
 > The 2026-11 engines all have adapters + config rows now. GPU-first per the
 > unified-memory policy: one image serves `provider=cpu` **and** `provider=cuda`

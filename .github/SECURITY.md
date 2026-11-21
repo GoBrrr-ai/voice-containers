@@ -16,8 +16,8 @@ those components belong with the upstream projects.
 
 Two properties of the stack worth knowing:
 
-- **The voice servers are unauthenticated by design.** The Wyoming / HTTP
-  endpoints bind host ports from inside the container and trust the LAN — the
+- **The voice servers are unauthenticated by design.** The HTTP endpoints
+  bind host ports from inside the container and trust the LAN — the
   host-side port binding is the entire network boundary. Do not expose them
   beyond a trusted network without an authenticating reverse proxy in front.
 - **The harness is a local CLI, not a service.** `bench/` orchestrates docker
