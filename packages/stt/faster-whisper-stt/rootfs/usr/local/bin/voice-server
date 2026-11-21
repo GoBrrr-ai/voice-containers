@@ -10,6 +10,7 @@ GET  /v1/voices | /v1/models | /health     — docs/voice-api.md
 
 Adapter core from bench/engines/client.py (FasterWhisper).
 """
+
 import email
 import io
 import json
@@ -21,10 +22,11 @@ import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
+from faster_whisper import WhisperModel
 
-ENGINE = "faster_whisper"         # adapter name (client.py registry)
+ENGINE = "faster_whisper"  # adapter name (client.py registry)
 VERSION = "0.2.0"
-PORT = int(os.environ.get("WHISPER_PORT", "10300"))
+PORT = int(os.environ.get("WHISPER_PORT", "8090"))
 DEVICE = os.environ.get("WHISPER_DEVICE", "cuda")
 COMPUTE_TYPE = os.environ.get("WHISPER_COMPUTE_TYPE", "default")
 DATA_DIR = os.environ.get("WHISPER_DATA_DIR", "/data/models/faster-whisper")
@@ -35,23 +37,118 @@ VAD_FILTER = os.environ.get("WHISPER_VAD_FILTER", "") not in ("", "false", "0")
 OFFLINE = os.environ.get("WHISPER_OFFLINE", "") == "true"
 
 # bare alias -> the HF repo the wheels era pinned (rhasspy re-uploads)
-_m = re.match(r"^(tiny|base|small|medium)[.-]int8$", os.environ.get("WHISPER_MODEL", "tiny-int8"))
-MODEL_ID = f"rhasspy/faster-whisper-{_m.group(1)}-int8" if _m else os.environ.get("WHISPER_MODEL", "tiny-int8")
+_m = re.match(
+    r"^(tiny|base|small|medium)[.-]int8$", os.environ.get("WHISPER_MODEL", "tiny-int8")
+)
+MODEL_ID = (
+    f"rhasspy/faster-whisper-{_m.group(1)}-int8"
+    if _m
+    else os.environ.get("WHISPER_MODEL", "tiny-int8")
+)
 
 # the tokenizer's language set, as shipped by faster-whisper 1.2.1
 LANGUAGES = (
-    "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs",
-    "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi",
-    "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy",
-    "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb",
-    "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt",
-    "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru",
-    "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw",
-    "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi",
-    "yi", "yo", "zh", "yue",
+    "af",
+    "am",
+    "ar",
+    "as",
+    "az",
+    "ba",
+    "be",
+    "bg",
+    "bn",
+    "bo",
+    "br",
+    "bs",
+    "ca",
+    "cs",
+    "cy",
+    "da",
+    "de",
+    "el",
+    "en",
+    "es",
+    "et",
+    "eu",
+    "fa",
+    "fi",
+    "fo",
+    "fr",
+    "gl",
+    "gu",
+    "ha",
+    "haw",
+    "he",
+    "hi",
+    "hr",
+    "ht",
+    "hu",
+    "hy",
+    "id",
+    "is",
+    "it",
+    "ja",
+    "jw",
+    "ka",
+    "kk",
+    "km",
+    "kn",
+    "ko",
+    "la",
+    "lb",
+    "ln",
+    "lo",
+    "lt",
+    "lv",
+    "mg",
+    "mi",
+    "mk",
+    "ml",
+    "mn",
+    "mr",
+    "ms",
+    "mt",
+    "my",
+    "ne",
+    "nl",
+    "nn",
+    "no",
+    "oc",
+    "pa",
+    "pl",
+    "ps",
+    "pt",
+    "ro",
+    "ru",
+    "sa",
+    "sd",
+    "si",
+    "sk",
+    "sl",
+    "sn",
+    "so",
+    "sq",
+    "sr",
+    "su",
+    "sv",
+    "sw",
+    "ta",
+    "te",
+    "tg",
+    "th",
+    "tk",
+    "tl",
+    "tr",
+    "tt",
+    "uk",
+    "ur",
+    "uz",
+    "vi",
+    "yi",
+    "yo",
+    "zh",
+    "yue",
 )
-
-from faster_whisper import WhisperModel
 
 _model = WhisperModel(
     MODEL_ID,
@@ -177,15 +274,25 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.split("?")[0] != "/health" and not self._auth_ok():
             self._json(
                 401,
-                {"error": {"message": "invalid or missing bearer token", "type": "authentication_error"}},
+                {
+                    "error": {
+                        "message": "invalid or missing bearer token",
+                        "type": "authentication_error",
+                    }
+                },
             )
             return
         p = self.path.split("?")[0]
         if p == "/health":
             self._json(
                 200,
-                {"status": "ok", "engine": ENGINE, "version": VERSION,
-                 "device": DEVICE, "model": MODEL_ID},
+                {
+                    "status": "ok",
+                    "engine": ENGINE,
+                    "version": VERSION,
+                    "device": DEVICE,
+                    "model": MODEL_ID,
+                },
             )
         elif p in ("/v1/voices", "/v1/models"):
             self._json(200, _voices_payload())
@@ -220,13 +327,17 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.split("?")[0] != "/health" and not self._auth_ok():
             self._json(
                 401,
-                {"error": {"message": "invalid or missing bearer token", "type": "authentication_error"}},
+                {
+                    "error": {
+                        "message": "invalid or missing bearer token",
+                        "type": "authentication_error",
+                    }
+                },
             )
             return
         path, _, query = self.path.partition("?")
         qv = {
-            k: v
-            for k, _, v in (seg.partition("=") for seg in query.split("&") if seg)
+            k: v for k, _, v in (seg.partition("=") for seg in query.split("&") if seg)
         }
         want_stream = qv.get("stream", "").lower() in ("true", "1")
         if path != "/v1/audio/transcriptions":
@@ -244,7 +355,10 @@ class Handler(BaseHTTPRequestHandler):
                 return
             model = fields.get("model") or model
             fmt = fields.get("response_format") or "json"
-            want_stream = want_stream or fields.get("stream", "").lower() in ("true", "1")
+            want_stream = want_stream or fields.get("stream", "").lower() in (
+                "true",
+                "1",
+            )
         else:
             wav = body  # raw WAV body fallback
         if fmt not in ("json", "text", "verbose_json"):
@@ -281,8 +395,9 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
         elif fmt == "verbose_json":
-            self._json(200, {"task": "transcribe", "text": text,
-                             "duration": len(pcm) / 2 / sr})
+            self._json(
+                200, {"task": "transcribe", "text": text, "duration": len(pcm) / 2 / sr}
+            )
         else:
             self._json(200, {"text": text})
 

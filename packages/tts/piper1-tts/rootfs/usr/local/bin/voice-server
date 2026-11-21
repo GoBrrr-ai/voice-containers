@@ -11,6 +11,7 @@ Adapter core from bench/engines/client.py (PiperTts): PiperVoice.load on the
 baked voice, CUDA when PIPER_USE_CUDA — plus the per-sentence generator the
 serving layer streams (client.py wraps it back into a single wav).
 """
+
 import io
 import json
 import os
@@ -20,10 +21,12 @@ import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import numpy as np
+from piper import PiperVoice
+from piper.config import SynthesisConfig
 
-ENGINE = "piper"                  # adapter name (client.py registry)
+ENGINE = "piper"  # adapter name (client.py registry)
 VERSION = "0.2.0"
-PORT = int(os.environ.get("PIPER_PORT", "10200"))
+PORT = int(os.environ.get("PIPER_PORT", "8091"))
 VOICE = os.environ.get("PIPER_VOICE", "en_US-libritts_r-medium")
 CACHE = os.environ.get("PIPER_CACHE", "/data/models/piper")
 USE_CUDA = os.environ.get("PIPER_USE_CUDA", "true") == "true"
@@ -31,9 +34,6 @@ LENGTH_SCALE = os.environ.get("PIPER_LENGTH_SCALE") or None
 NOISE_SCALE = os.environ.get("PIPER_NOISE_SCALE") or None
 NOISE_W = os.environ.get("PIPER_NOISE_W") or None
 SPEAKER = os.environ.get("PIPER_SPEAKER") or None
-
-from piper import PiperVoice
-from piper.config import SynthesisConfig
 
 _model_path = os.path.join(CACHE, f"{VOICE}.onnx")
 _voice = PiperVoice.load(_model_path, use_cuda=USE_CUDA)
@@ -132,15 +132,25 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.split("?")[0] != "/health" and not self._auth_ok():
             self._json(
                 401,
-                {"error": {"message": "invalid or missing bearer token", "type": "authentication_error"}},
+                {
+                    "error": {
+                        "message": "invalid or missing bearer token",
+                        "type": "authentication_error",
+                    }
+                },
             )
             return
         p = self.path.split("?")[0]
         if p == "/health":
             self._json(
                 200,
-                {"status": "ok", "engine": ENGINE, "version": VERSION,
-                 "device": _DEVICE_ACTUAL, "voices": VOICES},
+                {
+                    "status": "ok",
+                    "engine": ENGINE,
+                    "version": VERSION,
+                    "device": _DEVICE_ACTUAL,
+                    "voices": VOICES,
+                },
             )
         elif p in ("/v1/voices", "/v1/models"):
             self._json(200, _voices_payload())
@@ -152,7 +162,12 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.split("?")[0] != "/health" and not self._auth_ok():
             self._json(
                 401,
-                {"error": {"message": "invalid or missing bearer token", "type": "authentication_error"}},
+                {
+                    "error": {
+                        "message": "invalid or missing bearer token",
+                        "type": "authentication_error",
+                    }
+                },
             )
             return
         if self.path.split("?")[0] != "/v1/audio/speech":
@@ -179,7 +194,11 @@ class Handler(BaseHTTPRequestHandler):
         if model and model != ENGINE:
             self._json(
                 400,
-                {"error": {"message": f"unknown model {model!r}; supported: ['{ENGINE}']"}},
+                {
+                    "error": {
+                        "message": f"unknown model {model!r}; supported: ['{ENGINE}']"
+                    }
+                },
             )
             return
         fmt = req.get("response_format", "wav")
