@@ -45,10 +45,10 @@ engines:
     serve: {port: 8080, transport: openai, env: {PARAKEET_DEVICE: cpu}}
     opts:
       model: /models/redux-packed.gguf
-  - name: faster_whisper          # the wave-1 baseline (tiny-int8), wyoming-native
-    image: narandill/wyoming-faster-whisper:0.1.0
+  - name: faster_whisper          # the wave-1 baseline (tiny-int8), voice-api serve
+    image: narandill/faster-whisper-stt:0.2.0
     backends: [cuda]
-    serve: {port: 10300, transport: wyoming}
+    serve: {port: 8090, transport: openai}
     opts:
       model: rhasspy/faster-whisper-tiny-int8
   - name: moonshine               # Streaming Medium 245M (official runtime, CPU)

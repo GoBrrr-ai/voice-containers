@@ -10,8 +10,9 @@
 # container toolkit configured (Jetson default), and `cp .env.example .env`.
 #
 #   docker compose --profile llm up -d          # voice-api pair + llama.cpp
-#   docker compose --profile ha up -d           # HA-native wyoming pair
-#   docker compose --profile ha --profile llm up -d
+#   docker compose --profile llm up -d          # voice-api pair + llama.cpp
+#   docker compose --profile whisper --profile piper up -d   # dedicated engine pair
+#   docker compose --profile whisper --profile piper --profile llm up -d
 # =============================================================================
 name: edge-voice
 
@@ -79,17 +80,21 @@ services:
     volumes:
       - ${LLM_MODEL_DIR:-./models}:/models:ro
 
-  # ------------------------------- HA-native wyoming pair (profile ha, no HTTP)
-  wyoming-stt:
+  # ------------------------- dedicated engine pair (profiles, voice-api HTTP)
+  # faster-whisper on CTranslate2 — SSE partials on stream=true
+  stt-whisper:
     <<: *voice-common
-    image: narandill/wyoming-faster-whisper:0.1.1
-    profiles: [ha]
+    image: narandill/faster-whisper-stt:0.2.0
+    profiles: [whisper]
     ports:
-      - "${WYOMING_STT_PORT:-10300}:10300"
+      - "${WHISPER_PORT:-8090}:8090"
+    volumes:
+      - ${WHISPER_DATA_DIR:-./models}:/data
 
-  wyoming-tts:
+  # piper1-tts — per-sentence pcm streaming; voice baked in-image
+  tts-piper:
     <<: *voice-common
-    image: narandill/wyoming-piper1-tts:0.1.1
-    profiles: [ha]
+    image: narandill/piper1-tts:0.2.0
+    profiles: [piper]
     ports:
-      - "${WYOMING_TTS_PORT:-10200}:10200"
+      - "${PIPER_PORT:-8091}:8091"

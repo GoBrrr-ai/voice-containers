@@ -60,7 +60,7 @@ matrices from summary data. See `ARCHITECTURE.md` for the dependency graph.
 | `benchmarks/` | `history.jsonl` (append-only) + metadata-only `raw/<run_id>/` |
 | `assets/` | generated benchmark charts + `logo.png`/`logo.gif` (README header) |
 | `manifests/` | frozen benchmark manifests (seed 42) — the reproducibility anchor |
-| `docs/` | `voice-api.md` + OpenAPI spec — the HTTP contract for non-wyoming images |
+| `docs/` | `voice-api.md` + OpenAPI spec — the HTTP contract for every voice image |
 | `deploy/` | docker-compose composing the built images (no builds) |
 | `tools/` | `voice_api_contract_test.py` — stdlib contract check (`make contract`) |
 | `scripts/` | `projects.txt` (roster), sweep runners, `docker_release.py` |

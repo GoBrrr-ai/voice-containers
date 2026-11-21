@@ -1,0 +1,418 @@
+#!/opt/venv/bin/python3
+"""voice-api v1 STT server — faster-whisper 1.2.1 on CTranslate2 (in-memory; no temp files).
+
+POST /v1/audio/transcriptions  multipart ('file' required) or raw WAV body
+  stream=true (multipart field or query param) -> text/event-stream partials:
+  CTranslate2 emits segments window by window; a `partial` fires on every
+  text change and one `final` (= the settled transcript) closes the stream.
+  The joined partials are identical to the non-streaming path — one decode.
+GET  /v1/voices | /v1/models | /health     — docs/voice-api.md
+
+Adapter core from bench/engines/client.py (FasterWhisper).
+"""
+
+import email
+import io
+import json
+import os
+import re
+import signal
+import threading
+import wave
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import numpy as np
+from faster_whisper import WhisperModel
+
+ENGINE = "faster_whisper"  # adapter name (client.py registry)
+VERSION = "0.2.0"
+PORT = int(os.environ.get("WHISPER_PORT", "8090"))
+DEVICE = os.environ.get("WHISPER_DEVICE", "cuda")
+COMPUTE_TYPE = os.environ.get("WHISPER_COMPUTE_TYPE", "default")
+DATA_DIR = os.environ.get("WHISPER_DATA_DIR", "/data/models/faster-whisper")
+BEAM_SIZE = int(os.environ.get("WHISPER_BEAM_SIZE", "1"))
+LANGUAGE = os.environ.get("WHISPER_LANGUAGE", "en")
+INITIAL_PROMPT = os.environ.get("WHISPER_INITIAL_PROMPT") or None
+VAD_FILTER = os.environ.get("WHISPER_VAD_FILTER", "") not in ("", "false", "0")
+OFFLINE = os.environ.get("WHISPER_OFFLINE", "") == "true"
+
+# bare alias -> the HF repo the wheels era pinned (rhasspy re-uploads)
+_m = re.match(
+    r"^(tiny|base|small|medium)[.-]int8$", os.environ.get("WHISPER_MODEL", "tiny-int8")
+)
+MODEL_ID = (
+    f"rhasspy/faster-whisper-{_m.group(1)}-int8"
+    if _m
+    else os.environ.get("WHISPER_MODEL", "tiny-int8")
+)
+
+# the tokenizer's language set, as shipped by faster-whisper 1.2.1
+LANGUAGES = (
+    "af",
+    "am",
+    "ar",
+    "as",
+    "az",
+    "ba",
+    "be",
+    "bg",
+    "bn",
+    "bo",
+    "br",
+    "bs",
+    "ca",
+    "cs",
+    "cy",
+    "da",
+    "de",
+    "el",
+    "en",
+    "es",
+    "et",
+    "eu",
+    "fa",
+    "fi",
+    "fo",
+    "fr",
+    "gl",
+    "gu",
+    "ha",
+    "haw",
+    "he",
+    "hi",
+    "hr",
+    "ht",
+    "hu",
+    "hy",
+    "id",
+    "is",
+    "it",
+    "ja",
+    "jw",
+    "ka",
+    "kk",
+    "km",
+    "kn",
+    "ko",
+    "la",
+    "lb",
+    "ln",
+    "lo",
+    "lt",
+    "lv",
+    "mg",
+    "mi",
+    "mk",
+    "ml",
+    "mn",
+    "mr",
+    "ms",
+    "mt",
+    "my",
+    "ne",
+    "nl",
+    "nn",
+    "no",
+    "oc",
+    "pa",
+    "pl",
+    "ps",
+    "pt",
+    "ro",
+    "ru",
+    "sa",
+    "sd",
+    "si",
+    "sk",
+    "sl",
+    "sn",
+    "so",
+    "sq",
+    "sr",
+    "su",
+    "sv",
+    "sw",
+    "ta",
+    "te",
+    "tg",
+    "th",
+    "tk",
+    "tl",
+    "tr",
+    "tt",
+    "uk",
+    "ur",
+    "uz",
+    "vi",
+    "yi",
+    "yo",
+    "zh",
+    "yue",
+)
+
+_model = WhisperModel(
+    MODEL_ID,
+    device=DEVICE,
+    compute_type=COMPUTE_TYPE,
+    download_root=DATA_DIR,
+    local_files_only=OFFLINE,
+)
+_LANGUAGE = None if LANGUAGE in ("", "auto") else LANGUAGE
+
+_LOCK = threading.Lock()
+
+
+def _transcribe_kwargs():
+    kw = {"beam_size": BEAM_SIZE, "vad_filter": VAD_FILTER}
+    if _LANGUAGE:
+        kw["language"] = _LANGUAGE
+    if INITIAL_PROMPT:
+        kw["initial_prompt"] = INITIAL_PROMPT
+    return kw
+
+
+def _to_16k(samples, sr):
+    """CT2 wants 16 kHz mono; linear-interp fallback for other rates."""
+    if sr == 16000 or len(samples) < 2:
+        return samples
+    n = max(1, int(len(samples) * 16000 / sr))
+    return np.interp(
+        np.arange(n) * sr / 16000.0, np.arange(len(samples)), samples
+    ).astype(np.float32)
+
+
+def _engine_transcribe(sr, pcm):
+    """Settled transcript: the exact client.py join, one pass."""
+    samples = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768.0
+    segments, _info = _model.transcribe(_to_16k(samples, sr), **_transcribe_kwargs())
+    return " ".join(s.text for s in segments).strip()
+
+
+def _engine_stream_partial(sr, pcm):
+    """Yield (text, is_final): the same single decode, a partial per window
+    as CT2's segment generator yields; the closing final == _engine_transcribe."""
+    samples = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768.0
+    segments, _info = _model.transcribe(_to_16k(samples, sr), **_transcribe_kwargs())
+    parts, last = [], ""
+    for seg in segments:
+        parts.append(seg.text)
+        text = " ".join(parts).strip()
+        if text and text != last:
+            last = text
+            yield text, False
+    yield " ".join(parts).strip(), True
+
+
+def _decode_wav(body):
+    with wave.open(io.BytesIO(body), "rb") as w:
+        sr, sw, ch = w.getframerate(), w.getsampwidth(), w.getnchannels()
+        pcm = w.readframes(w.getnframes())
+    if sw != 2 or ch != 1:
+        raise ValueError(f"expected 16-bit mono WAV, got {sw * 8}-bit x{ch}")
+    return sr, pcm
+
+
+def _multipart(body, ct):
+    msg = email.message_from_bytes(b"Content-Type: " + ct.encode() + b"\r\n\r\n" + body)
+    fields, files = {}, {}
+    for part in msg.walk():
+        name = part.get_param("name", header="content-disposition")
+        if not name:
+            continue
+        payload = part.get_payload(decode=True) or b""
+        if part.get_filename():
+            files[name] = payload
+        else:
+            fields[name] = payload.decode("utf-8", "replace")
+    return fields, files
+
+
+def _voices_payload():
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": MODEL_ID,
+                "object": "voice",
+                "task": "stt",
+                "sample_rate": 16000,
+                "languages": list(LANGUAGES),
+                "streaming": True,
+                "engine": ENGINE,
+                "version": VERSION,
+            }
+        ],
+    }
+
+
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *a):
+        pass
+
+    def _json(self, code, obj):
+        body = json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _fail(self, code, msg):
+        self._json(code, {"error": {"message": msg, "type": "invalid_request_error"}})
+
+    def _auth_ok(self):
+        """Optional bearer-token gate (VOICE_API_TOKEN); unset = open."""
+        tok = os.environ.get("VOICE_API_TOKEN")
+        if not tok:
+            return True
+        return self.headers.get("Authorization", "") == f"Bearer {tok}"
+
+    def do_GET(self):
+        # /health is exempt: orchestrator healthchecks cannot send the token
+        if self.path.split("?")[0] != "/health" and not self._auth_ok():
+            self._json(
+                401,
+                {
+                    "error": {
+                        "message": "invalid or missing bearer token",
+                        "type": "authentication_error",
+                    }
+                },
+            )
+            return
+        p = self.path.split("?")[0]
+        if p == "/health":
+            self._json(
+                200,
+                {
+                    "status": "ok",
+                    "engine": ENGINE,
+                    "version": VERSION,
+                    "device": DEVICE,
+                    "model": MODEL_ID,
+                },
+            )
+        elif p in ("/v1/voices", "/v1/models"):
+            self._json(200, _voices_payload())
+        else:
+            self._json(404, {"error": {"message": "not found"}})
+
+    def _sse_partials(self, sr, pcm, dur_s):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+
+        def evt(name, obj):
+            b = f"event: {name}\ndata: {json.dumps(obj)}\n\n".encode()
+            self.wfile.write(f"{len(b):x}\r\n".encode() + b + b"\r\n")
+            self.wfile.flush()
+
+        try:
+            with _LOCK:
+                for text, final in _engine_stream_partial(sr, pcm):
+                    if final:
+                        evt("final", {"text": text, "duration": round(dur_s, 3)})
+                    else:
+                        evt("partial", {"text": text})
+            self.wfile.write(b"0\r\n\r\n")
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True
+
+    def do_POST(self):
+        # /health is exempt: orchestrator healthchecks cannot send the token
+        if self.path.split("?")[0] != "/health" and not self._auth_ok():
+            self._json(
+                401,
+                {
+                    "error": {
+                        "message": "invalid or missing bearer token",
+                        "type": "authentication_error",
+                    }
+                },
+            )
+            return
+        path, _, query = self.path.partition("?")
+        qv = {
+            k: v for k, _, v in (seg.partition("=") for seg in query.split("&") if seg)
+        }
+        want_stream = qv.get("stream", "").lower() in ("true", "1")
+        if path != "/v1/audio/transcriptions":
+            self._json(404, {"error": {"message": "not found"}})
+            return
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        ct = self.headers.get("Content-Type", "")
+        fmt, model = "json", self.headers.get("X-Model")
+        if "multipart/form-data" in ct:
+            fields, files = _multipart(body, ct)
+            wav = files.get("file")
+            if wav is None:
+                self._fail(400, "missing required field 'file'")
+                return
+            model = fields.get("model") or model
+            fmt = fields.get("response_format") or "json"
+            want_stream = want_stream or fields.get("stream", "").lower() in (
+                "true",
+                "1",
+            )
+        else:
+            wav = body  # raw WAV body fallback
+        if fmt not in ("json", "text", "verbose_json"):
+            self._fail(400, "response_format must be json, text or verbose_json")
+            return
+        if model and model != MODEL_ID:
+            self._fail(400, f"unknown model {model!r}; supported: ['{MODEL_ID}']")
+            return
+        try:
+            sr, pcm = _decode_wav(wav)
+        except ValueError as e:
+            self._fail(400, str(e))
+            return
+        if want_stream:
+            try:
+                self._sse_partials(sr, pcm, len(pcm) / 2 / sr)
+            except (BrokenPipeError, ConnectionResetError):
+                self.close_connection = True
+            return
+        try:
+            with _LOCK:
+                text = _engine_transcribe(sr, pcm)
+        except ValueError as e:
+            self._fail(400, str(e))
+            return
+        except Exception as e:
+            self._json(500, {"error": {"message": repr(e)[:300]}})
+            return
+        if fmt == "text":
+            payload = text.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+        elif fmt == "verbose_json":
+            self._json(
+                200, {"task": "transcribe", "text": text, "duration": len(pcm) / 2 / sr}
+            )
+        else:
+            self._json(200, {"text": text})
+
+
+def _serve():
+    """serve_forever with SIGTERM/SIGINT -> clean shutdown (fast docker stop)."""
+    srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+
+    def _stop(*_a):
+        threading.Thread(target=srv.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+    srv.serve_forever()
+
+
+if __name__ == "__main__":
+    _serve()

@@ -256,47 +256,24 @@ def _free_port() -> int:
     return port
 
 
-def _wait_served(transport: str, host_port: int, timeout_s: float = 300.0) -> bool:
-    """Poll until the voice-server answers: HTTP /health (openai) or a
-    wyoming Describe->Info handshake (TCP).
+def _wait_served(host_port: int, timeout_s: float = 300.0) -> bool:
+    """Poll until the voice-server answers HTTP GET /health.
 
-    The wyoming probe must be protocol-level: docker's userland proxy ACCEPTS
-    the host-side TCP connect before the container server is listening, so a
-    bare connect() succeeds during model load and every early request gets
-    connection-reset (seen live: 500 instant resets racing a whisper load).
+    A bare TCP connect is not enough: docker's userland proxy ACCEPTS the
+    host-side connect before the container server is listening, so early
+    requests get connection-reset (seen live: 500 instant resets racing a
+    whisper load). The HTTP status is the gate.
     """
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        if transport == "wyoming":
-            try:
-                import asyncio
-
-                from wyoming.client import AsyncTcpClient
-                from wyoming.info import Describe, Info
-
-                async def _probe() -> bool:
-                    async with AsyncTcpClient("127.0.0.1", host_port) as client:
-                        await client.write_event(Describe().event())
-                        while True:
-                            ev = await asyncio.wait_for(client.read_event(), 10)
-                            if ev is None:
-                                return False
-                            if Info.is_type(ev.type):
-                                return True
-
-                if asyncio.run(asyncio.wait_for(_probe(), timeout=15)):
+        try:
+            with urllib.request.urlopen(
+                f"http://127.0.0.1:{host_port}/health", timeout=2
+            ) as r:  # nosec B310 - loopback health poll
+                if r.status == 200:
                     return True
-            except Exception:
-                pass
-        else:
-            try:
-                with urllib.request.urlopen(
-                    f"http://127.0.0.1:{host_port}/health", timeout=2
-                ) as r:  # nosec B310 - loopback health poll
-                    if r.status == 200:
-                        return True
-            except Exception:
-                pass
+        except Exception:
+            pass
         time.sleep(1.0)
     return False
 
@@ -372,7 +349,7 @@ def _run_served(
             }
             job_path = run_dir / f"job_{eid}.json"
             job_path.write_text(json.dumps(job, ensure_ascii=False))
-            if not _wait_served(serve["transport"], host_port):
+            if not _wait_served(host_port):
                 logs = subprocess.run(
                     ["docker", "logs", name], capture_output=True, text=True
                 ).stdout
@@ -566,12 +543,12 @@ def validate_config(cfg: dict) -> None:
             if (
                 not isinstance(serve, dict)
                 or not serve.get("port")
-                or serve.get("transport") not in ("openai", "wyoming")
+                or serve.get("transport") != "openai"
                 or not isinstance(serve.get("env", {}), dict)
             ):
                 _fail(
                     "engines[].serve must be {port: <container port>, "
-                    "transport: openai|wyoming, env?: {K: V}} — the runner "
+                    "transport: openai, env?: {K: V}} — the runner "
                     "docker-runs the image's own server and drives it from "
                     "the host"
                 )

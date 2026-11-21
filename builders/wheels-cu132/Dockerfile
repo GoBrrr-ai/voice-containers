@@ -1,16 +1,10 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# Shared wheels builder (cu132): onnxruntime-gpu + ctranslate2 + piper-tts +
-# wyoming-faster-whisper + wyoming-piper + pysilero-vad for sm_87 + sm_110.
+# Shared wheels builder (cu132): onnxruntime-gpu + ctranslate2 + piper-tts
+# for sm_87 + sm_110.
 # Instruction stream is byte-identical to the original build -> BuildKit
 # replays it from cache in seconds (no 75-minute recompile). Build with:
 #   docker build --target builder -t narandill/edge-wheels:cu132 .
-# =============================================================================
-# =============================================================================
-# Provenance: wheel recipes extracted from a former combined STT+TTS wyoming
-# image (Home-Assistant voice stack on JetPack 7.2.1 / CUDA 13.2, since split
-# into the standalone wyoming projects in this repo). The instruction stream
-# is kept byte-identical to that build so BuildKit can replay it from cache.
 # =============================================================================
 
 ARG BUILDER_BASE=nvidia/cuda:13.2.1-devel-ubuntu24.04
@@ -22,8 +16,6 @@ ARG RUNTIME_BASE=nvidia/cuda:13.2.1-runtime-ubuntu24.04
 ARG CTRANSLATE2_REF=v4.8.4
 ARG ONNXRUNTIME_REF=v1.31.1
 ARG PIPER_REF=v1.8.0
-ARG WYOMING_PIPER_REF=v2.5.2
-ARG WYOMING_WHISPER_REF=v3.8.1
 ARG PYTHON_VER=3.12
 # sm_87 (AGX Orin) + sm_110a (AGX Thor). ORT's FP4/MoE kernels emit
 # family-conditional instructions (cvt.e2m1x2.f32) that ptxas rejects for
@@ -39,8 +31,6 @@ FROM ${BUILDER_BASE} AS builder
 ARG CTRANSLATE2_REF
 ARG ONNXRUNTIME_REF
 ARG PIPER_REF
-ARG WYOMING_PIPER_REF
-ARG WYOMING_WHISPER_REF
 ARG CUDA_ARCHS_ORT
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -51,12 +41,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libcudnn9-dev-cuda-13 \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m pip install --break-system-packages uv numpy packaging wheel
-
-COPY patches/ /tmp/patches/
-# (2026-11-04 restructure) 0003 lives in patches-va/ and is copied LATE so
-# editing the piper streaming patch never invalidates the CT2/ORT layers
-# again. .dockerignore keeps patches/0003 out of the early context.
-COPY patches-va/ /tmp/patches-va/
 
 # --- libcuda stub: SONAME-correct symlink so executables link (builder-only) -
 RUN if [ -f /usr/local/cuda/lib64/stubs/libcuda.so ]; then \
@@ -117,25 +101,6 @@ RUN git clone --depth 1 --branch "${PIPER_REF}" \
         https://github.com/OHF-voice/piper1-gpl /src/piper1-gpl \
     && sed -i 's/"onnxruntime>=1,<2",//' /src/piper1-gpl/setup.py \
     && uv build --wheel --out-dir /wheels /src/piper1-gpl
-
-# --- wyoming-faster-whisper + wyoming-piper (fork's LAN-IP / name patches) ---
-RUN git clone --depth 1 --branch "${WYOMING_WHISPER_REF}" \
-        https://github.com/OHF-Voice/wyoming-faster-whisper /src/wfw \
-    && cd /src/wfw && git apply --verbose /tmp/patches/0001-*.patch \
-    && uv build --wheel --out-dir /wheels .
-
-RUN git clone --depth 1 --branch "${WYOMING_PIPER_REF}" \
-        https://github.com/OHF-Voice/wyoming-piper /src/wyp \
-    && cd /src/wyp && git apply --verbose /tmp/patches/0002-*.patch \
-    # voice-api: stream piper1-gpl's in-memory sentence chunks straight onto
-    # the wyoming socket — the tempfile WAV roundtrip is gone entirely (and
-    # --sentence-silence now sits between sentences, its documented semantic).
-    && git apply --verbose /tmp/patches-va/0003-*.patch \
-    && uv build --wheel --out-dir /wheels .
-
-# --- pre-build pysilero-vad wheel (compiled ggml ext; avoid compiling in the
-# compiler-free runtime stage in case upstream ships no aarch64 wheel) --------
-RUN python3 -m pip wheel --no-cache-dir --no-deps --wheel-dir /wheels "pysilero-vad==3.4.0"
 
 # --- sherpa-onnx (GPU-capable wheel) -----------------------------------------
 # sherpa-onnx has NO CUDA kernels of its own: SHERPA_ONNX_ENABLE_GPU just

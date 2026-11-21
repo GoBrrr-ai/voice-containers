@@ -1,10 +1,8 @@
 # voice-api v1 — the unified STT/TTS HTTP contract
 
-OpenAI-compatible audio endpoints for every non-wyoming voice image in this
-repo. One contract for the whole roster; the two wyoming images
-(`wyoming-faster-whisper`, `wyoming-piper1-tts`) stay HA-native and are out of
-scope. Aligned with the OpenAI Audio API (2026-11) so stock SDKs work; deltas
-are explicit at the bottom.
+OpenAI-compatible audio endpoints for **every** voice image in this repo —
+one contract, the whole roster. Aligned with the OpenAI Audio API (2026-11)
+so stock SDKs work; deltas are explicit at the bottom.
 
 ## Endpoints
 
@@ -73,9 +71,9 @@ JSON body (OpenAI subset):
   clients read `Transfer-Encoding: chunked` progressively, like OpenAI's
   chunked-transfer streaming. `response_format: "sse"` → `400` (not
   implemented; `audio` chunking is the low-overhead path).
-- Synthesis is fully in-memory — **no `*.wav` temp files anywhere** (this is
-  the point of voice-api v1: the wyoming-piper fork patch removed the last
-  one).
+- Synthesis is fully in-memory — **no `*.wav` temp files anywhere** (audio
+  never touches disk: chunks stream straight from the generator, wavs
+  assemble in `io.BytesIO`).
 
 ## Per-image roster
 
@@ -88,9 +86,11 @@ JSON body (OpenAI subset):
 | `canary-flash-stt` | STT | 〃 | — | `canary-180m-flash-int8` (en/de/es/fr + X↔EN translation via `CANARY_SRC_LANG`/`CANARY_TGT_LANG`) |
 | `parakeet-tdt-stt` | STT | 〃 | — | `parakeet-tdt-0.6b-v3-int8` (25 languages) |
 | `nemotron-streaming-stt` | STT | 〃 | **SSE partials** (`stream=true`; sherpa 160 ms profile, slice cadence) | `nemotron-streaming-160ms` |
+| `faster-whisper-stt` | STT | 〃 | **SSE partials** (`stream=true`; one partial per decode window) | `rhasspy/faster-whisper-tiny-int8` (99 languages; `WHISPER_MODEL`-selectable) |
 | `moonshine-streaming-stt` | STT | 〃 | **SSE partials** (`stream=true`; official CPU runtime, 320 ms cadence) or — on the CUDA ORT variant | `moonshine-streaming-medium` (CPU bundle) or `moonshine-streaming-medium-ort` (CUDA; auto-selected) |
 | `parakeet-tdt-ort-stt` | STT | 〃 | — | `parakeet-tdt-0.6b-v3-int4` |
 | `kokoro-tts` | TTS | wav/pcm | pcm chunked | af_heart, af_bella, bf_isabella, am_puck, bm_fable (24 kHz, `speed`) |
+| `piper1-tts` | TTS | wav/pcm | pcm chunked (per sentence) | `en_US-libritts_r-medium` (22.05 kHz, `speed`) |
 | `paradee-tts` | TTS | wav/pcm | — (single chunk) | af_heart, bf_isabella, am_puck, bm_fable (24 kHz) |
 | `phonon31m-tts` | TTS | wav/pcm | pcm chunked (true frames) | `default` (24 kHz, CPU by design); legacy `GET /say` kept |
 | `pocket-tts` | TTS | wav/pcm | pcm chunked | alba, marius, javert, jean, fantine, cosette, eponine, azelma (24 kHz; cloning stays on the official `pocket-tts serve`) |

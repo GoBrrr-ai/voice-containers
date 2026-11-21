@@ -51,7 +51,7 @@
     </td>
     <td width="33%" valign="top" align="center"><br>
       <h3>🌊&nbsp;<a href="#-benchmarks">Full-duplex streaming</a></h3>
-      <p><b>SSE partials</b> while you speak, <b>chunked PCM</b> while it speaks — plus Wyoming wire for Home Assistant.</p><br>
+      <p><b>SSE partials</b> while you speak, <b>chunked PCM</b> while it speaks — full-duplex over one HTTP contract.</p><br>
     </td>
     <td width="33%" valign="top" align="center"><br>
       <h3>🐳&nbsp;<a href="#-quick-start">Plain docker, no framework</a></h3>
@@ -74,10 +74,10 @@ make verify-all
 make smoke-all
 
 # 4) run something
-docker run --runtime nvidia --rm -p 10300:10300 -v /data/wfw:/data narandill/wyoming-faster-whisper:0.1.1
+docker run --runtime nvidia --rm -p 8090:8090 -v /data/wfw:/data narandill/faster-whisper-stt:0.2.0
 docker run --runtime nvidia --rm --entrypoint stt-transcribe narandill/nemotron-unified-asr:0.2.0 /audio/x.wav
 
-# 5) or speak OpenAI to it — every non-wyoming image serves /v1/audio/* (docs/voice-api.md)
+# 5) or just speak OpenAI — every image serves /v1/audio/* (docs/voice-api.md)
 docker run -d --runtime nvidia --rm -p 8080:8080 narandill/canary-flash-stt:0.2.0
 curl -s localhost:8080/v1/audio/transcriptions -F file=@speech.wav -F model=canary-180m-flash-int8
 
@@ -98,7 +98,7 @@ upgrade, drop the flag.
 | Family | Package | Docker image | What it is |
 |---|---|---|---|
 | 🐤 canary | [`canary-flash-stt`](packages/stt/canary-flash-stt/) | [`canary-flash-stt:0.2.0`](https://hub.docker.com/r/narandill/canary-flash-stt) | NVIDIA Canary-180M-Flash int8 (en/de/es/fr + X↔EN) via sherpa-onnx; VAD-chunked (opt-in) |
-| ⚡ faster-whisper | [`wyoming-faster-whisper`](packages/stt/wyoming-faster-whisper/) | [`wyoming-faster-whisper:0.1.1`](https://hub.docker.com/r/narandill/wyoming-faster-whisper) | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110); wyoming streaming |
+| ⚡ faster-whisper | [`faster-whisper-stt`](packages/stt/faster-whisper-stt/) | [`faster-whisper-stt:0.2.0`](https://hub.docker.com/r/narandill/faster-whisper-stt) | faster-whisper 1.2.1 on our CTranslate2 4.8.4 (sm_87+sm_110); **SSE partials** (per decode window) |
 | 🌙 moonshine | [`moonshine-streaming-stt`](packages/stt/moonshine-streaming-stt/) | [`moonshine-streaming-stt:0.2.0`](https://hub.docker.com/r/narandill/moonshine-streaming-stt) | Moonshine Streaming Medium 245M via moonshine-voice (official ORT runtime); **native incremental** (live partials) |
 | 🔊 nemotron-streaming | [`nemotron-streaming-stt`](packages/stt/nemotron-streaming-stt/) | [`nemotron-streaming-stt:0.2.0`](https://hub.docker.com/r/narandill/nemotron-streaming-stt) | NVIDIA Nemotron Speech Streaming EN 0.6B int8 (160 ms lookahead) via sherpa-onnx; **true native** (cache-aware, graph-chunked) |
 | 🦜 parakeet-tdt | [`parakeet-tdt-cpp-stt`](packages/stt/parakeet-tdt-cpp-stt/) | [`parakeet-tdt-cpp-stt:0.1.0`](https://hub.docker.com/r/narandill/parakeet-tdt-cpp-stt) | nvidia parakeet-tdt-0.6b-v3 q4_k GGUF (Orin budget) on parakeet.cpp; VAD-chunked (opt-in) |
@@ -147,7 +147,7 @@ ship as v3 — never a silent rewrite of history.
 | 🗣️ kokoro | [`kokoro-tts`](packages/tts/kokoro-tts/) | [`kokoro-tts:0.1.0`](https://hub.docker.com/r/narandill/kokoro-tts) | Kokoro-82M v1.0 static-QLinear int8 ONNX on onnxruntime-gpu (sm_87+sm_110a); `create_stream()` |
 | ✨ paradee | [`paradee-tts`](packages/tts/paradee-tts/) | [`paradee-tts:0.2.0`](https://hub.docker.com/r/narandill/paradee-tts) | Paradee-8M v1.2 int8 ONNX — a Kokoro distillation (4 voices); sentence-chunked |
 | 🌊 phonon-31m | [`phonon31m-tts`](packages/tts/phonon31m-tts/) | [`phonon31m-tts:0.1.0`](https://hub.docker.com/r/narandill/phonon31m-tts) | gradium/phonon-31m-en via `ptts` — **CPU-only by design** (307 MB); **true streaming** (TTFA ~76 ms p95) |
-| 🎺 piper1-tts | [`wyoming-piper1-tts`](packages/tts/wyoming-piper1-tts/) | [`wyoming-piper1-tts:0.1.1`](https://hub.docker.com/r/narandill/wyoming-piper1-tts) | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; wyoming streaming |
+| 🎺 piper1-tts | [`piper1-tts`](packages/tts/piper1-tts/) | [`piper1-tts:0.2.0`](https://hub.docker.com/r/narandill/piper1-tts) | piper-tts 1.8.0 on our onnxruntime-gpu 1.31.1; **per-sentence chunks** (pcm) |
 | 🎒 pocket-tts | [`pocket-tts`](packages/tts/pocket-tts/) | [`pocket-tts:0.3.0`](https://hub.docker.com/r/narandill/pocket-tts) | Kyutai Pocket TTS — 100M flagship + 18M Orin-budget (official pkg), streaming + voice cloning; **true streaming** (~200 ms TTFA) |
 
 <p align="center">
@@ -224,7 +224,7 @@ Quality is *higher-is-better* — hence the inverted log ratio. Weights renormal
 | phonon2-stt | phonon-2.5 q8_0 | cuda | 0.0199 | 0.0061 | 0.2620 | $\color{#3fb950}{\text{0.0000}}$ | 0.1649 | 0.2277 | 0.9913 | 2.2191 | 616 | 557 | 51 |
 | parakeet-redux-stt | redux packed (CPU) | cpu | 0.0249 | 0.0082 | 0.3160 | $\color{#3fb950}{\text{0.0000}}$ | 0.1592 | 0.1752 | 1.0111 | 2.6395 | 1,347 | 1,326 | — (CPU) |
 | moonshine-streaming-stt | moonshine-streaming medium int8 | cpu | 0.0381 | 0.0210 | 0.4720 | $\color{#3fb950}{\text{0.0000}}$ | 0.1585 | 0.2074 | 1.0251 | 2.6872 | 770 | 744 | — (CPU) |
-| wyoming-faster-whisper | faster-whisper tiny int8 | cuda | $\color{#f85149}{\text{0.0720}}$ | $\color{#f85149}{\text{0.0278}}$ | $\color{#f85149}{\text{0.5860}}$ | $\color{#f85149}{\text{0.0020}}$ | 0.0127 | 0.0212 | 0.0806 | 0.1413 | 733 | 676 | 10 |
+| faster-whisper-stt | faster-whisper tiny int8 | cuda | $\color{#f85149}{\text{0.0720}}$ | $\color{#f85149}{\text{0.0278}}$ | $\color{#f85149}{\text{0.5860}}$ | $\color{#f85149}{\text{0.0020}}$ | 0.0127 | 0.0212 | 0.0806 | 0.1413 | 733 | 676 | 10 |
 | moonshine-streaming-stt | moonshine-streaming medium fp32 (ORT) | cpu | 0.0381 | 0.0210 | 0.4720 | $\color{#3fb950}{\text{0.0000}}$ | 0.1476 | 0.2422 | 1.0152 | 2.8033 | 752 | 743 | — (CPU) |
 | moonshine-streaming-stt | moonshine-streaming medium fp32 (ORT) | cuda | 0.0205 | 0.0080 | 0.2440 | $\color{#3fb950}{\text{0.0000}}$ | 0.0667 | 0.1586 | 0.5068 | 1.5959 | 2,118 | 2,013 | 36 |
 | nemotron-streaming-stt | nemotron-streaming 0.6B int8 (160 ms) | cpu | 0.0259 | 0.0083 | 0.3100 | $\color{#3fb950}{\text{0.0000}}$ | 0.7777 | 0.7998 | 4.9759 | 13.6 | 1,511 | 1,481 | — (CPU) |
@@ -267,7 +267,7 @@ tegrastats module draw over each engine's window; the packed-CPU engine has none
 | engine | model | backend | RTF p50 | RTF p90 | synth p50 (s) | synth p90 (s) | TTFA p50 (s) | TTFA p90 (s) | cgroup MiB | anon MiB | GPU W |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | 🥇 paradee-tts | paradee 8M int8 (GPU) | cuda | $\color{#3fb950}{\text{0.0160}}$ | $\color{#3fb950}{\text{0.0374}}$ | $\color{#3fb950}{\text{0.1240}}$ | $\color{#3fb950}{\text{0.1607}}$ | 0.0869 | 0.1402 | 1,440 | 1,371 | 12 |
-| 🥈 wyoming-piper1-tts | piper1-tts libritts-r medium | cuda | 0.0338 | 0.0995 | 0.1553 | 0.1709 | 0.1553 | 0.1709 | 1,159 | 1,106 | 11 |
+| 🥈 piper1-tts | piper1-tts libritts-r medium | cuda | 0.0338 | 0.0995 | 0.1553 | 0.1709 | 0.1553 | 0.1709 | 1,159 | 1,106 | 11 |
 | 🥉 phonon31m-tts | phonon-31m (CPU) | cpu | 0.1101 | 0.1201 | 0.6675 | 1.9145 | 0.1198 | 0.1631 | 536 | 527 | — (CPU) |
 | paradee-tts | paradee 8M int8 (CPU) | cpu | 0.0577 | 0.0706 | 0.4403 | 1.3019 | 0.4342 | 1.3010 | 1,977 | 1,916 | — (CPU) |
 | kokoro-tts | kokoro 82M int8 | cuda | 0.0504 | 0.0900 | 0.3421 | 0.8059 | 0.3134 | 0.8039 | 1,549 | 1,429 | 14 |
@@ -308,8 +308,8 @@ their TTFA equals the synth p50/p90.*
 
 ```
 packages/             the images — packages/<stt|tts|llm>/<name>/
-  stt/                  speech recognition: wyoming-faster-whisper, nemotron-unified-asr, parakeet-redux-stt, phonon2-stt, moonshine-streaming-stt, canary-flash-stt, parakeet-tdt-stt, nemotron-streaming-stt
-  tts/                  speech synthesis: wyoming-piper1-tts, kokoro-tts, phonon31m-tts, paradee-tts, pocket-tts
+  stt/                  speech recognition: faster-whisper-stt, nemotron-unified-asr, parakeet-redux-stt, phonon2-stt, moonshine-streaming-stt, canary-flash-stt, parakeet-tdt-stt, nemotron-streaming-stt
+  tts/                  speech synthesis: piper1-tts, kokoro-tts, phonon31m-tts, paradee-tts, pocket-tts
   llm/                  LLM runtime (outside the voice stack)
 builders/             shared artifact builders (wheels-cu132, parakeet-cpp) — not shipped
 bench/                spec-driven benchmark harness (datasets, engines, probes, metrics)

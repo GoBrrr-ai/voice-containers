@@ -831,9 +831,9 @@ def tts_memory(rows: list[dict], mode: Mode = DARK):
 # Vector tuple: (target, worst, weight). Score is ABSOLUTE, not
 # cohort-relative — 1.0 at/beyond the target, 0.0 at the worst-acceptable
 # bound, log-linear in between — so adding engines never rewrites history
-# and the anchors are deployment facts (HA's 300 ms gate, the Orin Nano
-# 8 GB voice budget), not chart artifacts. target > worst marks a
-# higher-is-better metric (e.g. MOS).
+# and the anchors are deployment facts (the 300 ms interactive-response
+# gate, the Orin Nano 8 GB voice budget), not chart artifacts. target > worst
+# marks a higher-is-better metric (e.g. MOS).
 #
 # Latency/RTF vectors bind the TAIL (p95; TTFA p90 is the only percentile
 # recorded) — averages hide the multi-second spikes that make an

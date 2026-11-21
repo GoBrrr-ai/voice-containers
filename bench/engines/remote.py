@@ -1,4 +1,4 @@
-"""Remote engine adapters — voice-api v1 (docs/voice-api.md) + wyoming TCP.
+"""Remote engine adapters — voice-api v1 (docs/voice-api.md) HTTP clients.
 
 Serve mode (runner branch in bench/runner.py): the engine image runs its own
 voice-server (`docker run -d`, the image CMD serves), and client.py drives it
@@ -9,19 +9,14 @@ synthesize / synthesize_stream), so run_sample is untouched.
 Timing (spec 5.1): proc_ns / synth_ns include loopback transport overhead —
 identical for every engine in the roster, which is what keeps RTF comparable
 (and matches how a real deployment calls these servers). No host-side
-_sync_cuda: the compute happens in the server container, and the HTTP/TCP
+_sync_cuda: the compute happens in the server container, and the HTTP
 round trip is the completion point.
 
-Deps (bench/.venv only — images stay stdlib): openai, wyoming==1.10.2, numpy.
-
-Wyoming wire note: AsyncTcpClient.read_event() returns GENERIC Events —
-isinstance() never matches. The pattern is X.is_type(ev.type) +
-X.from_event(ev).
+Deps (bench/.venv only — images stay stdlib): openai, numpy.
 """
 
 from __future__ import annotations
 
-import asyncio
 import io
 import time
 import wave
@@ -243,140 +238,14 @@ class OpenAITTSRemote:
                 yield np.frombuffer(buf[: len(buf) // 2 * 2], dtype=np.int16), sr
 
 
-# ------------------------------------------------------------------ Wyoming
-class WyomingTTSRemote:
-    """Wyoming TTS (AudioStart/AudioChunk/AudioStop) — HA-native pair."""
-
-    backends = {"cuda", "cpu"}
-    supports_streaming = True
-
-    def __init__(self, engine: str, host: str, port: int, opts: dict):
-        self.name = engine
-        self.host, self.port = host, int(port)
-        self.output_sample_rate = 22050
-
-    def load(self, opts: dict) -> None:
-        pass
-
-    def actual_backend(self) -> str:
-        return "remote:wyoming"
-
-    def synthesize_stream(self, text: str):
-        from wyoming.audio import AudioChunk, AudioStart, AudioStop
-        from wyoming.client import AsyncTcpClient
-        from wyoming.tts import Synthesize
-
-        async def _gen():
-            async with AsyncTcpClient(self.host, self.port) as client:
-                await client.write_event(Synthesize(text=text).event())
-                while True:
-                    # bounded: a wedged server must surface as an error row,
-                    # never hang the borrowed clean GPU window
-                    ev = await asyncio.wait_for(client.read_event(), 600)
-                    if ev is None:
-                        return
-                    t = ev.type
-                    if AudioStart.is_type(t):
-                        ev = AudioStart.from_event(ev)
-                        self.output_sample_rate = ev.rate
-                    elif AudioChunk.is_type(t):
-                        ev = AudioChunk.from_event(ev)
-                        yield np.frombuffer(ev.audio, dtype=np.int16), ev.rate
-                    elif AudioStop.is_type(t):
-                        return
-
-        loop = asyncio.new_event_loop()
-        try:
-            it = _gen().__aiter__()
-            while True:
-                try:
-                    yield loop.run_until_complete(it.__anext__())
-                except StopAsyncIteration:
-                    break
-        finally:
-            try:
-                loop.run_until_complete(it.aclose())
-            except Exception:
-                pass
-            loop.close()
-
-    def synthesize(self, text: str):
-        chunks, sr = [], None
-        for pcm, r in self.synthesize_stream(text):
-            chunks.append(pcm)
-            sr = r
-        return np.concatenate(chunks), sr
-
-
-class WyomingSTTRemote:
-    """Wyoming ASR: AudioStart(rate) -> AudioChunk* -> AudioStop -> Transcript."""
-
-    backends = {"cuda", "cpu"}
-    supports_streaming = False
-    required_sample_rate = 16000
-
-    def __init__(self, engine: str, host: str, port: int, opts: dict):
-        self.name = engine
-        self.host, self.port = host, int(port)
-
-    def load(self, opts: dict) -> None:
-        pass
-
-    def actual_backend(self) -> str:
-        return "remote:wyoming"
-
-    def transcribe(self, pcm, sr: int, wav_path: str | None = None) -> str:
-        from wyoming.asr import Transcript, Transcribe
-        from wyoming.audio import AudioChunk, AudioStart, AudioStop
-        from wyoming.client import AsyncTcpClient
-
-        if wav_path:
-            with wave.open(wav_path, "rb") as w:
-                pcm = w.readframes(w.getnframes())
-                sr = w.getframerate()
-        elif isinstance(pcm, np.ndarray):
-            pcm = pcm.astype(np.int16).tobytes()
-
-        async def _main() -> str:
-            async with AsyncTcpClient(self.host, self.port) as client:
-                await client.write_event(Transcribe().event())
-                await client.write_event(
-                    AudioStart(rate=int(sr), width=2, channels=1).event()
-                )
-                view = memoryview(pcm)
-                step = 4096  # bytes; server buffers, size is arbitrary
-                for off in range(0, len(view), step):
-                    await client.write_event(
-                        AudioChunk(
-                            audio=bytes(view[off : off + step]),
-                            rate=int(sr),
-                            width=2,
-                            channels=1,
-                        ).event()
-                    )
-                await client.write_event(AudioStop().event())
-                while True:
-                    ev = await asyncio.wait_for(client.read_event(), 600)
-                    if ev is None:
-                        # server closed before Transcript — an honest error row
-                        # beats a silent empty transcript that poisons WER
-                        raise ConnectionError("wyoming server closed before Transcript")
-                    if Transcript.is_type(ev.type):
-                        return Transcript.from_event(ev).text
-
-        return asyncio.run(_main()).strip()
-
-
 # ------------------------------------------------------------------ factory
 def build(task: str, serve: dict, engine: str, opts: dict):
     """Construct the serve-mode adapter for one job (client.py main())."""
     transport = serve["transport"]
     host = serve.get("host", "127.0.0.1")
     port = int(serve["host_port"])
-    if transport == "openai":
-        cls = OpenAISTTRemote if task == "stt" else OpenAITTSRemote
-    elif transport == "wyoming":
-        cls = WyomingSTTRemote if task == "stt" else WyomingTTSRemote
-    else:
+    if transport != "openai":
         raise ValueError(f"unknown serve transport {transport!r}")
-    return cls(engine, host, port, opts)
+    return (OpenAISTTRemote if task == "stt" else OpenAITTSRemote)(
+        engine, host, port, opts
+    )

@@ -42,10 +42,9 @@ CLI equivalent: `ptts --model /models/phonon-31m-en --lang en --quant q8 --voice
 `TTS_PORT=8880`. The stdlib-only `tts-stream-server` (no extra deps) streams
 chunked WAV on `/say?text=...&voice=...` and answers `/health`.
 
-**Wyoming**: upstream ships a Home-Assistant Wyoming server
-([phonon-home-assistant](https://github.com/gradium-ai/phonon-home-assistant),
-port 10200) built from their Rust source — wire it to the same baked
-`/models` dir if you want HA-native TTS.
+**Legacy server**: upstream also ships a standalone TCP server built from
+their Rust source — wire it to the same baked `/models` dir if you ever need
+a non-HTTP listener.
 
 ## Server (voice-api v1)
 

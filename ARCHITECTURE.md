@@ -29,10 +29,10 @@ builders/parakeet-cpp  →  narandill/edge-builder:parakeet-cpp
 │
 builders/wheels-cu132  →  narandill/edge-wheels:cu132
 │   onnxruntime-gpu 1.31.1 (sm_87+sm_90a+sm_110a SASS, sm_110a PTX)
-│   + ctranslate2 4.8.4 + wyoming forks — 75-min source build, do NOT rebuild casually
+│   + ctranslate2 4.8.4 — 75-min source build, do NOT rebuild casually
 │   consumed via ARG WHEELS_IMAGE / ORT_WHEEL_IMAGE — nine images:
-│   ├── wyoming-faster-whisper   (whisper via wyoming, HA-native protocol)
-│   ├── wyoming-piper1-tts       (piper via wyoming; no-tempfile fork patch)
+│   ├── faster-whisper-stt       (whisper on CTranslate2, voice-api HTTP)
+│   ├── piper1-tts               (piper on onnxruntime-gpu, voice-api HTTP)
 │   ├── parakeet-tdt-stt         (CTranslate2 int8)
 │   ├── parakeet-tdt-ort-stt     (onnxruntime int4)
 │   ├── moonshine-streaming-stt  (CPU bundle + CUDA ORT variant, auto-selected)
@@ -50,9 +50,9 @@ standalone (no shared deps):
 Every engine image carries one version tag + `latest`; both boards are served
 by the **same image** — sm_87 and sm_110(a) cubins baked side by side.
 
-The HTTP surface of every non-wyoming voice image is the shared contract in
-[`docs/voice-api.md`](docs/voice-api.md) (OpenAI-compatible; wyoming pair is
-HA-native and out of scope).
+The HTTP surface of every voice image is the shared contract in
+[`docs/voice-api.md`](docs/voice-api.md) (OpenAI-compatible endpoints, one
+schema for STT and TTS alike).
 
 ## Decoupling recipes (standalone-repo migration)
 

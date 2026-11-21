@@ -1,6 +1,6 @@
 # Thor TTS baseline — LibriTTS-R test.clean text, 500 sentences, seed 42
 # 2026-11-03: serve-mode flip (D20) — every image with a voice-api v1 server
-# is benched through it; piper stays wyoming-native (HA pair). Engine ids and
+# is benched through it; piper runs through its own voice-api server. Engine ids and
 # order are PRESERVED from the pre-serve baseline (matrix dedup keys on
 # (cohort, engine_id, backend); names.py maps images to display names).
 # pocket-tts: 0.1.0/0.2.0 superseded by the one-version-each 0.3.0 image
@@ -42,10 +42,10 @@ engines:
     opts:
       version: "1.2"
       quantized: true
-  - name: piper                   # the wave-1 TTS baseline, wyoming-native
-    image: narandill/wyoming-piper1-tts:0.1.0
+  - name: piper                   # the wave-1 TTS baseline, voice-api serve
+    image: narandill/piper1-tts:0.2.0
     backends: [cuda]
-    serve: {port: 10200, transport: wyoming}   # voice baked in-image; no HF at boot
+    serve: {port: 8091, transport: openai}   # voice baked in-image; no HF at boot
     opts:
       voice: en_US-libritts_r-medium
   - name: pocket_tts              # Kyutai Pocket TTS 100M (official pkg, CPU)
